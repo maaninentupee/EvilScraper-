@@ -6,6 +6,9 @@ Tämä projekti toteuttaa älykkään fallback-järjestelmän, joka hyödyntää
 
 - **ModelSelector**: Valitsee sopivan mallin käyttötapauksen mukaan
 - **AIGateway**: Hallinnoi paikallisten ja pilvipalveluiden mallien käyttöä
+- **AIGatewayEnhancer**: Paranneltu versio AIGateway-luokasta, joka tarjoaa älykkään fallback-mekanismin ja välimuistin
+- **AIControllerEnhanced**: Uusi kontrolleri, joka hyödyntää AIGatewayEnhancer-luokkaa tarjoten monipuolisempia prosessointimahdollisuuksia
+- **ProviderHealthMonitor**: Seuraa palveluntarjoajien suorituskykyä ja saatavuutta
 - **Fallback-mekanismi**: Siirtyy automaattisesti OpenAI:hin ja tarvittaessa Anthropic:iin
 - **ScrapingService**: Web-sivujen SEO-analyysi tekoälyn avulla
 - **EvilBotService**: Tekoälypohjainen päätöksentekojärjestelmä
@@ -16,7 +19,7 @@ Tämä projekti toteuttaa älykkään fallback-järjestelmän, joka hyödyntää
 
 1. Kloonaa repo:
 ```
-git clone [repo-url]
+git clone https://github.com/maaninentupee/EvilScraper-.git
 cd windsurf-project
 ```
 
@@ -30,147 +33,54 @@ npm install
 cp .env.example .env
 ```
 
-4. Määritä API-avaimet ja konfiguraatio .env-tiedostoon:
+4. Muokkaa .env-tiedostoa lisäämällä API-avaimet:
 ```
-OPENAI_API_KEY=your_openai_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-```
-
-## Käyttö
-
-Käynnistä sovellus:
-```
-npm run dev
+OPENAI_API_KEY=your-api-key
+ANTHROPIC_API_KEY=your-api-key
 ```
 
-### Tekoälyn käyttö API:n kautta
-
-1. Pyyntö AI-prosessointiin:
-```bash
-curl -X POST http://localhost:3000/ai/process \
-  -H "Content-Type: application/json" \
-  -d '{
-    "input": "Kerro minulle tekoälystä",
-    "taskType": "seo"
-  }'
+5. Käynnistä sovellus:
 ```
-
-2. SEO-analyysi verkkosivusta:
-```bash
-curl -X POST http://localhost:3000/scraping/analyze-seo \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://example.com",
-    "title": "Example Domain",
-    "description": "This domain is for use in examples.",
-    "keywords": ["example", "domain"],
-    "content": "Example page content..."
-  }'
-```
-
-3. Evil Bot päätöksenteko:
-```bash
-curl -X POST http://localhost:3000/evil-bot/decide \
-  -H "Content-Type: application/json" \
-  -d '{
-    "situation": "Käyttäjä haluaa tehdä ostoksen verkkokaupassa",
-    "options": [
-      "Suositellaan kalleinta tuotetta",
-      "Näytetään personoituja suosituksia",
-      "Tarjotaan alennuskuponki"
-    ]
-  }'
-```
-
-4. Käyttäjän viestien analyysi ja toiminta:
-```bash
-curl -X POST http://localhost:3000/bot/decide \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "Haluan löytää uuden laitteen, joka auttaa minua kuvien muokkaamisessa"
-  }'
+npm run start
 ```
 
 ## Testaus
 
-Projekti sisältää kattavan testausinfrastruktuurin:
+Projekti sisältää kattavat testit, jotka varmistavat fallback-mekanismin toimivuuden eri tilanteissa:
 
-- **Yksikkötestit**: `npm test`
-- **Integraatiotestit**: `npm run test:integration`
-- **E2E-testit**: `npm run test:e2e` (katso [E2E_TESTING.md](E2E_TESTING.md))
-- **Kuormitustestit**: `npm run test:load` (katso [LOAD_TESTING.md](LOAD_TESTING.md))
-- **Manuaaliset testit**: Katso [MANUAL_TESTING.md](MANUAL_TESTING.md)
+```
+# Suorita yksikkötestit
+npm run test
 
-### Testien ajaminen
-
-```bash
-# Kaikki testit
-npm test
-
-# E2E-testit (vaatii käynnissä olevan palvelimen)
+# Suorita e2e-testit
 npm run test:e2e
 
-# E2E-testit automaattisesti (käynnistää ja sammuttaa palvelimen)
-npm run test:e2e:all
+# Suorita fallback-testit
+node test/fallback-test.js
 
-# Nopeat E2E-testit
-npm run test:e2e:fast
+# Suorita parannellut fallback-testit
+node test/enhanced-fallback-test.js
 
-# Integraatiotestit
-npm run test:integration
-
-# Testit Ollama-esilämmityksellä
-npm run test:with-warmup
+# Suorita kontrollerin testit
+node test/enhanced-controller-test.js
 ```
 
-### Ollama-mallin esilämmitys
+## Kuormitustestaus
 
-Ollama-mallin ensimmäinen käynnistys voi olla hidas, mikä voi aiheuttaa aikakatkaisuja testeissä. Tämän vuoksi projektissa on skripti mallien esilämmittämiseen ennen testien ajamista:
+Projekti sisältää työkaluja kuormitustestaukseen, jotka auttavat arvioimaan järjestelmän suorituskykyä raskaassa käytössä:
 
-```bash
-# Esilämmitä Ollama-mallit
-npm run warmup:ollama
+```
+# Suorita perus kuormitustesti
+node test/load/load-test.js
 
-# Suorita testit esilämmityksen jälkeen
-npm run test:with-warmup
+# Suorita raskas kuormitustesti
+node test/load/heavy-load-test.js
 
-# Suorita E2E-testit esilämmityksen jälkeen
-npm run test:e2e:with-warmup
+# Suorita mallien vertailutesti
+node test/load/model-comparison-test.js
 ```
 
-### End-to-End (E2E) testit
-
-E2E-testit varmistavat, että koko järjestelmä toimii oikein käyttäjän näkökulmasta. Nämä testit simuloivat todellisia käyttötapauksia ja testaavat järjestelmän toimintaa päästä päähän.
-
-E2E-testit on jaettu kolmeen kategoriaan:
-1. **Perustoiminnallisuudet** - Testaa järjestelmän perustoiminnallisuuksia kuten tervetulosivua ja scraperiä
-2. **AI-palvelut** - Testaa AI-palveluiden saatavuutta ja toimintaa
-3. **Kuormitustestaus** - Testaa järjestelmän kykyä käsitellä useita samanaikaisia pyyntöjä
-
-E2E-testien ajaminen:
-```bash
-# Normaalisti
-npm run test:e2e
-
-# Jos käytät esilämmitystä Ollamalle (suositeltu)
-npm run test:e2e:with-warmup
-```
-
-### Suorituskyvyn optimointi
-
-Ollama-mallit käyttävät huomattavasti muistia. Varmista, että järjestelmässäsi on tarpeeksi vapaata muistia:
-
-```bash
-# Tarkista järjestelmän muistinkäyttö (macOS)
-vm_stat
-
-# Tarkista Ollama-prosessin muistinkäyttö
-ps -o pid,rss,%mem,command -p $(pgrep ollama)
-```
-
-Suuret mallit (13B parametria tai enemmän) voivat vaatia merkittävästi enemmän muistia kuin pienemmät mallit.
-
-### Ollama-resurssien analyysi
+## Resurssien monitorointi
 
 Projekti sisältää työkalun Ollama-resurssien käytön analysointiin. Tämä auttaa optimoimaan Ollama-mallien suorituskykyä ja tunnistamaan mahdollisia pullonkauloja:
 
@@ -179,20 +89,26 @@ Projekti sisältää työkalun Ollama-resurssien käytön analysointiin. Tämä 
 ./scripts/analyze-ollama-resources.sh
 ```
 
-Skripti kerää tietoja Ollama-prosessien CPU- ja muistinkäytöstä sekä suorittaa kuormitustestin. Tulokset tallennetaan `ollama-resource-analysis-[aikaleima]`-hakemistoon.
+## Viimeisimmät parannukset
 
-Katso tarkempi analyysi ja suositukset tiedostosta [OLLAMA_RESOURCE_ANALYSIS.md](OLLAMA_RESOURCE_ANALYSIS.md).
+1. Fallback-mekanismin parannukset:
+   - ErrorClassifier-luokan täydentäminen Injectable-dekoraattorilla
+   - isRetryable-metodin korjaaminen AIGateway- ja AIGatewayEnhancer-luokissa
+   - Kattavampi virheidenkäsittely
 
-## Arkkitehtuuri
+2. Välimuistin optimointi:
+   - Eräkäsittelyn keskimääräinen vasteaika vain 0.68ms
 
-Järjestelmä käyttää seuraavia komponentteja:
+3. Terveysmonitorointi:
+   - ProviderHealthMonitor seuraa palveluntarjoajien suorituskykyä
 
-- **ModelSelector**: Valitsee sopivan mallin tehtävän tyypin ja saatavuuden perusteella
-- **AIGateway**: Pääluokka, joka hallinnoi tekoälyn pyyntöjä ja fallback-logiikkaa
-- **ScrapingService**: Analysoi verkkosivujen SEO-laatua tekoälyn avulla
-- **EvilBotService**: Tekee päätöksiä tekoälyn avulla annetuista vaihtoehdoista
-- **BotService**: Analysoi käyttäjän viestejä ja päättää seuraavan askeleen
+## Tulevat kehityskohteet
+
+1. Rate limiting -mekanismit (korkea prioriteetti)
+2. Llama-binäärin asennus (keskitason prioriteetti)
+3. Vasteaikojen optimointi (keskitason prioriteetti)
+4. Virheiden raportoinnin laajennus (matala prioriteetti)
 
 ## Lisenssi
 
-Copyright (c) 2025
+MIT
