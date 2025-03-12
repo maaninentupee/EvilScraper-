@@ -1,0 +1,15 @@
+Malli,Keskimääräinen vasteaika (ms),P95 vasteaika (ms),Onnistumisprosentti
+OpenAI (gpt-3.5-turbo),1654.30,2503.55,100.00%
+Anthropic (claude-instant-1),185.38,232.00,100.00%
+Ollama (llama2),2.55,4.00,100.00%
+
+Yleiset metriikat
+Kokonaispyyntöjen määrä,58
+Onnistuneet pyynnöt,58
+Epäonnistuneet pyynnöt,0
+Virheprosentti,0.00
+
+Virhetyypit
+Timeout-virheet,0
+Palvelinvirheet,0
+Asiakasvirheet,0

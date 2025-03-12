@@ -1,0 +1,20 @@
+Processes: 410 total, 2 running, 408 sleeping, 2709 threads 
+2025/03/03 00:14:41
+Load Avg: 2.06, 3.42, 3.66 
+CPU usage: 33.96% user, 22.78% sys, 43.24% idle 
+SharedLibs: 230M resident, 48M data, 38M linkedit.
+MemRegions: 547746 total, 1361M resident, 42M private, 9361M shared.
+PhysMem: 15G used (1454M wired, 3177M compressor), 91M unused.
+VM: 208T vsize, 5536M framework vsize, 1925617(0) swapins, 2365025(0) swapouts.
+Networks: packets: 11650647/4124M in, 8937888/3977M out.
+Disks: 12593565/551G read, 2188445/65G written.
+
+PID    COMMAND          %CPU TIME     #TH   #WQ #PORTS MEM   PURG CMPRS PGRP  PPID  STATE    BOOSTS        %CPU_ME %CPU_OTHRS UID FAULTS    COW    MSGSENT   MSGRECV   SYSBSD    SYSMACH   CSW        PAGEINS IDLEW    POWER INSTRS CYCLES JETPRI USER               #MREGS RPRVT VPRVT VSIZE KPRVT KSHRD
+61860  tee              0.0  00:00.00 1     0   11     865K  0B   0B    61778 61778 sleeping *0[1]         0.00000 0.00000    501 212       53     27        13        119       58        6          1       0        0.0   0      0      180    customer           N/A    N/A   N/A   N/A   N/A   N/A  
+61859  head             0.0  00:00.00 1     0   11     785K  0B   0B    61778 61778 sleeping *0[1]         0.00000 0.00000    501 203       52     27        13        122       55        4          2       0        0.0   0      0      180    customer           N/A    N/A   N/A   N/A   N/A   N/A  
+61858  top              0.0  00:00.54 1/1   0   18     4097K 0B   0B    61778 61778 running  *0[1]         0.00000 0.00000    0   900       91     1121364   560681    2202      564680    1970       2       0        0.0   0      0      180    root               N/A    N/A   N/A   N/A   N/A   N/A  
+61812  Microsoft Edge H 0.0  00:00.09 13    1   116    37M   0B   28M   40667 40667 sleeping *0[74]        0.00000 0.00000    501 9934      1405   694       526       2458      2788      919        38      1        0.0   0      0      180    customer           N/A    N/A   N/A   N/A   N/A   N/A  
+61811  ollama           0.0  00:00.83 13    3   69     1638M 0B   1108M 40081 40106 sleeping *0[1]         0.00000 0.00000    501 107526    200    358       158       4030      1364      21406      7167    3        0.0   0      0      180    customer           N/A    N/A   N/A   N/A   N/A   N/A  
+61809  mdworker_shared  0.0  00:00.13 4     1   56     3969K 0B   1280K 61809 1     sleeping *0[1]         0.00000 0.00000    501 2433      159    397       159       1964      515       621        69      0        0.0   0      0      0      customer           N/A    N/A   N/A   N/A   N/A   N/A  
+61808  icloudmailagent  0.0  00:00.03 1     0   29     2161K 0B   1872K 61808 1     sleeping *0[1]         0.00000 0.00000    501 654       140    99        34        323       206       192        43      0        0.0   0      0      0      customer           N/A    N/A   N/A   N/A   N/A   N/A  
+61807  WirelessRadioMan 0.0  00:00.06 2     1   62     3457K 0B   3088K 61807 1     sleeping *0[1]         0.00000 0.00000    0   989       150    266       129       958       478       298        142     0        0.0   0      0      0      root               N/A    N/A   N/A   N/A   N/A   N/A  

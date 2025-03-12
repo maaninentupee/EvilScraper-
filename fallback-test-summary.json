@@ -1,0 +1,36 @@
+{
+  "timestamp": "2025-03-11T23:14:52.406Z",
+  "duration": 20500.949,
+  "iterations": 261,
+  "metrics": {
+    "error_rate": 100,
+    "fallback_success_rate": 0,
+    "response_time": {
+      "avg": 0.47126436781609193,
+      "p95": 1
+    },
+    "requests": {
+      "successful": 0,
+      "failed": 261,
+      "total": 261
+    },
+    "errors": {
+      "timeout": 0,
+      "server": 0,
+      "client": 0,
+      "other": 261
+    },
+    "models": {
+      "openai": {
+        "success_rate": 0
+      },
+      "anthropic": {
+        "success_rate": 0
+      },
+      "ollama": {
+        "success_rate": 0
+      }
+    }
+  },
+  "logs": []
+}

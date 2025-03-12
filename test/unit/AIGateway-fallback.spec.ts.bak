@@ -1,0 +1,316 @@
+import { AIGateway } from '../../src/services/AIGateway';
+import { ModelSelector } from '../../src/services/ModelSelector';
+import { LocalProvider } from '../../src/services/providers/LocalProvider';
+import { OpenAIProvider } from '../../src/services/providers/OpenAIProvider';
+import { AnthropicProvider } from '../../src/services/providers/AnthropicProvider';
+import { LMStudioProvider } from '../../src/services/providers/LMStudioProvider';
+import { OllamaProvider } from '../../src/services/providers/OllamaProvider';
+import { environment } from '../../src/config/environment';
+
+describe('AIGateway - Fallback-mekanismi', () => {
+    let aiGateway: AIGateway;
+    let mockModelSelector: jest.Mocked<ModelSelector>;
+    let mockLocalProvider: jest.Mocked<LocalProvider>;
+    let mockOpenAIProvider: jest.Mocked<OpenAIProvider>;
+    let mockAnthropicProvider: jest.Mocked<AnthropicProvider>;
+    let mockLMStudioProvider: jest.Mocked<LMStudioProvider>;
+    let mockOllamaProvider: jest.Mocked<OllamaProvider>;
+
+    beforeEach(() => {
+        // Luodaan mock-toteutukset kaikille palveluntarjoajille
+        mockModelSelector = {
+            getModel: jest.fn(),
+            isLocalModel: jest.fn(),
+            isOpenAIModel: jest.fn(),
+            isAnthropicModel: jest.fn(),
+            isOllamaModel: jest.fn(),
+            isLMStudioModel: jest.fn()
+        } as unknown as jest.Mocked<ModelSelector>;
+
+        mockLocalProvider = {
+            generateCompletion: jest.fn(),
+            getName: jest.fn().mockReturnValue('Local'),
+            getServiceStatus: jest.fn().mockReturnValue({ isAvailable: true })
+        } as unknown as jest.Mocked<LocalProvider>;
+
+        mockOpenAIProvider = {
+            generateCompletion: jest.fn(),
+            getName: jest.fn().mockReturnValue('OpenAI'),
+            getServiceStatus: jest.fn().mockReturnValue({ isAvailable: true })
+        } as unknown as jest.Mocked<OpenAIProvider>;
+
+        mockAnthropicProvider = {
+            generateCompletion: jest.fn(),
+            getName: jest.fn().mockReturnValue('Anthropic'),
+            getServiceStatus: jest.fn().mockReturnValue({ isAvailable: true })
+        } as unknown as jest.Mocked<AnthropicProvider>;
+
+        mockLMStudioProvider = {
+            generateCompletion: jest.fn(),
+            getName: jest.fn().mockReturnValue('LM Studio'),
+            getServiceStatus: jest.fn().mockReturnValue({ isAvailable: true })
+        } as unknown as jest.Mocked<LMStudioProvider>;
+
+        mockOllamaProvider = {
+            generateCompletion: jest.fn(),
+            getName: jest.fn().mockReturnValue('Ollama'),
+            getServiceStatus: jest.fn().mockReturnValue({ isAvailable: true })
+        } as unknown as jest.Mocked<OllamaProvider>;
+
+        // Määritellään default-paluuarvot mockeille
+        mockModelSelector.getModel.mockImplementation((taskType, provider) => {
+            if (provider === 'openai' || provider === undefined) {
+                return 'gpt-4-turbo';
+            } else if (provider === 'anthropic') {
+                return 'claude-3-opus-20240229';
+            } else if (provider === 'lmstudio') {
+                return 'mistral-7b-instruct-v0.2';
+            } else if (provider === 'ollama') {
+                return 'mistral';
+            } else {
+                // local provider
+                return 'mistral-7b-instruct-q8_0.gguf';
+            }
+        });
+        
+        mockModelSelector.isLocalModel.mockImplementation((model) => {
+            return model && model.endsWith('.gguf');
+        });
+        
+        mockModelSelector.isOpenAIModel.mockImplementation((model) => {
+            return model && model.startsWith('gpt-');
+        });
+        
+        mockModelSelector.isAnthropicModel.mockImplementation((model) => {
+            return model && model.startsWith('claude-');
+        });
+        
+        mockModelSelector.isOllamaModel.mockImplementation((model) => {
+            return model === 'mistral' || model === 'llama2';
+        });
+        
+        mockModelSelector.isLMStudioModel.mockImplementation((model) => {
+            return model && model.includes('mistral-7b-instruct-v0.2');
+        });
+
+        aiGateway = new AIGateway(
+            mockModelSelector,
+            mockLocalProvider,
+            mockOpenAIProvider,
+            mockAnthropicProvider,
+            mockLMStudioProvider,
+            mockOllamaProvider
+        );
+    });
+
+    it('should use fallback when the primary provider fails', async () => {
+        // Määritetään, että ensisijainen palveluntarjoaja (Local) epäonnistuu
+        mockModelSelector.getModel.mockReturnValue('mistral-7b-instruct-q8_0.gguf');
+        mockModelSelector.isLocalModel.mockReturnValue(true);
+
+        // Local provider epäonnistuu
+        mockLocalProvider.generateCompletion.mockResolvedValueOnce({
+            success: false,
+            error: 'Local provider error',
+        });
+
+        // OpenAI provider onnistuu
+        mockOpenAIProvider.generateCompletion.mockResolvedValueOnce({
+            success: true,
+            text: 'OpenAI response',
+        });
+
+        // Kutsutaan fallback-mekanismia käyttävää metodia
+        const result = await aiGateway.processAIRequestWithFallback('seo', 'Test input');
+
+        // Varmistetaan, että tulos on odotettu
+        expect(result).toEqual({
+            result: 'OpenAI response',
+            model: expect.any(String),
+            latency: expect.any(Number),
+            provider: 'openai',
+            wasFailover: true
+        });
+
+        // Varmistetaan, että molempia providereita kutsuttiin
+        expect(mockLocalProvider.generateCompletion).toHaveBeenCalled();
+        expect(mockOpenAIProvider.generateCompletion).toHaveBeenCalled();
+    });
+
+    it('should try multiple fallbacks until finding a working provider', async () => {
+        // Määritetään, että ensisijainen palveluntarjoaja (Local) epäonnistuu
+        mockModelSelector.getModel.mockReturnValue('mistral-7b-instruct-q8_0.gguf');
+        mockModelSelector.isLocalModel.mockReturnValue(true);
+
+        // Local provider epäonnistuu
+        mockLocalProvider.generateCompletion.mockResolvedValueOnce({
+            success: false,
+            error: 'Local provider error',
+        });
+
+        // OpenAI provider epäonnistuu
+        mockOpenAIProvider.generateCompletion.mockResolvedValueOnce({
+            success: false,
+            error: 'OpenAI provider error',
+        });
+
+        // Anthropic provider onnistuu
+        mockAnthropicProvider.generateCompletion.mockResolvedValueOnce({
+            success: true,
+            text: 'Anthropic response',
+        });
+
+        // Kutsutaan fallback-mekanismia käyttävää metodia
+        const result = await aiGateway.processAIRequestWithFallback('seo', 'Test input');
+
+        // Varmistetaan, että tulos on odotettu
+        expect(result).toEqual({
+            result: 'Anthropic response',
+            model: expect.any(String),
+            latency: expect.any(Number),
+            provider: 'anthropic',
+            wasFailover: true
+        });
+
+        // Varmistetaan, että kaikkia kolmea provideria kutsuttiin
+        expect(mockLocalProvider.generateCompletion).toHaveBeenCalled();
+        expect(mockOpenAIProvider.generateCompletion).toHaveBeenCalled();
+        expect(mockAnthropicProvider.generateCompletion).toHaveBeenCalled();
+    });
+
+    it('should return error object when all providers fail', async () => {
+        // Määritetään, että kaikki palveluntarjoajat epäonnistuvat
+        mockLocalProvider.generateCompletion.mockResolvedValue({
+            success: false,
+            error: 'Local provider error',
+        });
+
+        mockOpenAIProvider.generateCompletion.mockResolvedValue({
+            success: false,
+            error: 'OpenAI provider error',
+        });
+
+        mockAnthropicProvider.generateCompletion.mockResolvedValue({
+            success: false,
+            error: 'Anthropic provider error',
+        });
+
+        mockLMStudioProvider.generateCompletion.mockResolvedValue({
+            success: false,
+            error: 'LM Studio provider error',
+        });
+
+        mockOllamaProvider.generateCompletion.mockResolvedValue({
+            success: false,
+            error: 'Ollama provider error',
+        });
+
+        // Kutsutaan fallback-mekanismia käyttävää metodia
+        const result = await aiGateway.processAIRequestWithFallback('seo', 'Test input');
+
+        // Varmistetaan, että tulos on virhe-objekti
+        expect(result).toHaveProperty('error', true);
+        expect(result).toHaveProperty('message');
+        expect(result.message).toContain('Kaikki AI-palvelut epäonnistuivat');
+    });
+
+    it('should skip unavailable providers during fallback', async () => {
+        // Määritetään, että ensisijainen palveluntarjoaja (Local) epäonnistuu
+        mockModelSelector.getModel.mockReturnValue('mistral-7b-instruct-q8_0.gguf');
+        mockModelSelector.isLocalModel.mockReturnValue(true);
+
+        // Local provider epäonnistuu
+        mockLocalProvider.generateCompletion.mockResolvedValueOnce({
+            success: false,
+            error: 'Local provider error',
+        });
+
+        // OpenAI provider ei ole saatavilla
+        mockOpenAIProvider.getServiceStatus.mockReturnValue({ isAvailable: false });
+
+        // Anthropic provider onnistuu
+        mockAnthropicProvider.generateCompletion.mockResolvedValueOnce({
+            success: true,
+            text: 'Anthropic response',
+        });
+
+        // Kutsutaan fallback-mekanismia käyttävää metodia
+        const result = await aiGateway.processAIRequestWithFallback('seo', 'Test input');
+
+        // Varmistetaan, että tulos on odotettu
+        expect(result).toEqual({
+            result: 'Anthropic response',
+            model: expect.any(String),
+            latency: expect.any(Number),
+            provider: 'anthropic',
+            wasFailover: true
+        });
+
+        // Varmistetaan, että Local provideria kutsuttiin, mutta OpenAI provideria ei
+        expect(mockLocalProvider.generateCompletion).toHaveBeenCalled();
+        expect(mockOpenAIProvider.generateCompletion).not.toHaveBeenCalled();
+        expect(mockAnthropicProvider.generateCompletion).toHaveBeenCalled();
+    });
+
+    it('should retry with the same provider for retryable errors', async () => {
+        // Määritetään, että ensisijainen palveluntarjoaja (Local) epäonnistuu verkkovirheeseen
+        mockModelSelector.getModel.mockReturnValue('mistral-7b-instruct-q8_0.gguf');
+        mockModelSelector.isLocalModel.mockReturnValue(true);
+
+        // Local provider epäonnistuu verkkovirheeseen ensimmäisellä yrityksellä
+        mockLocalProvider.generateCompletion.mockResolvedValueOnce({
+            success: false,
+            error: 'Network error',
+            errorType: 'network_error'
+        });
+
+        // Local provider onnistuu toisella yrityksellä
+        mockLocalProvider.generateCompletion.mockResolvedValueOnce({
+            success: true,
+            text: 'Local response after retry',
+        });
+
+        // Kutsutaan fallback-mekanismia käyttävää metodia
+        const result = await aiGateway.processAIRequestWithFallback('seo', 'Test input');
+
+        // Varmistetaan, että tulos on odotettu
+        expect(result).toEqual({
+            result: 'Local response after retry',
+            model: expect.any(String),
+            wasRetry: true,
+            provider: 'local'
+        });
+
+        // Varmistetaan, että Local provideria kutsuttiin kahdesti
+        expect(mockLocalProvider.generateCompletion).toHaveBeenCalledTimes(2);
+        // Varmistetaan, että muita providereita ei kutsuttu
+        expect(mockOpenAIProvider.generateCompletion).not.toHaveBeenCalled();
+    });
+
+    it('should handle test error simulation correctly', async () => {
+        // Määritetään, että simuloidaan Local provider -virhettä
+        const testInput = 'TEST_LOCAL_ERROR';
+
+        // OpenAI provider onnistuu
+        mockOpenAIProvider.generateCompletion.mockResolvedValueOnce({
+            success: true,
+            text: 'OpenAI response',
+        });
+
+        // Kutsutaan fallback-mekanismia käyttävää metodia
+        const result = await aiGateway.processAIRequestWithFallback('seo', testInput);
+
+        // Varmistetaan, että tulos on odotettu
+        expect(result).toEqual({
+            result: 'OpenAI response',
+            model: expect.any(String),
+            latency: expect.any(Number),
+            provider: 'openai',
+            wasFailover: true
+        });
+
+        // Varmistetaan, että Local provideria ei kutsuttu (simuloitu virhe ohitti sen)
+        expect(mockLocalProvider.generateCompletion).not.toHaveBeenCalled();
+        expect(mockOpenAIProvider.generateCompletion).toHaveBeenCalled();
+    });
+});

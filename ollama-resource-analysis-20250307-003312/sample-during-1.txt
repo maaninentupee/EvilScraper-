@@ -1,0 +1,59 @@
+=== Ollama Process Info ===
+customer         36481  27.5  6.6 417811776 1110800   ??  U    12:35AM   0:00.20 /Applications/Ollama.app/Contents/Resources/ollama runner --model /Users/customer/.ollama/models/blobs/sha256-ff82381e2bea77d91c1b824c7afb83f6fb73e9f7de9dda631bcdbca564aa5435 --ctx-size 8192 --batch-size 512 --n-gpu-layers 33 --threads 4 --parallel 4 --port 62348
+customer         15644   2.8  0.2 412523136  34160   ??  S     9:58PM   0:08.41 /Applications/Ollama.app/Contents/Resources/ollama serve
+customer         36477   0.3  0.0 410425680   4736 s010  S+   12:35AM   0:00.01 curl -X POST http://localhost:3001/ai/load-test/ollama -H Content-Type: application/json -d {"prompt": "Write a function to calculate fibonacci numbers", "iterations": 2}
+customer         36487   0.0  0.0 410068656    992 s010  S+   12:35AM   0:00.00 tee -a ./ollama-resource-analysis-20250307-003312/sample-during-1.txt
+customer         36331   0.0  0.0 410215680   1472 s010  S+   12:33AM   0:00.02 /bin/bash ./scripts/analyze-ollama-resources.sh
+
+=== Process 15644 Memory Info ===
+  PID    RSS %MEM  %CPU COMMAND
+15644  34160  0.2   1.6 /Applications/Ollama.app/Contents/Resources/ollama serve
+=== Process 36481 Memory Info ===
+  PID    RSS %MEM  %CPU COMMAND
+36481 1110800  6.6  20.3 /Applications/Ollama.app/Contents/Resources/ollama runner --model /Users/customer/.ollama/models/blobs/sha256-ff82381e2bea77d91c1b824c7afb83f6fb73e9f7de9dda631bcdbca564aa5435 --ctx-size 8192 --batch-size 512 --n-gpu-layers 33 --threads 4 --parallel 4 --port 62348
+
+=== System Memory Status ===
+Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                3662.
+Pages active:                            322019.
+Pages inactive:                          237874.
+Pages speculative:                        83312.
+Pages throttled:                              0.
+Pages wired down:                        165906.
+Pages purgeable:                             47.
+"Translation faults":                2379354866.
+Pages copy-on-write:                   58833339.
+Pages zero filled:                   1645107156.
+Pages reactivated:                    247118728.
+Pages purged:                           3326798.
+File-backed pages:                       475100.
+Anonymous pages:                         168105.
+Pages stored in compressor:              764260.
+Pages occupied by compressor:            202585.
+Decompressions:                       259301885.
+Compressions:                         276612591.
+Pageins:                               51392406.
+Pageouts:                                130562.
+Swapins:                                3510999.
+Swapouts:                               5171714.
+
+=== System Load ===
+Processes: 353 total, 3 running, 1 stuck, 349 sleeping, 2536 threads 
+2025/03/07 00:35:54
+Load Avg: 2.44, 2.82, 3.42 
+CPU usage: 16.48% user, 20.81% sys, 62.70% idle 
+SharedLibs: 212M resident, 56M data, 41M linkedit.
+MemRegions: 530172 total, 1433M resident, 53M private, 3230M shared.
+PhysMem: 15G used (3102M wired, 3162M compressor), 820M unused.
+VM: 183T vsize, 5536M framework vsize, 3510999(0) swapins, 5171714(0) swapouts.
+Networks: packets: 32950598/9028M in, 24479707/7873M out.
+Disks: 17269334/804G read, 4656053/142G written.
+
+=== Swap Usage ===
+vm.swapusage: total = 3072.00M  used = 2413.19M  free = 658.81M  (encrypted)
+
+=== CPU Usage Per Core ===
+              disk0       cpu    load average
+    KB/t  tps  MB/s  us sy id   1m   5m   15m
+   45.25   48  2.13  14  2 84  2.44 2.82 3.42
+   90.18 13783 1213.83  33 12 55  2.44 2.82 3.42

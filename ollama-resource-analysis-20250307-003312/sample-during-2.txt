@@ -1,0 +1,58 @@
+=== Ollama Process Info ===
+customer         36481   3.1  2.1 417942320 350272   ??  S    12:35AM   0:00.65 /Applications/Ollama.app/Contents/Resources/ollama runner --model /Users/customer/.ollama/models/blobs/sha256-ff82381e2bea77d91c1b824c7afb83f6fb73e9f7de9dda631bcdbca564aa5435 --ctx-size 8192 --batch-size 512 --n-gpu-layers 33 --threads 4 --parallel 4 --port 62348
+customer         15644   1.5  0.2 412662400  38704   ??  S     9:58PM   0:08.48 /Applications/Ollama.app/Contents/Resources/ollama serve
+customer         36542   0.0  0.0 410068656    992 s010  S+   12:36AM   0:00.00 tee -a ./ollama-resource-analysis-20250307-003312/sample-during-2.txt
+customer         36331   0.0  0.0 410215680   1472 s010  S+   12:33AM   0:00.03 /bin/bash ./scripts/analyze-ollama-resources.sh
+
+=== Process 15644 Memory Info ===
+  PID    RSS %MEM  %CPU COMMAND
+15644  38704  0.2  18.7 /Applications/Ollama.app/Contents/Resources/ollama serve
+=== Process 36481 Memory Info ===
+  PID    RSS %MEM  %CPU COMMAND
+36481 350272  2.1   1.7 /Applications/Ollama.app/Contents/Resources/ollama runner --model /Users/customer/.ollama/models/blobs/sha256-ff82381e2bea77d91c1b824c7afb83f6fb73e9f7de9dda631bcdbca564aa5435 --ctx-size 8192 --batch-size 512 --n-gpu-layers 33 --threads 4 --parallel 4 --port 62348
+
+=== System Memory Status ===
+Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                3712.
+Pages active:                            182509.
+Pages inactive:                          166388.
+Pages speculative:                        15384.
+Pages throttled:                              0.
+Pages wired down:                        449534.
+Pages purgeable:                            426.
+"Translation faults":                2379444582.
+Pages copy-on-write:                   58837489.
+Pages zero filled:                   1645139948.
+Pages reactivated:                    247147721.
+Pages purged:                           3326844.
+File-backed pages:                       245678.
+Anonymous pages:                         118603.
+Pages stored in compressor:              752358.
+Pages occupied by compressor:            197992.
+Decompressions:                       259363667.
+Compressions:                         276663646.
+Pageins:                               51608601.
+Pageouts:                                130569.
+Swapins:                                3511199.
+Swapouts:                               5171714.
+
+=== System Load ===
+Processes: 358 total, 4 running, 354 sleeping, 2556 threads 
+2025/03/07 00:36:01
+Load Avg: 2.57, 2.84, 3.43 
+CPU usage: 38.46% user, 17.87% sys, 43.65% idle 
+SharedLibs: 236M resident, 47M data, 37M linkedit.
+MemRegions: 530407 total, 1597M resident, 77M private, 6016M shared.
+PhysMem: 15G used (7019M wired, 3085M compressor), 319M unused.
+VM: 185T vsize, 5536M framework vsize, 3511199(0) swapins, 5171714(0) swapouts.
+Networks: packets: 32952714/9028M in, 24481597/7874M out.
+Disks: 17302385/807G read, 4656219/142G written.
+
+=== Swap Usage ===
+vm.swapusage: total = 3072.00M  used = 2413.19M  free = 658.81M  (encrypted)
+
+=== CPU Usage Per Core ===
+              disk0       cpu    load average
+    KB/t  tps  MB/s  us sy id   1m   5m   15m
+   45.31   48  2.14  14  2 84  2.57 2.84 3.43
+   12.49  244  2.97  29 10 61  2.57 2.84 3.43

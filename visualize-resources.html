@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resurssien käytön visualisointi</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 30px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .stat-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        .stat-value {
+            font-size: 24px;
+            color: #333;
+        }
+        .file-input {
+            margin: 20px 0;
+            text-align: center;
+        }
+        input[type="file"] {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Resurssien käytön visualisointi</h1>
+        
+        <div class="file-input">
+            <input type="file" id="csvFile" accept=".csv">
+        </div>
+        
+        <div class="stats" id="statsContainer">
+            <!-- Tilastot täytetään JavaScriptillä -->
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="cpuChart"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="memoryChart"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="loadChart"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="nodeChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let cpuChart, memoryChart, loadChart, nodeChart;
+        
+        document.getElementById('csvFile').addEventListener('change', handleFileSelect);
+        
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const csvData = e.target.result;
+                processData(csvData);
+            };
+            reader.readAsText(file);
+        }
+        
+        function processData(csvData) {
+            const lines = csvData.split('\n');
+            const headers = lines[0].split(',');
+            
+            const data = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim() === '') continue;
+                
+                const values = lines[i].split(',');
+                const entry = {};
+                
+                headers.forEach((header, index) => {
+                    entry[header] = values[index];
+                });
+                
+                data.push(entry);
+            }
+            
+            visualizeData(data);
+        }
+        
+        function visualizeData(data) {
+            // Prepare data for charts
+            const timestamps = data.map(entry => entry.Timestamp);
+            const cpuUsage = data.map(entry => parseFloat(entry.CPU_Usage_Percent));
+            const memoryUsageMB = data.map(entry => parseFloat(entry.Memory_Usage_MB));
+            const memoryUsagePercent = data.map(entry => parseFloat(entry.Memory_Usage_Percent));
+            const loadAvg1m = data.map(entry => parseFloat(entry.Load_Avg_1m));
+            const loadAvg5m = data.map(entry => parseFloat(entry.Load_Avg_5m));
+            const loadAvg15m = data.map(entry => parseFloat(entry.Load_Avg_15m));
+            const nodeCpu = data.map(entry => parseFloat(entry.Node_Process_CPU_Percent));
+            const nodeMemory = data.map(entry => parseFloat(entry.Node_Process_Memory_MB));
+            
+            // Calculate statistics
+            const stats = {
+                cpuAvg: average(cpuUsage),
+                cpuMax: Math.max(...cpuUsage),
+                memoryAvg: average(memoryUsageMB),
+                memoryMax: Math.max(...memoryUsageMB),
+                memoryPercentAvg: average(memoryUsagePercent),
+                memoryPercentMax: Math.max(...memoryUsagePercent),
+                loadAvg: average(loadAvg1m),
+                loadMax: Math.max(...loadAvg1m),
+                nodeCpuAvg: average(nodeCpu),
+                nodeCpuMax: Math.max(...nodeCpu),
+                nodeMemoryAvg: average(nodeMemory),
+                nodeMemoryMax: Math.max(...nodeMemory)
+            };
+            
+            displayStats(stats);
+            createCharts(timestamps, cpuUsage, memoryUsageMB, memoryUsagePercent, 
+                         loadAvg1m, loadAvg5m, loadAvg15m, nodeCpu, nodeMemory);
+        }
+        
+        function average(arr) {
+            if (arr.length === 0) return 0;
+            const sum = arr.reduce((a, b) => a + b, 0);
+            return sum / arr.length;
+        }
+        
+        function displayStats(stats) {
+            const statsContainer = document.getElementById('statsContainer');
+            statsContainer.innerHTML = '';
+            
+            const statItems = [
+                { title: 'Keskimääräinen CPU-käyttö', value: stats.cpuAvg.toFixed(2) + '%' },
+                { title: 'Maksimi CPU-käyttö', value: stats.cpuMax.toFixed(2) + '%' },
+                { title: 'Keskimääräinen muistinkäyttö', value: stats.memoryAvg.toFixed(2) + ' MB' },
+                { title: 'Maksimi muistinkäyttö', value: stats.memoryMax.toFixed(2) + ' MB' },
+                { title: 'Keskimääräinen muisti-%', value: stats.memoryPercentAvg.toFixed(2) + '%' },
+                { title: 'Maksimi muisti-%', value: stats.memoryPercentMax.toFixed(2) + '%' },
+                { title: 'Keskimääräinen kuormitus (1m)', value: stats.loadAvg.toFixed(2) },
+                { title: 'Maksimi kuormitus (1m)', value: stats.loadMax.toFixed(2) },
+                { title: 'Node.js CPU-käyttö (ka)', value: stats.nodeCpuAvg.toFixed(2) + '%' },
+                { title: 'Node.js CPU-käyttö (max)', value: stats.nodeCpuMax.toFixed(2) + '%' },
+                { title: 'Node.js muistinkäyttö (ka)', value: stats.nodeMemoryAvg.toFixed(2) + ' MB' },
+                { title: 'Node.js muistinkäyttö (max)', value: stats.nodeMemoryMax.toFixed(2) + ' MB' }
+            ];
+            
+            statItems.forEach(item => {
+                const statCard = document.createElement('div');
+                statCard.className = 'stat-card';
+                
+                const statTitle = document.createElement('div');
+                statTitle.className = 'stat-title';
+                statTitle.textContent = item.title;
+                
+                const statValue = document.createElement('div');
+                statValue.className = 'stat-value';
+                statValue.textContent = item.value;
+                
+                statCard.appendChild(statTitle);
+                statCard.appendChild(statValue);
+                statsContainer.appendChild(statCard);
+            });
+        }
+        
+        function createCharts(timestamps, cpuUsage, memoryUsageMB, memoryUsagePercent, 
+                             loadAvg1m, loadAvg5m, loadAvg15m, nodeCpu, nodeMemory) {
+            // Destroy existing charts if they exist
+            if (cpuChart) cpuChart.destroy();
+            if (memoryChart) memoryChart.destroy();
+            if (loadChart) loadChart.destroy();
+            if (nodeChart) nodeChart.destroy();
+            
+            // Create CPU chart
+            const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+            cpuChart = new Chart(cpuCtx, {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [{
+                        label: 'CPU-käyttö (%)',
+                        data: cpuUsage,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'CPU-käyttö ajan funktiona'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'CPU-käyttö (%)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Aika'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Create Memory chart
+            const memoryCtx = document.getElementById('memoryChart').getContext('2d');
+            memoryChart = new Chart(memoryCtx, {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [{
+                        label: 'Muistinkäyttö (MB)',
+                        data: memoryUsageMB,
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        tension: 0.1,
+                        fill: true,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Muistinkäyttö (%)',
+                        data: memoryUsagePercent,
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        tension: 0.1,
+                        fill: true,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Muistinkäyttö ajan funktiona'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Muistinkäyttö (MB)'
+                            }
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Muistinkäyttö (%)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Aika'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Create Load Average chart
+            const loadCtx = document.getElementById('loadChart').getContext('2d');
+            loadChart = new Chart(loadCtx, {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [{
+                        label: 'Kuormitus (1 min)',
+                        data: loadAvg1m,
+                        borderColor: 'rgb(255, 159, 64)',
+                        backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                        tension: 0.1
+                    }, {
+                        label: 'Kuormitus (5 min)',
+                        data: loadAvg5m,
+                        borderColor: 'rgb(153, 102, 255)',
+                        backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                        tension: 0.1
+                    }, {
+                        label: 'Kuormitus (15 min)',
+                        data: loadAvg15m,
+                        borderColor: 'rgb(201, 203, 207)',
+                        backgroundColor: 'rgba(201, 203, 207, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Järjestelmän kuormitus ajan funktiona'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Kuormitus'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Aika'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Create Node.js Process chart
+            const nodeCtx = document.getElementById('nodeChart').getContext('2d');
+            nodeChart = new Chart(nodeCtx, {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [{
+                        label: 'Node.js CPU-käyttö (%)',
+                        data: nodeCpu,
+                        borderColor: 'rgb(255, 205, 86)',
+                        backgroundColor: 'rgba(255, 205, 86, 0.2)',
+                        tension: 0.1,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Node.js muistinkäyttö (MB)',
+                        data: nodeMemory,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Node.js prosessin resurssien käyttö'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'CPU-käyttö (%)'
+                            }
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Muistinkäyttö (MB)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Aika'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
