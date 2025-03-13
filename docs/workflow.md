@@ -20,23 +20,24 @@ Tämä dokumentti kuvaa projektin kehitys- ja optimointityönkulun, joka hyödyn
 
 - SonarQube analysoi GitHub-repossa olevan koodin
 - Se tarkistaa tyyppivirheet, koodin hajanaisuuden, haavoittuvuudet ja suorituskykyongelmat
-- Analyysin tulokset näkyvät SonarCloud-dashboardilla
+- Analyysin tulokset tallennetaan GitHub Actions -artefaktina myöhempää käyttöä varten
 - Analyysin perusteella löydät ongelmat ennen optimointia
 
 ### 4️⃣ PearAI Editorin API-agentit optimoivat koodin
 
-- PearAI:n agentit analysoivat koodin ja tekevät ehdotuksia optimointiin
+- PearAI:n agentit analysoivat koodin SonarQube-tulosten perusteella ja tekevät ehdotuksia optimointiin
 - Agentti voi esimerkiksi:
   - Poistaa turhat importit
   - Refaktoroida ja parantaa suorituskykyä
   - Optimoida API-kutsut ja riippuvuudet
-- GitHub Actions -työnkulku voi automaattisesti käynnistää PearAI-optimoinnin
+- GitHub Actions -työnkulku käynnistää PearAI-optimoinnin automaattisesti
 
-### 5️⃣ Parannettu koodi työntyy takaisin GitHubiin
+### 5️⃣ Parannettu koodi ehdotetaan pull requestina
 
-- Kun PearAI on optimoinut koodin, GitHub Actions voi automaattisesti commitoida ja työntää muutokset takaisin repositorioon
-- Vaihtoehtoisesti voit tarkastella ehdotettuja muutoksia ja hyväksyä ne manuaalisesti
-- Seuraavassa SonarQube-analyysissä voit nähdä, kuinka paljon koodi on parantunut
+- PearAI:n optimoinnit luodaan uuteen haaraan
+- GitHub Actions luo automaattisesti pull requestin, joka sisältää optimoidun koodin
+- Kehittäjä voi tarkastella ehdotettuja muutoksia ja hyväksyä, muokata tai hylätä ne
+- Tämä varmistaa, että kaikki muutokset käyvät läpi asianmukaisen tarkastuksen ennen päähaaraan yhdistämistä
 
 ## Miksi tämä työnkulku on tehokas?
 
@@ -44,6 +45,7 @@ Tämä dokumentti kuvaa projektin kehitys- ja optimointityönkulun, joka hyödyn
 - ✅ **Optimoitu koodi**: PearAI-agentit tekevät koodista tehokkaampaa ja paremmin ylläpidettävää
 - ✅ **GitHub-versionhallinta**: Muutokset ovat dokumentoituja ja versionhallinnassa
 - ✅ **Jatkuva parantaminen**: Jokaisen iteroinnin jälkeen koodi kehittyy paremmaksi
+- ✅ **Laadunvarmistus**: Pull request -prosessi varmistaa, että kaikki muutokset tarkastetaan ennen käyttöönottoa
 
 ## Käyttöönotto
 
@@ -58,8 +60,15 @@ Työnkulun käyttöönotto vaatii seuraavat vaiheet:
 
 GitHub Actions -työnkulku on määritetty tiedostossa `.github/workflows/code-analysis.yml`. Se sisältää kaksi päävaihetta:
 
-1. **Koodin analyysi**: Suorittaa testit ja lähettää koodin SonarQubeen
-2. **Koodin optimointi**: Käyttää PearAI:ta koodin optimointiin ja työntää muutokset takaisin repositorioon
+1. **Koodin analyysi (SonarQube)**:
+   - Suorittaa testit ja lähettää koodin SonarQubeen
+   - Tallentaa SonarQube-tulokset artefaktina
+
+2. **Koodin optimointi (PearAI)**:
+   - Lataa SonarQube-tulokset
+   - Käyttää PearAI:ta koodin optimointiin
+   - Luo uuden haaran optimoinneille
+   - Luo pull requestin, joka sisältää optimoidun koodin
 
 ## Tarvittavat salaisuudet
 
@@ -70,6 +79,6 @@ GitHub-repositorioon tulee lisätä seuraavat salaisuudet:
 
 ## Huomioitavaa
 
-- GitHub Actions -työnkulku vaatii oikeudet koodin työntämiseen repositorioon
+- GitHub Actions -työnkulku vaatii oikeudet pull requestien luomiseen
 - PearAI-integraatio on tällä hetkellä kommentoitu esimerkki, joka tulee mukauttaa todelliseen API:iin
 - SonarQube-analyysi vaatii SonarCloud-tilin ja projektin määrittämisen
