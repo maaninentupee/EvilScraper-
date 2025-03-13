@@ -1,0 +1,37 @@
+{
+  "optimization_level": "balanced",
+  "focus_areas": [
+    "performance",
+    "security",
+    "maintainability",
+    "type_safety"
+  ],
+  "ignore_patterns": [
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/node_modules/**",
+    "coverage/**"
+  ],
+  "max_suggestions_per_file": 15,
+  "sonarqube_integration": {
+    "enabled": true,
+    "prioritize_issues": true,
+    "severity_threshold": "MINOR"
+  },
+  "code_style": {
+    "enforce_consistent_naming": true,
+    "prefer_const": true,
+    "remove_unused_imports": true,
+    "enforce_type_safety": true
+  },
+  "performance_optimizations": {
+    "optimize_loops": true,
+    "optimize_api_calls": true,
+    "optimize_memory_usage": true
+  },
+  "pull_request": {
+    "create_separate_commits": true,
+    "group_changes_by_type": true,
+    "detailed_descriptions": true
+  }
+}
