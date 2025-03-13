@@ -7,7 +7,7 @@ on:
 
 jobs:
   analyze-and-optimize:
-    runs-on: macos-latest  # Vaihdettu macOS-runneriin
+    runs-on: macos-latest  # ✅ Mac Mini -yhteensopiva ympäristö
 
     steps:
       - name: 🛠️ Checkout repository
@@ -24,22 +24,11 @@ jobs:
           -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
           -o sonar-report.json
 
-      - name: 🔄 Send code issues to PearAI for optimization
+      - name: 🧠 Run PearAI with Custom AI API Key
         run: |
-          # Käytetään PEARAI_TOKEN ympäristömuuttujana
-          PEARAI_API_TOKEN="${{ secrets.PEARAI_TOKEN }}"
-          curl -X POST "https://api.pearai.com/optimize" \
-          -H "Authorization: Bearer ${PEARAI_API_TOKEN}" \
-          -H "Content-Type: application/json" \
-          -d @sonar-report.json
-
-      - name: 📥 Retrieve Optimized Code from PearAI
-        run: |
-          # Käytetään PEARAI_TOKEN ympäristömuuttujana
-          PEARAI_API_TOKEN="${{ secrets.PEARAI_TOKEN }}"
-          curl -X GET "https://api.pearai.com/optimized-code" \
-          -H "Authorization: Bearer ${PEARAI_API_TOKEN}" \
-          -o optimized-code.zip
+          # Käytetään AI_API_KEY ympäristömuuttujana
+          AI_KEY="${{ secrets.AI_API_KEY }}"
+          pearai optimize sonar-report.json --api-key="${AI_KEY}" > optimized-code.zip
           unzip optimized-code.zip -d optimized/
 
       - name: 🔄 Commit Optimized Code

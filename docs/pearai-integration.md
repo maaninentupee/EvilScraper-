@@ -20,18 +20,23 @@ PearAI-integraatio on optimoitu toimimaan SonarQuben kanssa:
 2. PearAI keskittyy korjaamaan vain SonarQuben havaitsemat ongelmat
 3. Tämä kohdistettu lähestymistapa varmistaa, että optimoinnit ovat relevantteja ja tehokkaita
 
-## PearAI API -integraatio GitHub Actions -työnkulussa
+## PearAI CLI -työkalu GitHub Actions -työnkulussa
 
-GitHub Actions -työnkulussa PearAI-integraatio toimii seuraavasti:
+GitHub Actions -työnkulussa PearAI-integraatio toimii CLI-työkalun kautta:
 
 ```yaml
-- name: Run PearAI Optimization (only for SonarQube issues)
+- name: Run PearAI with Custom AI API Key
   run: |
-    curl -X POST "https://pearai.api/optimize" \
-    -H "Authorization: Bearer ${{ secrets.PEARAI_TOKEN }}" \
-    -H "Content-Type: application/json" \
-    -d @sonar-report.json > pearai-fixes.json
+    pearai optimize sonar-report.json --api-key="${{ secrets.AI_API_KEY }}" > optimized-code.zip
+    unzip optimized-code.zip -d optimized/
 ```
+
+Tämä komento:
+1. Käyttää `pearai` CLI-työkalua
+2. Optimoi koodin SonarQube-raportin perusteella
+3. Käyttää mukautettua AI API -avainta
+4. Tallentaa optimoidun koodin zip-tiedostoon
+5. Purkaa zip-tiedoston optimized/-hakemistoon
 
 ## SonarQube-raportin rakenne
 
@@ -61,78 +66,66 @@ SonarQube API palauttaa JSON-muotoisen raportin, joka sisältää kaikki havaitu
 }
 ```
 
-## PearAI API -vastauksen rakenne
+## PearAI-optimoinnin tulokset
 
-PearAI API palauttaa JSON-muotoisen vastauksen, joka sisältää korjaukset SonarQuben havaitsemiin ongelmiin:
+PearAI tuottaa optimoidun koodin, joka sisältää korjaukset SonarQuben havaitsemiin ongelmiin. Optimoitu koodi pakataan zip-tiedostoon, joka sisältää:
 
-```json
-{
-  "fixes": [
-    {
-      "file": "src/utils.ts",
-      "code": "import { useState, useEffect } from 'react';\n\n// Muu koodi tässä..."
-    },
-    {
-      "file": "src/api.ts",
-      "code": "function parseArgs(args: string[]): ParsedArgs {\n  // Funktion sisältö...\n}"
-    }
-  ],
-  "summary": {
-    "issues_fixed": 2,
-    "issues_skipped": 1,
-    "reasons_skipped": ["Requires more context"]
-  }
-}
-```
+1. Korjatut tiedostot alkuperäisellä hakemistorakenteella
+2. Yhteenvetoraportin optimoinneista (summary.json)
+3. Yksityiskohtaisen lokitiedoston tehdyistä muutoksista (changes.log)
 
 ## Korjausten soveltaminen
 
-GitHub Actions -työnkulussa PearAI:n ehdottamat korjaukset sovelletaan automaattisesti:
+GitHub Actions -työnkulussa PearAI:n optimoima koodi sovelletaan automaattisesti:
 
 ```yaml
-- name: Apply AI Fixes to Detected Issues
+- name: Commit Optimized Code
   run: |
-    git checkout -b ai-optimizations
-    jq -r '.fixes[] | "echo \"\(.code)\" > \(.file)"' pearai-fixes.json | sh
+    git config --global user.name "github-actions"
+    git config --global user.email "actions@github.com"
+    git checkout -b pearai-optimized
+    cp -r optimized/* .
     git add .
-    git commit -m "AI Optimization from PearAI based on SonarQube analysis"
-    git push origin ai-optimizations
+    git commit -m "PearAI optimized code based on SonarQube analysis"
+    git push origin pearai-optimized
 ```
 
 Tämä skripti:
-1. Luo uuden haaran nimeltä "ai-optimizations"
-2. Käyttää `jq`-työkalua PearAI:n JSON-vastauksen käsittelyyn
-3. Kirjoittaa korjatun koodin tiedostoihin
-4. Commitoi ja työntää muutokset uuteen haaraan
+1. Luo uuden haaran nimeltä "pearai-optimized"
+2. Kopioi optimoidun koodin projektihakemistoon
+3. Commitoi ja työntää muutokset uuteen haaraan
 
 ## Pull Request -prosessi
 
 Korjausten jälkeen GitHub Actions luo automaattisesti pull requestin:
 
 ```yaml
-- name: Create Pull Request for AI Fixes
-  uses: peter-evans/create-pull-request@v4
+- name: Create Pull Request for Optimized Code
+  uses: repo-sync/pull-request@v2
   with:
-    title: "AI Optimizations from PearAI"
-    body: "This PR contains automated fixes based on SonarQube analysis."
-    branch: ai-optimizations
-    token: ${{ secrets.GITHUB_TOKEN }}
+    source_branch: "pearai-optimized"
+    destination_branch: "main"
+    pr_title: "PearAI Optimized Code"
+    pr_body: "This PR contains AI-optimized fixes based on SonarQube analysis."
+    github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-## Ympäristön valinta
+## Mac Mini -ympäristö
 
-GitHub Actions -työnkulku on määritetty käyttämään macOS-ympäristöä, mutta voit vaihtaa sen Ubuntu-ympäristöön muokkaamalla työnkulkutiedostoa:
+GitHub Actions -työnkulku on optimoitu Mac Mini -ympäristölle:
 
 ```yaml
 jobs:
-  analyze:
-    runs-on: macos-latest  # Vaihda 'ubuntu-latest', jos et tarvitse macOS:ää
+  analyze-and-optimize:
+    runs-on: macos-latest  # Mac Mini -yhteensopiva ympäristö
 ```
+
+Tämä mahdollistaa tehokkaan suorituskyvyn ja yhteensopivuuden macOS-spesifisten työkalujen kanssa.
 
 ## Parhaat käytännöt
 
 1. **Tarkista aina optimoinnit** ennen niiden hyväksymistä
 2. **Testaa muutokset** varmistaaksesi, että ne eivät riko toiminnallisuutta
-3. **Päivitä SonarQube API -kutsussa oleva projektiavain** vastaamaan omaa projektiasi
-4. **Varmista, että GitHub-salaisuudet on määritetty** (SONAR_TOKEN ja PEARAI_TOKEN)
-5. **Harkitse Ubuntu-ympäristön käyttöä** nopeampaa suoritusta varten, jos macOS-ominaisuuksia ei tarvita
+3. **Päivitä AI API -avain** säännöllisesti turvallisuuden varmistamiseksi
+4. **Varmista, että GitHub-salaisuudet on määritetty** (SONAR_TOKEN ja AI_API_KEY)
+5. **Hyödynnä Mac Mini -ympäristöä** macOS-spesifisten ominaisuuksien testaamiseen

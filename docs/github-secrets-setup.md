@@ -1,60 +1,63 @@
 # GitHub-salaisuuksien määrittäminen
 
-Tämä ohje neuvoo, miten lisäät tarvittavat salaisuudet GitHub-repositorioon AI-pohjaista koodin kehitys- ja optimointityönkulkua varten.
+Tämä dokumentti opastaa, miten määrität tarvittavat GitHub-salaisuudet CI/CD-työnkulkua varten.
 
 ## Tarvittavat salaisuudet
 
+CI/CD-työnkulku vaatii seuraavat salaisuudet:
+
 1. **SONAR_TOKEN**: SonarQube-integraatiota varten
-2. **PEARAI_TOKEN**: PearAI API -integraatiota varten
+2. **AI_API_KEY**: PearAI-optimointia varten
 
-## Salaisuuksien lisääminen
+## SONAR_TOKEN-salaisuuden lisääminen
 
-1. Mene GitHub-repositoriosi sivulle
-2. Valitse "Settings" (Asetukset) -välilehti
-3. Valitse vasemmasta valikosta "Secrets and variables" → "Actions"
-4. Klikkaa "New repository secret" -painiketta
-5. Lisää salaisuudet yksi kerrallaan:
+1. Kirjaudu [SonarCloud](https://sonarcloud.io/)-palveluun
+2. Siirry käyttäjäasetuksiin (My Account > Security)
+3. Luo uusi token nimellä "GitHub Actions"
+4. Kopioi generoitu token
 
-### SONAR_TOKEN
+Lisää token GitHub-repositorioosi:
 
-1. Kirjaudu SonarCloud-palveluun (https://sonarcloud.io/)
-2. Mene käyttäjäprofiiliin → "My Account" → "Security"
-3. Luo uusi token ja kopioi se
-4. GitHub-repositoriossa:
-   - Name: `SONAR_TOKEN`
-   - Secret: [Liitä SonarCloud-token tähän]
-5. Klikkaa "Add secret"
+1. Siirry GitHub-repositoriosi asetuksiin
+2. Valitse "Secrets and variables" > "Actions"
+3. Klikkaa "New repository secret"
+4. Aseta nimeksi `SONAR_TOKEN`
+5. Liitä SonarCloud-token arvokenttään
+6. Klikkaa "Add secret"
 
-### PEARAI_TOKEN
+## AI_API_KEY-salaisuuden lisääminen
 
-1. Kirjaudu PearAI-palveluun
-2. Mene API-avainten hallintaan
-3. Luo uusi API-avain ja kopioi se
-4. GitHub-repositoriossa:
-   - Name: `PEARAI_TOKEN`
-   - Secret: [Liitä PearAI API-avain tähän]
-5. Klikkaa "Add secret"
+1. Kirjaudu [PearAI](https://pearai.com/)-palveluun
+2. Siirry API-avaimet -osioon
+3. Luo uusi API-avain nimellä "GitHub Actions"
+4. Kopioi generoitu API-avain
+
+Lisää API-avain GitHub-repositorioosi:
+
+1. Siirry GitHub-repositoriosi asetuksiin
+2. Valitse "Secrets and variables" > "Actions"
+3. Klikkaa "New repository secret"
+4. Aseta nimeksi `AI_API_KEY`
+5. Liitä PearAI API-avain arvokenttään
+6. Klikkaa "Add secret"
 
 ## Salaisuuksien käyttö GitHub Actions -työnkulussa
 
-Salaisuuksia käytetään GitHub Actions -työnkulussa seuraavasti:
+GitHub Actions -työnkulku käyttää näitä salaisuuksia seuraavasti:
 
 ```yaml
-- name: SonarQube Scan
-  uses: SonarSource/sonarcloud-github-action@master
+- name: 🔍 Run SonarQube Analysis
+  uses: sonarsource/sonarqube-scan-action@master
   env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-- name: Run PearAI optimization
+- name: 🧠 Run PearAI with Custom AI API Key
   run: |
-    # PearAI API -integraatio
-  env:
-    PEARAI_TOKEN: ${{ secrets.PEARAI_TOKEN }}
+    pearai optimize sonar-report.json --api-key="${{ secrets.AI_API_KEY }}" > optimized-code.zip
 ```
 
-## Turvallisuushuomioita
+## Salaisuuksien turvallisuus
 
-- Älä koskaan jaa API-avaimia tai tokeneja julkisesti
-- Varmista, että API-avaimilla on vain tarvittavat oikeudet
-- Kierrätä avaimia säännöllisesti turvallisuuden varmistamiseksi
+GitHub salaa salaisuudet ja välittää ne työnkulkuun vain tarvittaessa. Salaisuudet eivät koskaan näy GitHub Actions -lokeissa, vaikka yrittäisit tulostaa ne.
+
+**HUOM!** Älä koskaan sisällytä näitä salaisuuksia suoraan koodiin tai työnkulkutiedostoihin. Käytä aina `${{ secrets.SECRET_NAME }}` -syntaksia.
