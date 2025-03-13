@@ -1,114 +1,77 @@
-name: Koodi Analyysi ja Optimointi
+name: Code Analysis & AI Optimization
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - develop
+      - feature/*
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - develop
 
 jobs:
   analyze:
-    name: Koodin Analyysi (SonarQube)
-    runs-on: ubuntu-latest
+    runs-on: macos-latest  # Vaihda 'ubuntu-latest', jos et tarvitse macOS:ää
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Run tests with coverage
-        run: npm test -- --coverage
-        
-      - name: SonarQube Scan
-        uses: SonarSource/sonarcloud-github-action@master
+
+      - name: Run SonarQube Analysis
+        uses: sonarsource/sonarqube-scan-action@master
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          
-      - name: Save SonarQube results as artifact
-        uses: actions/upload-artifact@v3
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch SonarQube Report
+        run: |
+          # Käytetään secrets.SONAR_TOKEN -arvoa ympäristömuuttujana
+          SONAR_API_TOKEN="${{ secrets.SONAR_TOKEN }}"
+          curl -u "${SONAR_API_TOKEN}:" \
+          "https://sonarcloud.io/api/issues/search?componentKeys=maaninentupee_EvilScraper" \
+          -o sonar-report.json
+        continue-on-error: true
+
+      - name: Upload Sonar Report
+        uses: actions/upload-artifact@v2
         with:
-          name: sonarqube-results
-          path: .scannerwork/report-task.txt
-          retention-days: 5
-        
+          name: sonar-report
+          path: sonar-report.json
+
   optimize:
-    name: PearAI Koodin Optimointi
     needs: analyze
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: macos-latest  # Vaihda 'ubuntu-latest', jos haluat nopeamman ympäristön
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
-        
-      - name: Download SonarQube results
-        uses: actions/download-artifact@v3
+
+      - name: Download Sonar Report
+        uses: actions/download-artifact@v2
         with:
-          name: sonarqube-results
-          
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Run PearAI optimization
+          name: sonar-report
+
+      - name: Run PearAI Optimization (only for SonarQube issues)
         run: |
-          echo "PearAI optimointi käynnissä SonarQube-tulosten perusteella..."
-          # Tähän tulee PearAI API -integraatio, joka lukee SonarQube-tulokset
-          # Esimerkki: curl -X POST https://api.pearai.com/optimize -H "Authorization: Bearer ${{ secrets.PEARAI_TOKEN }}" -F "sonarqube_report=@report-task.txt" -F "repo=${{ github.repository }}"
-        env:
-          PEARAI_TOKEN: ${{ secrets.PEARAI_TOKEN }}
-          
-      - name: Create branch for optimizations
-        id: create_branch
+          # Käytetään secrets.PEARAI_TOKEN -arvoa ympäristömuuttujana
+          PEARAI_API_TOKEN="${{ secrets.PEARAI_TOKEN }}"
+          curl -X POST "https://pearai.api/optimize" \
+          -H "Authorization: Bearer ${PEARAI_API_TOKEN}" \
+          -H "Content-Type: application/json" \
+          -d @sonar-report.json > pearai-fixes.json
+
+      - name: Apply AI Fixes to Detected Issues
         run: |
-          # Luodaan uusi haara PearAI:n optimointeja varten
-          BRANCH_NAME="pearai-optimizations-$(date +%Y%m%d-%H%M%S)"
-          git checkout -b $BRANCH_NAME
-          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
-          
-      - name: Commit optimized code
-        run: |
-          # Tässä vaiheessa PearAI olisi tehnyt optimointeja
-          git config --local user.email "pearai-bot@github.com"
-          git config --local user.name "PearAI Optimization Bot"
+          git checkout -b ai-optimizations
+          jq -r '.fixes[] | "echo \"\(.code)\" > \(.file)"' pearai-fixes.json | sh
           git add .
-          git diff --quiet && git diff --staged --quiet || git commit -m "PearAI: Automaattinen koodin optimointi SonarQube-analyysin perusteella"
-          
-      - name: Push changes to new branch
-        uses: ad-m/github-push-action@master
+          git commit -m "AI Optimization from PearAI based on SonarQube analysis"
+          git push origin ai-optimizations
+
+      - name: Create Pull Request for AI Fixes
+        uses: peter-evans/create-pull-request@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ steps.create_branch.outputs.branch_name }}
-          
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
-        with:
+          title: "AI Optimizations from PearAI"
+          body: "This PR contains automated fixes based on SonarQube analysis."
+          branch: ai-optimizations
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: PearAI automaattinen optimointi
-          title: "PearAI: Automaattiset optimoinnit"
-          body: |
-            ## PearAI Automaattinen Koodin Optimointi
-            
-            Tämä pull request sisältää PearAI:n automaattisesti generoimat optimoinnit SonarQube-analyysin perusteella.
-            
-            ### Tehdyt optimoinnit:
-            
-            - Käyttämättömien importtien poisto
-            - Koodin suorituskyvyn parantaminen
-            - Monimutkaisten funktioiden refaktorointi
-            
-            Ole hyvä ja tarkista muutokset ennen hyväksymistä.
-          branch: ${{ steps.create_branch.outputs.branch_name }}
-          base: main
