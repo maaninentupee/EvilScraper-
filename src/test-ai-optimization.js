@@ -1,6 +1,8 @@
 /**
  * Tämä tiedosto on luotu GitHub Actions -työnkulun testaamiseksi.
  * Se sisältää tarkoituksella muutamia koodiongelmia, jotka SonarQube voi tunnistaa.
+ * 
+ * Päivitetty 2025-03-15: Lisätty testauskommentti CI/CD-työnkulun testaamiseksi
  */
 
 // Käyttämätön muuttuja (SonarQube Code Smell)
