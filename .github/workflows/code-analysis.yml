@@ -24,17 +24,19 @@ jobs:
           args: >
             -Dsonar.projectKey=maaninentupee_EvilScraper
             -Dsonar.organization=maaninentupee
-            -Dsonar.branch.name=main
-            -Dsonar.branch.target=main
             -Dsonar.sources=src
             -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.projectName="AI Fallback System"
+            -Dsonar.projectVersion=1.0
+            -Dsonar.sourceEncoding=UTF-8
+            -Dsonar.verbose=true
 
       - name: 🚀 Fetch SonarQube Report
         run: |
           # Odotetaan hetki, että SonarQube-analyysi valmistuu
-          sleep 20
+          sleep 30
           
-          curl -X GET "https://sonarcloud.io/api/issues/search?componentKeys=maaninentupee_EvilScraper&branch=main" \
+          curl -X GET "https://sonarcloud.io/api/issues/search?componentKeys=maaninentupee_EvilScraper" \
           -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
           -o sonar-report.json
           
