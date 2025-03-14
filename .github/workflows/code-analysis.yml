@@ -15,6 +15,21 @@ jobs:
         with:
           fetch-depth: 0  # Varmistaa, että kaikki historia on käytettävissä SonarQubea varten
 
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: |
+          npm install
+
+      - name: 🧪 Run tests with coverage
+        run: |
+          npm test -- --coverage
+        continue-on-error: true  # Jatka, vaikka testit epäonnistuisivat
+
       - name: 🔍 Run SonarQube Analysis
         uses: SonarSource/sonarcloud-github-action@master
         env:
@@ -25,21 +40,25 @@ jobs:
             -Dsonar.projectKey=maaninentupee_EvilScraper
             -Dsonar.organization=maaninentupee
             -Dsonar.sources=src
+            -Dsonar.tests=test
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.projectName="AI Fallback System"
             -Dsonar.projectVersion=1.0
             -Dsonar.sourceEncoding=UTF-8
             -Dsonar.verbose=true
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.testExecutionReportPaths=coverage/test-report.xml
+            -Dsonar.exclusions=node_modules/**,test/**,dist/**
 
       - name: 🚀 Fetch SonarQube Report
         run: |
           # Odotetaan hetki, että SonarQube-analyysi valmistuu
           sleep 30
-          
+
           curl -X GET "https://sonarcloud.io/api/issues/search?componentKeys=maaninentupee_EvilScraper" \
           -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
           -o sonar-report.json
-          
+
           # Tarkistetaan, että raportti on saatu
           if [ ! -s sonar-report.json ]; then
             echo "SonarQube-raportin hakeminen epäonnistui"
@@ -52,7 +71,7 @@ jobs:
           # Käytetään ANTHROPIC_API_KEY ympäristömuuttujana
           ANTHROPIC_KEY="${{ secrets.ANTHROPIC_API_KEY }}"
           SONAR_REPORT=$(cat sonar-report.json)
-          
+
           curl -X POST "https://api.anthropic.com/v1/messages" \
           -H "x-api-key: ${ANTHROPIC_KEY}" \
           -H "anthropic-version: 2023-06-01" \
@@ -67,7 +86,7 @@ jobs:
             ],
             "max_tokens": 4000
           }' > anthropic-optimized.json
-          
+
           # Tarkistetaan, onnistuiko API-kutsu
           if [ $? -ne 0 ]; then
             echo "Anthropic API -kutsu epäonnistui"
@@ -79,7 +98,7 @@ jobs:
           # Käytetään OPENAI_API_KEY ympäristömuuttujana
           OPENAI_KEY="${{ secrets.OPENAI_API_KEY }}"
           ANTHROPIC_RESULT=$(cat anthropic-optimized.json)
-          
+
           curl -X POST "https://api.openai.com/v1/chat/completions" \
           -H "Authorization: Bearer ${OPENAI_KEY}" \
           -H "Content-Type: application/json" \
@@ -93,7 +112,7 @@ jobs:
             ],
             "max_tokens": 4000
           }' > openai-optimized.json
-          
+
           # Tarkistetaan, onnistuiko API-kutsu
           if [ $? -ne 0 ]; then
             echo "OpenAI API -kutsu epäonnistui"
