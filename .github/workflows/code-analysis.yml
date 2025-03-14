@@ -12,17 +12,34 @@ jobs:
     steps:
       - name: 🛠️ Checkout repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Varmistaa, että kaikki historia on käytettävissä SonarQubea varten
 
       - name: 🔍 Run SonarQube Analysis
-        uses: sonarsource/sonarqube-scan-action@master
+        uses: SonarSource/sonarcloud-github-action@master
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=maaninentupee_EvilScraper
+            -Dsonar.organization=maaninentupee
 
       - name: 🚀 Fetch SonarQube Report
         run: |
-          curl -X GET "https://sonarcloud.io/api/issues/search" \
+          # Odotetaan hetki, että SonarQube-analyysi valmistuu
+          sleep 10
+          
+          curl -X GET "https://sonarcloud.io/api/issues/search?componentKeys=maaninentupee_EvilScraper" \
           -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
           -o sonar-report.json
+          
+          # Tarkistetaan, että raportti on saatu
+          if [ ! -s sonar-report.json ]; then
+            echo "SonarQube-raportin hakeminen epäonnistui"
+            cat sonar-report.json
+            exit 1
+          fi
 
       - name: 🤖 Send code issues to Anthropic Claude for optimization
         run: |
