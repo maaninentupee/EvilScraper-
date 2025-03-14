@@ -3,11 +3,11 @@ name: Code Analysis and Optimization
 on:
   push:
     branches:
-      - main  # Voit muuttaa tämän haluamaksesi
+      - main  # Käynnistyy kun koodi työnnetään "main"-haaraan
 
 jobs:
   analyze-and-optimize:
-    runs-on: macos-latest  # ✅ Mac Mini -yhteensopiva ympäristö
+    runs-on: macos-latest  # Käyttää macOS-ympäristöä
 
     steps:
       - name: 🛠️ Checkout repository
@@ -24,28 +24,82 @@ jobs:
           -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
           -o sonar-report.json
 
-      - name: 🧠 Run PearAI with Custom AI API Key
+      - name: 🤖 Send code issues to Anthropic Claude for optimization
         run: |
-          # Käytetään AI_API_KEY ympäristömuuttujana
-          AI_KEY="${{ secrets.AI_API_KEY }}"
-          pearai optimize sonar-report.json --api-key="${AI_KEY}" > optimized-code.zip
-          unzip optimized-code.zip -d optimized/
+          # Käytetään ANTHROPIC_API_KEY ympäristömuuttujana
+          ANTHROPIC_KEY="${{ secrets.ANTHROPIC_API_KEY }}"
+          SONAR_REPORT=$(cat sonar-report.json)
+          
+          curl -X POST "https://api.anthropic.com/v1/messages" \
+          -H "x-api-key: ${ANTHROPIC_KEY}" \
+          -H "anthropic-version: 2023-06-01" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "model": "claude-3-opus-20240229",
+            "messages": [
+              {
+                "role": "user",
+                "content": "Optimize the following code based on SonarQube report:\n'"${SONAR_REPORT}"'"
+              }
+            ],
+            "max_tokens": 4000
+          }' > anthropic-optimized.json
+          
+          # Tarkistetaan, onnistuiko API-kutsu
+          if [ $? -ne 0 ]; then
+            echo "Anthropic API -kutsu epäonnistui"
+            exit 1
+          fi
+
+      - name: 🤖 Send code issues to OpenAI GPT-4 for additional optimizations
+        run: |
+          # Käytetään OPENAI_API_KEY ympäristömuuttujana
+          OPENAI_KEY="${{ secrets.OPENAI_API_KEY }}"
+          ANTHROPIC_RESULT=$(cat anthropic-optimized.json)
+          
+          curl -X POST "https://api.openai.com/v1/chat/completions" \
+          -H "Authorization: Bearer ${OPENAI_KEY}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "model": "gpt-4-turbo",
+            "messages": [
+              {
+                "role": "user", 
+                "content": "Refactor and improve performance of the following code:\n'"${ANTHROPIC_RESULT}"'"
+              }
+            ],
+            "max_tokens": 4000
+          }' > openai-optimized.json
+          
+          # Tarkistetaan, onnistuiko API-kutsu
+          if [ $? -ne 0 ]; then
+            echo "OpenAI API -kutsu epäonnistui"
+            exit 1
+          fi
+
+      - name: 🔄 Merge Optimized Code
+        run: |
+          jq -s '.[0] * .[1]' anthropic-optimized.json openai-optimized.json > final-optimized.json
+
+      - name: 📥 Retrieve Optimized Code
+        run: |
+          mv final-optimized.json optimized-code.json
 
       - name: 🔄 Commit Optimized Code
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git checkout -b pearai-optimized
-          cp -r optimized/* .
+          git checkout -b ai-optimized
+          cp optimized-code.json .
           git add .
-          git commit -m "♻️ PearAI optimized code based on SonarQube analysis"
-          git push origin pearai-optimized
+          git commit -m "♻️ AI Optimized Code (Anthropic Claude & OpenAI GPT-4)"
+          git push origin ai-optimized
 
       - name: 🔀 Create Pull Request for Optimized Code
         uses: repo-sync/pull-request@v2
         with:
-          source_branch: "pearai-optimized"
+          source_branch: "ai-optimized"
           destination_branch: "main"
-          pr_title: "♻️ PearAI Optimized Code"
-          pr_body: "This PR contains AI-optimized fixes based on SonarQube analysis."
+          pr_title: "♻️ AI Optimized Code (Claude & GPT-4)"
+          pr_body: "This PR contains AI-optimized fixes based on SonarQube analysis using Anthropic Claude and OpenAI GPT-4."
           github_token: ${{ secrets.GITHUB_TOKEN }}

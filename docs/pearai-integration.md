@@ -1,42 +1,57 @@
-# PearAI-integraatio
+# AI-pohjainen koodin optimointi
 
-Tämä dokumentti kuvaa, miten PearAI-integraatio toimii osana AI-pohjaista koodin kehitys- ja optimointityönkulkua.
+Tämä dokumentti kuvaa, miten AI-pohjainen koodin optimointi toimii osana koodin kehitys- ja optimointityönkulkua.
 
-## Mikä on PearAI?
+## Tekoälymallit optimoinnissa
 
-PearAI on tekoälypohjainen koodin optimointityökalu, joka analysoi koodia ja tekee automaattisesti parannusehdotuksia. Se voi:
+Työnkulku hyödyntää kahta tehokasta tekoälymallia koodin optimointiin:
 
-- Tunnistaa ja korjata suorituskykyongelmia
-- Poistaa käyttämättömiä importteja ja koodia
-- Refaktoroida monimutkaisia funktioita
-- Parantaa koodin luettavuutta ja ylläpidettävyyttä
-- Korjata tietoturvaongelmia ja haavoittuvuuksia
+1. **Anthropic Claude**: Käytetään ensisijaisena optimointimallina SonarQube-havaintojen korjaamiseen
+2. **OpenAI GPT-4**: Käytetään toissijaisena mallina lisäoptimointien tekemiseen
+
+Tämä kahden mallin lähestymistapa tarjoaa kattavamman optimoinnin, sillä mallit täydentävät toisiaan eri vahvuuksillaan.
 
 ## Integraatio SonarQuben kanssa
 
-PearAI-integraatio on optimoitu toimimaan SonarQuben kanssa:
+AI-optimointi on integroitu SonarQuben kanssa:
 
 1. SonarQube tunnistaa koodin ongelmat ja haavoittuvuudet
-2. PearAI keskittyy korjaamaan vain SonarQuben havaitsemat ongelmat
-3. Tämä kohdistettu lähestymistapa varmistaa, että optimoinnit ovat relevantteja ja tehokkaita
+2. Anthropic Claude keskittyy korjaamaan SonarQuben havaitsemat ongelmat
+3. OpenAI GPT-4 tekee lisäoptimointeja ja refaktorointeja
+4. Tämä kohdistettu lähestymistapa varmistaa, että optimoinnit ovat relevantteja ja tehokkaita
 
-## PearAI CLI -työkalu GitHub Actions -työnkulussa
+## AI API -integraatio GitHub Actions -työnkulussa
 
-GitHub Actions -työnkulussa PearAI-integraatio toimii CLI-työkalun kautta:
+GitHub Actions -työnkulussa AI-integraatio toimii seuraavasti:
 
 ```yaml
-- name: Run PearAI with Custom AI API Key
+- name: 🤖 Send code issues to Anthropic Claude for optimization
   run: |
-    pearai optimize sonar-report.json --api-key="${{ secrets.AI_API_KEY }}" > optimized-code.zip
-    unzip optimized-code.zip -d optimized/
+    curl -X POST "https://api.anthropic.com/v1/complete" \
+    -H "Authorization: Bearer ${{ secrets.ANTHROPIC_API_KEY }}" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "model": "claude-3-opus-2024-02-22",
+      "prompt": "Optimize the following code based on SonarQube report:\n" + cat sonar-report.json,
+      "max_tokens": 500
+    }' > anthropic-optimized.json
+
+- name: 🤖 Send code issues to OpenAI GPT-4 for additional optimizations
+  run: |
+    curl -X POST "https://api.openai.com/v1/completions" \
+    -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "model": "gpt-4-turbo",
+      "prompt": "Refactor and improve performance of the following code:\n" + cat anthropic-optimized.json,
+      "max_tokens": 500
+    }' > openai-optimized.json
 ```
 
-Tämä komento:
-1. Käyttää `pearai` CLI-työkalua
-2. Optimoi koodin SonarQube-raportin perusteella
-3. Käyttää mukautettua AI API -avainta
-4. Tallentaa optimoidun koodin zip-tiedostoon
-5. Purkaa zip-tiedoston optimized/-hakemistoon
+Tämä prosessi:
+1. Lähettää SonarQube-raportin Anthropic Claudelle optimoitavaksi
+2. Lähettää Clauden optimoidun koodin OpenAI GPT-4:lle lisäoptimointeja varten
+3. Yhdistää molempien mallien optimoinnit lopulliseksi tulokseksi
 
 ## SonarQube-raportin rakenne
 
@@ -66,32 +81,44 @@ SonarQube API palauttaa JSON-muotoisen raportin, joka sisältää kaikki havaitu
 }
 ```
 
-## PearAI-optimoinnin tulokset
+## AI-optimoinnin tulokset
 
-PearAI tuottaa optimoidun koodin, joka sisältää korjaukset SonarQuben havaitsemiin ongelmiin. Optimoitu koodi pakataan zip-tiedostoon, joka sisältää:
+AI-mallit tuottavat optimoidun koodin, joka sisältää korjaukset SonarQuben havaitsemiin ongelmiin. Optimoitu koodi tallennetaan JSON-tiedostoon, joka sisältää:
 
-1. Korjatut tiedostot alkuperäisellä hakemistorakenteella
-2. Yhteenvetoraportin optimoinneista (summary.json)
-3. Yksityiskohtaisen lokitiedoston tehdyistä muutoksista (changes.log)
+1. Korjatut koodikatkelmat
+2. Selitykset tehdyistä muutoksista
+3. Suositukset jatkotoimenpiteistä
+
+## Optimointien yhdistäminen
+
+GitHub Actions -työnkulussa molempien AI-mallien optimoinnit yhdistetään:
+
+```yaml
+- name: 🔄 Merge Optimized Code
+  run: |
+    jq -s '.[0] * .[1]' anthropic-optimized.json openai-optimized.json > final-optimized.json
+```
+
+Tämä komento käyttää `jq`-työkalua yhdistämään molempien mallien JSON-tulokset yhdeksi optimoiduksi tulokseksi.
 
 ## Korjausten soveltaminen
 
-GitHub Actions -työnkulussa PearAI:n optimoima koodi sovelletaan automaattisesti:
+GitHub Actions -työnkulussa AI-optimoitu koodi sovelletaan automaattisesti:
 
 ```yaml
-- name: Commit Optimized Code
+- name: 🔄 Commit Optimized Code
   run: |
     git config --global user.name "github-actions"
     git config --global user.email "actions@github.com"
-    git checkout -b pearai-optimized
-    cp -r optimized/* .
+    git checkout -b ai-optimized
+    cp optimized-code.json .
     git add .
-    git commit -m "PearAI optimized code based on SonarQube analysis"
-    git push origin pearai-optimized
+    git commit -m "♻️ AI Optimized Code (Anthropic Claude & OpenAI GPT-4)"
+    git push origin ai-optimized
 ```
 
 Tämä skripti:
-1. Luo uuden haaran nimeltä "pearai-optimized"
+1. Luo uuden haaran nimeltä "ai-optimized"
 2. Kopioi optimoidun koodin projektihakemistoon
 3. Commitoi ja työntää muutokset uuteen haaraan
 
@@ -100,13 +127,13 @@ Tämä skripti:
 Korjausten jälkeen GitHub Actions luo automaattisesti pull requestin:
 
 ```yaml
-- name: Create Pull Request for Optimized Code
+- name: 🔀 Create Pull Request for Optimized Code
   uses: repo-sync/pull-request@v2
   with:
-    source_branch: "pearai-optimized"
+    source_branch: "ai-optimized"
     destination_branch: "main"
-    pr_title: "PearAI Optimized Code"
-    pr_body: "This PR contains AI-optimized fixes based on SonarQube analysis."
+    pr_title: "♻️ AI Optimized Code (Claude & GPT-4)"
+    pr_body: "This PR contains AI-optimized fixes based on SonarQube analysis using Anthropic Claude and OpenAI GPT-4."
     github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
@@ -117,15 +144,15 @@ GitHub Actions -työnkulku on optimoitu Mac Mini -ympäristölle:
 ```yaml
 jobs:
   analyze-and-optimize:
-    runs-on: macos-latest  # Mac Mini -yhteensopiva ympäristö
+    runs-on: macos-latest  # Käyttää macOS-ympäristöä
 ```
 
 Tämä mahdollistaa tehokkaan suorituskyvyn ja yhteensopivuuden macOS-spesifisten työkalujen kanssa.
 
 ## Parhaat käytännöt
 
-1. **Tarkista aina optimoinnit** ennen niiden hyväksymistä
+1. **Tarkista aina AI-optimoinnit** ennen niiden hyväksymistä
 2. **Testaa muutokset** varmistaaksesi, että ne eivät riko toiminnallisuutta
-3. **Päivitä AI API -avain** säännöllisesti turvallisuuden varmistamiseksi
-4. **Varmista, että GitHub-salaisuudet on määritetty** (SONAR_TOKEN ja AI_API_KEY)
+3. **Päivitä API-avaimet** säännöllisesti turvallisuuden varmistamiseksi
+4. **Varmista, että GitHub-salaisuudet on määritetty** (SONAR_TOKEN, ANTHROPIC_API_KEY ja OPENAI_API_KEY)
 5. **Hyödynnä Mac Mini -ympäristöä** macOS-spesifisten ominaisuuksien testaamiseen
