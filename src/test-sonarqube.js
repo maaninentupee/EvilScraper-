@@ -1,3 +1,6 @@
+// Tämä tiedosto on tarkoitettu SonarCloud-integraation testaamiseen
+// Lisätty kommentti testausta varten - 2025-03-16
+
 // Tämä on testitiedosto SonarQube-analyysia varten
 // Sisältää tarkoituksella koodivirheitä, jotka SonarQube voi havaita
 
@@ -52,8 +55,30 @@ function complexFunction(a, b, c, d, e) {
   return result;
 }
 
+/**
+ * Yksinkertainen funktio, joka laskee kaksi lukua yhteen
+ * @param {number} a - Ensimmäinen luku
+ * @param {number} b - Toinen luku
+ * @returns {number} Lukujen summa
+ */
+function addNumbers(a, b) {
+  return a + b;
+}
+
+/**
+ * Yksinkertainen funktio, joka kertoo kaksi lukua
+ * @param {number} a - Ensimmäinen luku
+ * @param {number} b - Toinen luku
+ * @returns {number} Lukujen tulo
+ */
+function multiplyNumbers(a, b) {
+  return a * b;
+}
+
 // Viedään funktiot
 module.exports = {
   fetchData,
-  complexFunction
+  complexFunction,
+  addNumbers,
+  multiplyNumbers
 };
