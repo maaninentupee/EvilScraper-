@@ -1,0 +1,73 @@
+name: SonarCloud Analysis
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Varmistaa, että kaikki historia on käytettävissä SonarQubea varten
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: |
+          npm install
+
+      - name: 🧪 Run tests with coverage
+        run: |
+          npm test -- --coverage --coverageReporters=lcov --coverageReporters=text --coverageReporters=cobertura
+        continue-on-error: true  # Jatka, vaikka testit epäonnistuisivat
+
+      # Varmistetaan, että testi-raportit ovat oikeassa muodossa
+      - name: 🔄 Convert test reports
+        run: |
+          # Varmistetaan, että coverage-hakemisto on olemassa
+          mkdir -p coverage
+          
+          # Jos cobertura-raportti on olemassa, kopioidaan se test-report.xml -nimellä SonarQubea varten
+          if [ -f "coverage/cobertura-coverage.xml" ]; then
+            cp coverage/cobertura-coverage.xml coverage/test-report.xml
+          fi
+        continue-on-error: true
+
+      - name: Run SonarCloud analysis
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=maaninentupee_EvilScraper
+            -Dsonar.organization=maaninentupee
+            -Dsonar.sources=src
+            -Dsonar.tests=test
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.projectName="AI Fallback System"
+            -Dsonar.projectVersion=1.0
+            -Dsonar.sourceEncoding=UTF-8
+            -Dsonar.verbose=true
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.testExecutionReportPaths=coverage/test-report.xml
+            -Dsonar.exclusions=node_modules/**,test/**,dist/**
+            -Dsonar.python.version=3.8
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+            -Dsonar.coverage.exclusions=test/**,**/*.test.js,**/*.spec.js
+            -Dsonar.cpd.exclusions=test/**
+            -Dsonar.javascript.coveragePlugin=lcov
