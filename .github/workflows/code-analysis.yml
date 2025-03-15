@@ -27,8 +27,20 @@ jobs:
 
       - name: 🧪 Run tests with coverage
         run: |
-          npm test -- --coverage
+          npm test -- --coverage --coverageReporters=lcov --coverageReporters=text --coverageReporters=cobertura
         continue-on-error: true  # Jatka, vaikka testit epäonnistuisivat
+
+      # Varmistetaan, että testi-raportit ovat oikeassa muodossa
+      - name: 🔄 Convert test reports
+        run: |
+          # Varmistetaan, että coverage-hakemisto on olemassa
+          mkdir -p coverage
+          
+          # Jos cobertura-raportti on olemassa, kopioidaan se test-report.xml -nimellä SonarQubea varten
+          if [ -f "coverage/cobertura-coverage.xml" ]; then
+            cp coverage/cobertura-coverage.xml coverage/test-report.xml
+          fi
+        continue-on-error: true
 
       - name: 🔍 Run SonarQube Analysis
         uses: SonarSource/sonarcloud-github-action@master
@@ -49,13 +61,19 @@ jobs:
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
             -Dsonar.testExecutionReportPaths=coverage/test-report.xml
             -Dsonar.exclusions=node_modules/**,test/**,dist/**
+            -Dsonar.python.version=3.8
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+            -Dsonar.coverage.exclusions=test/**,**/*.test.js,**/*.spec.js
+            -Dsonar.cpd.exclusions=test/**
+            -Dsonar.javascript.coveragePlugin=lcov
 
       - name: 🚀 Fetch SonarQube Report
         run: |
           # Odotetaan hetki, että SonarQube-analyysi valmistuu
           sleep 30
 
-          curl -X GET "https://sonarcloud.io/api/issues/search?componentKeys=maaninentupee_EvilScraper" \
+          curl -X GET "https://sonarcloud.io/api/issues/search?componentKeys=maaninentupee_EvilScraper&resolved=false" \
           -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
           -o sonar-report.json
 
@@ -65,6 +83,18 @@ jobs:
             cat sonar-report.json
             exit 1
           fi
+
+      - name: 🔍 Fetch SonarQube Quality Gate Status
+        run: |
+          # Haetaan laatuportin tila
+          curl -X GET "https://sonarcloud.io/api/qualitygates/project_status?projectKey=maaninentupee_EvilScraper" \
+          -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
+          -o quality-gate-status.json
+          
+          # Näytetään laatuportin tila
+          echo "Quality Gate Status:"
+          cat quality-gate-status.json
+        continue-on-error: true
 
       - name: 🤖 Send code issues to Anthropic Claude for optimization
         run: |
@@ -81,7 +111,7 @@ jobs:
             "messages": [
               {
                 "role": "user",
-                "content": "Optimize the following code based on SonarQube report:\n'"${SONAR_REPORT}"'"
+                "content": "Optimize the following code based on SonarQube report, focusing especially on security hotspots and code quality issues:\n'"${SONAR_REPORT}"'"
               }
             ],
             "max_tokens": 4000
@@ -107,7 +137,7 @@ jobs:
             "messages": [
               {
                 "role": "user", 
-                "content": "Refactor and improve performance of the following code:\n'"${ANTHROPIC_RESULT}"'"
+                "content": "Refactor and improve performance of the following code, paying special attention to security vulnerabilities and code duplications:\n'"${ANTHROPIC_RESULT}"'"
               }
             ],
             "max_tokens": 4000
