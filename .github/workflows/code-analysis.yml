@@ -49,7 +49,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.projectKey=maaninentupee_EvilScraper
+            -Dsonar.projectKey=maaninentupee_EvilScraper-
             -Dsonar.organization=maaninentupee
             -Dsonar.sources=src
             -Dsonar.tests=test
@@ -68,12 +68,24 @@ jobs:
             -Dsonar.cpd.exclusions=test/**
             -Dsonar.javascript.coveragePlugin=lcov
 
+      - name: 🔍 Fetch SonarQube Quality Gate Status
+        run: |
+          # Haetaan laatuportin tila
+          curl -X GET "https://sonarcloud.io/api/qualitygates/project_status?projectKey=maaninentupee_EvilScraper-" \
+          -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
+          -o quality-gate-status.json
+          
+          # Näytetään laatuportin tila
+          echo "Quality Gate Status:"
+          cat quality-gate-status.json
+        continue-on-error: true
+
       - name: 🚀 Fetch SonarQube Report
         run: |
           # Odotetaan hetki, että SonarQube-analyysi valmistuu
           sleep 30
 
-          curl -X GET "https://sonarcloud.io/api/issues/search?componentKeys=maaninentupee_EvilScraper&resolved=false" \
+          curl -X GET "https://sonarcloud.io/api/issues/search?componentKeys=maaninentupee_EvilScraper-&resolved=false" \
           -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
           -o sonar-report.json
 
@@ -83,18 +95,6 @@ jobs:
             cat sonar-report.json
             exit 1
           fi
-
-      - name: 🔍 Fetch SonarQube Quality Gate Status
-        run: |
-          # Haetaan laatuportin tila
-          curl -X GET "https://sonarcloud.io/api/qualitygates/project_status?projectKey=maaninentupee_EvilScraper" \
-          -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
-          -o quality-gate-status.json
-          
-          # Näytetään laatuportin tila
-          echo "Quality Gate Status:"
-          cat quality-gate-status.json
-        continue-on-error: true
 
       - name: 🤖 Send code issues to Anthropic Claude for optimization
         run: |

@@ -53,7 +53,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.projectKey=maaninentupee_EvilScraper
+            -Dsonar.projectKey=maaninentupee_EvilScraper-
             -Dsonar.organization=maaninentupee
             -Dsonar.sources=src
             -Dsonar.tests=test
