@@ -46,29 +46,17 @@ const dbConfig = {
 
 // Monimutkainen funktio (SonarQube Code Smell)
 function complexFunction(a, b, c, d, e) {
-  let result = 0;
+  if (a <= 0) return 0;
   
-  if (a > 0) {
-    if (b > 0) {
-      if (c > 0) {
-        if (d > 0) {
-          if (e > 0) {
-            result = a + b + c + d + e;
-          } else {
-            result = a + b + c + d;
-          }
-        } else {
-          result = a + b + c;
-        }
-      } else {
-        result = a + b;
-      }
-    } else {
-      result = a;
-    }
+  const values = [a, b, c, d, e];
+  let sum = 0;
+  
+  for (let i = 0; i < values.length; i++) {
+    if (values[i] <= 0) break;
+    sum += values[i];
   }
   
-  return result;
+  return sum;
 }
 
 // Vientimäärittelyt

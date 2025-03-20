@@ -36,9 +36,9 @@ jobs:
           # Varmistetaan, että coverage-hakemisto on olemassa
           mkdir -p coverage
           
-          # Jos cobertura-raportti on olemassa, kopioidaan se test-report.xml -nimellä SonarQubea varten
+          # Jos cobertura-raportti on olemassa, kopioidaan se sonar-report.xml -nimellä SonarQubea varten
           if [ -f "coverage/cobertura-coverage.xml" ]; then
-            cp coverage/cobertura-coverage.xml coverage/test-report.xml
+            cp coverage/cobertura-coverage.xml coverage/sonar-report.xml
           fi
         continue-on-error: true
 
@@ -59,7 +59,7 @@ jobs:
             -Dsonar.sourceEncoding=UTF-8
             -Dsonar.verbose=true
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            -Dsonar.testExecutionReportPaths=coverage/test-report.xml
+            -Dsonar.testExecutionReportPaths=coverage/sonar-report.xml
             -Dsonar.exclusions=node_modules/**,test/**,dist/**
             -Dsonar.python.version=3.8
             -Dsonar.qualitygate.wait=true

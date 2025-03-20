@@ -125,24 +125,9 @@ async function runAllTests() {
   console.log('\n✅ All load tests completed!');
 }
 
-// Parse command line arguments
-function parseArgs() {
-  const args = process.argv.slice(2);
-  const config = { ...DEFAULT_CONFIG };
-  
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    
-    if (arg === '--connections' || arg === '-c') {
-      config.connections = parseInt(args[++i], 10);
-    } else if (arg === '--duration' || arg === '-d') {
-      config.duration = parseInt(args[++i], 10);
-    } else if (arg === '--pipelining' || arg === '-p') {
-      config.pipelining = parseInt(args[++i], 10);
-    } else if (arg === '--timeout' || arg === '-t') {
-      config.timeout = parseInt(args[++i], 10);
-    } else if (arg === '--help' || arg === '-h') {
-      console.log(`
+// Helper function to generate help message
+function generateHelpMessage() {
+  return `
 Usage: node autocannon-load-test.js [options]
 
 Options:
@@ -151,11 +136,34 @@ Options:
   --pipelining, -p   Number of pipelined requests (default: ${DEFAULT_CONFIG.pipelining})
   --timeout, -t      Timeout in seconds (default: ${DEFAULT_CONFIG.timeout})
   --help, -h         Show this help message
-      `);
+  `;
+}
+
+function parseArgs() {
+  const ARG_MAPPING = {
+    '--connections': { key: 'connections', alias: '-c' },
+    '--duration': { key: 'duration', alias: '-d' },
+    '--pipelining': { key: 'pipelining', alias: '-p' },
+    '--timeout': { key: 'timeout', alias: '-t' }
+  };
+
+  const args = process.argv.slice(2);
+  const config = { ...DEFAULT_CONFIG };
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--help' || arg === '-h') {
+      console.log(generateHelpMessage());
       process.exit(0);
     }
+    const mapping = ARG_MAPPING[arg] || Object.values(ARG_MAPPING).find(m => m.alias === arg);
+    if (mapping) {
+      const value = parseInt(args[++i], 10);
+      if (!isNaN(value)) {
+        config[mapping.key] = value;
+      }
+    }
   }
-  
   return config;
 }
 

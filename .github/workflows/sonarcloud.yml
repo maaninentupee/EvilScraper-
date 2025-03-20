@@ -19,30 +19,30 @@ jobs:
         with:
           fetch-depth: 0  # Varmistaa, että kaikki historia on käytettävissä SonarQubea varten
 
-      - name: 🔧 Setup Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: |
           npm install
 
-      - name: 🧪 Run tests with coverage
+      - name: Run tests with coverage
         run: |
           npm test -- --coverage --coverageReporters=lcov --coverageReporters=text --coverageReporters=cobertura
         continue-on-error: true  # Jatka, vaikka testit epäonnistuisivat
 
       # Varmistetaan, että testi-raportit ovat oikeassa muodossa
-      - name: 🔄 Convert test reports
+      - name: Convert test reports
         run: |
           # Varmistetaan, että coverage-hakemisto on olemassa
           mkdir -p coverage
           
           # Jos cobertura-raportti on olemassa, kopioidaan se test-report.xml -nimellä SonarQubea varten
           if [ -f "coverage/cobertura-coverage.xml" ]; then
-            cp coverage/cobertura-coverage.xml coverage/test-report.xml
+            cp coverage/cobertura-coverage.xml coverage/sonar-report.xml
           fi
         continue-on-error: true
 
@@ -63,7 +63,7 @@ jobs:
             -Dsonar.sourceEncoding=UTF-8
             -Dsonar.verbose=true
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            -Dsonar.testExecutionReportPaths=coverage/test-report.xml
+            -Dsonar.testExecutionReportPaths=coverage/sonar-report.xml
             -Dsonar.exclusions=node_modules/**,test/**,dist/**
             -Dsonar.python.version=3.8
             -Dsonar.qualitygate.wait=true
