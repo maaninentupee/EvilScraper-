@@ -63,7 +63,6 @@ jobs:
             -Dsonar.sourceEncoding=UTF-8
             -Dsonar.verbose=true
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            -Dsonar.testExecutionReportPaths=coverage/sonar-report.xml
             -Dsonar.exclusions=node_modules/**,test/**,dist/**
             -Dsonar.python.version=3.8
             -Dsonar.qualitygate.wait=true
