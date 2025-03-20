@@ -1,5 +1,6 @@
 // Tämä tiedosto on tarkoitettu SonarCloud-integraation testaamiseen
 // Lisätty kommentti testausta varten - 2025-03-16
+// Lisätty kommentti testausta varten - 2025-03-21 - Testataan putkea
 
 // Tämä on testitiedosto SonarQube-analyysia varten
 // Sisältää tarkoituksella koodivirheitä, jotka SonarQube voi havaita
@@ -75,10 +76,25 @@ function multiplyNumbers(a, b) {
   return a * b;
 }
 
+/**
+ * Yksinkertainen funktio, joka jakaa kaksi lukua
+ * @param {number} a - Jaettava luku
+ * @param {number} b - Jakaja
+ * @returns {number} Lukujen osamäärä
+ * @throws {Error} Jos jakaja on nolla
+ */
+function divideNumbers(a, b) {
+  if (b === 0) {
+    throw new Error("Jakaja ei voi olla nolla");
+  }
+  return a / b;
+}
+
 // Viedään funktiot
 module.exports = {
   fetchData,
   complexFunction,
   addNumbers,
-  multiplyNumbers
+  multiplyNumbers,
+  divideNumbers
 };
