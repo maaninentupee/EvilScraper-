@@ -11,36 +11,30 @@ on:
 jobs:
   sonarcloud:
     name: SonarCloud Scan
-    runs-on: macos-latest  # Käytetään macOS-ympäristöä
+    runs-on: macOS-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v2
         with:
           fetch-depth: 0  # Varmistaa, että kaikki historia on käytettävissä SonarQubea varten
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm install
+        run: npm install
 
       - name: Run tests with coverage
-        run: |
-          npm test -- --coverage --coverageReporters=lcov --coverageReporters=text --coverageReporters=cobertura
+        run: npm test -- --coverage --coverageReporters=lcov --coverageReporters=text --coverageReporters=cobertura
         continue-on-error: true  # Jatka, vaikka testit epäonnistuisivat
 
-      # Varmistetaan, että testi-raportit ovat oikeassa muodossa
       - name: Convert test reports
         run: |
-          # Varmistetaan, että coverage-hakemisto on olemassa
           mkdir -p coverage
-          
-          # Jos cobertura-raportti on olemassa, kopioidaan se test-report.xml -nimellä SonarQubea varten
           if [ -f "coverage/cobertura-coverage.xml" ]; then
             cp coverage/cobertura-coverage.xml coverage/sonar-report.xml
           fi
@@ -64,9 +58,16 @@ jobs:
             -Dsonar.verbose=true
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
             -Dsonar.exclusions=node_modules/**,test/**,dist/**
-            -Dsonar.python.version=3.8
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
             -Dsonar.coverage.exclusions=test/**,**/*.test.js,**/*.spec.js
             -Dsonar.cpd.exclusions=test/**
             -Dsonar.javascript.coveragePlugin=lcov
+
+      - name: Fetch SonarQube Quality Gate Status
+        run: |
+          # Haetaan laatuportin tila
+          curl -X GET "https://sonarcloud.io/api/qualitygates/project_status?projectKey=maaninentupee_EvilScraper-" \
+          -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
+          -o quality-gate-status.json
+        continue-on-error: true
