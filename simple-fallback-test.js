@@ -1,31 +1,31 @@
 /**
- * Yksinkertainen testi AI-fallback-mekanismille
- * Tämä skripti ei vaadi oikeita LLM-malleja
+ * Simple test for AI fallback mechanism
+ * This script doesn't require real LLM models
  */
 
 const axios = require('axios');
 const fs = require('fs');
 
-// Asetukset
+// Settings
 const BASE_URL = 'http://localhost:3001';
 const TOTAL_REQUESTS = 30;
 const UNIQUE_PROMPTS = 5;
 const DELAY_BETWEEN_REQUESTS = 200; // ms
 
-// Tilastot
+// Statistics
 let successCount = 0;
 let errorCount = 0;
 let fallbackCount = 0;
 let cacheHitCount = 0;
 
-// Virhetyyppien tilastot
+// Error type statistics
 let serviceUnavailableCount = 0;
 let modelNotFoundCount = 0;
 let timeoutCount = 0;
 let rateLimitCount = 0;
 let unexpectedErrorCount = 0;
 
-// Palveluntarjoajakohtaiset tilastot
+// Provider-specific statistics
 const providerStats = {
   openai: { success: 0, failure: 0, fallback: 0 },
   anthropic: { success: 0, failure: 0, fallback: 0 },
@@ -33,31 +33,31 @@ const providerStats = {
   local: { success: 0, failure: 0, fallback: 0 }
 };
 
-// Vasteajat
+// Response times
 const responseTimes = [];
 
-// Promptit
+// Prompts
 const prompts = [
-  "Miten tekoäly toimii?",
-  "Kirjoita lyhyt runo",
-  "Selitä mitä on koneoppiminen",
-  "Anna kolme SEO-vinkkiä",
-  "Mikä on paras ohjelmointikieli aloittelijalle?"
+  "How does artificial intelligence work?",
+  "Write a short poem",
+  "Explain what machine learning is",
+  "Give three SEO tips",
+  "What is the best programming language for beginners?"
 ];
 
-// Palveluntarjoajat
+// Service providers
 const providers = ['openai', 'anthropic', 'ollama', 'local'];
 
-// Virhetilanteiden simulointi
+// Error simulation
 const errorSimulations = [
-  { type: 'none', weight: 0.6 },                  // Ei simuloitua virhettä (60%)
-  { type: 'service_unavailable', weight: 0.1 },   // Palvelu ei saatavilla (10%)
-  { type: 'model_not_found', weight: 0.1 },       // Mallia ei löydy (10%)
-  { type: 'timeout', weight: 0.1 },               // Aikakatkaisu (10%)
+  { type: 'none', weight: 0.6 },                  // No simulated error (60%)
+  { type: 'service_unavailable', weight: 0.1 },   // Service unavailable (10%)
+  { type: 'model_not_found', weight: 0.1 },       // Model not found (10%)
+  { type: 'timeout', weight: 0.1 },               // Timeout (10%)
   { type: 'rate_limit', weight: 0.1 }             // Rate limit (10%)
 ];
 
-// Valitse virhetilanne painotusten mukaan
+// Select error scenario based on weights
 function selectErrorSimulation() {
   const random = Math.random();
   let cumulativeWeight = 0;
@@ -72,7 +72,7 @@ function selectErrorSimulation() {
   return 'none';
 }
 
-// Apufunktiot
+// Helper functions
 async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -93,7 +93,7 @@ async function sendRequest(prompt, provider, errorType = 'none') {
         'X-Test-Mode': errorType !== 'none' ? 'true' : 'false',
         'X-Test-Error': errorType !== 'none' ? errorType : ''
       },
-      timeout: 10000 // 10 sekunnin timeout
+      timeout: 10000 // 10 second timeout
     });
 
     const duration = Date.now() - startTime;
@@ -102,87 +102,87 @@ async function sendRequest(prompt, provider, errorType = 'none') {
     successCount++;
     const data = response.data;
 
-    // Tarkistetaan, käytettiinkö fallbackia
+    // Check if fallback was used
     if (data.usedFallback) {
       fallbackCount++;
       
-      // Päivitetään palveluntarjoajakohtaiset tilastot
+      // Update provider-specific statistics
       if (data.provider && providerStats[data.provider]) {
         providerStats[data.provider].fallback++;
       }
       
-      console.log(`Fallback käytössä: ${data.provider} (alkuperäinen: ${provider}) | ${duration}ms`);
+      console.log(`Fallback used: ${data.provider} (original: ${provider}) | ${duration}ms`);
     }
 
-    // Tarkistetaan, käytettiinkö välimuistia
+    // Check if cache was used
     if (data.fromCache) {
       cacheHitCount++;
-      console.log(`Välimuistiosuma: ${prompt.substring(0, 20)}... | ${duration}ms`);
+      console.log(`Cache hit: ${prompt.substring(0, 20)}... | ${duration}ms`);
     }
     
-    // Päivitetään palveluntarjoajakohtaiset tilastot
+    // Update provider-specific statistics
     if (data.provider && providerStats[data.provider]) {
       providerStats[data.provider].success++;
     }
 
-    console.log(`Onnistunut pyyntö: ${data.provider || 'unknown'} | ${prompt.substring(0, 20)}... | ${duration}ms | Simuloitu virhe: ${errorType}`);
+    console.log(`Successful request: ${data.provider || 'unknown'} | ${prompt.substring(0, 20)}... | ${duration}ms | Simulated error: ${errorType}`);
     return { success: true, data, duration };
   } catch (error) {
     const duration = Date.now() - startTime;
     responseTimes.push(duration);
     
-    // Päivitetään palveluntarjoajakohtaiset tilastot
+    // Update provider-specific statistics
     if (providerStats[provider]) {
       providerStats[provider].failure++;
     }
     
     if (error.response) {
-      // Palvelin vastasi virheellä
+      // Server responded with an error
       try {
         const errorData = error.response.data;
         
-        // Luokitellaan virhetyyppi
+        // Classify error type
         if (errorData.errorType === 'service_unavailable') {
           serviceUnavailableCount++;
-          console.log(`Palvelu ei ole saatavilla: ${errorData.error} | ${duration}ms`);
+          console.log(`Service unavailable: ${errorData.error} | ${duration}ms`);
         } else if (errorData.errorType === 'model_not_found') {
           modelNotFoundCount++;
-          console.log(`Mallia ei löydy: ${errorData.error} | ${duration}ms`);
+          console.log(`Model not found: ${errorData.error} | ${duration}ms`);
         } else if (errorData.errorType === 'timeout') {
           timeoutCount++;
-          console.log(`Aikakatkaisu: ${errorData.error} | ${duration}ms`);
+          console.log(`Timeout: ${errorData.error} | ${duration}ms`);
         } else if (errorData.errorType === 'rate_limit') {
           rateLimitCount++;
-          console.log(`Rate limit ylitetty: ${errorData.error} | ${duration}ms`);
+          console.log(`Rate limit exceeded: ${errorData.error} | ${duration}ms`);
         } else {
           unexpectedErrorCount++;
-          console.log(`Odottamaton virhe: ${errorData.error} | ${duration}ms`);
+          console.log(`Unexpected error: ${errorData.error} | ${duration}ms`);
         }
       } catch (e) {
-        // Jos vastaus ei ole JSON-muodossa tai ei sisällä errorType-kenttää
+        // If response is not in JSON format or doesn't contain errorType field
         if (error.response.status === 429) {
           rateLimitCount++;
-          console.log(`Rate limit ylitetty: ${error.response.statusText} | ${duration}ms`);
+          console.log(`Rate limit exceeded: ${error.response.statusText} | ${duration}ms`);
         } else if (error.response.status === 504) {
           timeoutCount++;
-          console.log(`Aikakatkaisu: ${error.response.statusText} | ${duration}ms`);
+          console.log(`Timeout: ${error.response.statusText} | ${duration}ms`);
         } else if (error.response.status >= 500) {
           serviceUnavailableCount++;
-          console.log(`Palvelinvirhe: ${error.response.status} - ${error.response.statusText} | ${duration}ms`);
+          console.log(`Server error: ${error.response.status} - ${error.response.statusText} | ${duration}ms`);
         } else {
           unexpectedErrorCount++;
-          console.log(`Muu virhe: ${error.response.status} - ${error.response.statusText} | ${duration}ms`);
+          console.log(`Other error: ${error.response.status} - ${error.response.statusText} | ${duration}ms`);
         }
       }
     } else if (error.code === 'ECONNABORTED') {
       timeoutCount++;
-      console.log(`Pyyntö aikakatkaistiin: ${error.message} | ${duration}ms`);
+      console.log(`Request timed out: ${error.message} | ${duration}ms`);
     } else if (error.code === 'ECONNREFUSED') {
       serviceUnavailableCount++;
-      console.log(`Palvelin ei vastaa: ${error.message} | ${duration}ms`);
+      console.log(`Server not responding: ${error.message} | ${duration}ms`);
     } else {
       unexpectedErrorCount++;
-      console.log(`Virhe pyynnössä: ${error.message} | ${duration}ms`);
+      console.log(`Error in request: ${error.message} | ${duration}ms`);
     }
     
     errorCount++;
@@ -190,41 +190,41 @@ async function sendRequest(prompt, provider, errorType = 'none') {
   }
 }
 
-// Pääfunktio
+// Main function
 async function runTest() {
-  console.log(`Aloitetaan testi: ${TOTAL_REQUESTS} pyyntöä`);
+  console.log(`Starting test: ${TOTAL_REQUESTS} requests`);
   
   const startTime = Date.now();
   
-  // Lähetetään pyynnöt
+  // Send requests
   for (let i = 0; i < TOTAL_REQUESTS; i++) {
-    // Valitaan satunnainen prompti
-    const promptIndex = i % UNIQUE_PROMPTS; // Varmistetaan, että samoja prompteja käytetään uudelleen
+    // Select a random prompt
+    const promptIndex = i % UNIQUE_PROMPTS; // Ensure same prompts are reused
     const prompt = prompts[promptIndex];
     
-    // Valitaan satunnainen palveluntarjoaja
+    // Select a random service provider
     const providerIndex = Math.floor(Math.random() * providers.length);
     const provider = providers[providerIndex];
     
-    // Valitaan satunnainen virhetilanne
+    // Select a random error scenario
     const errorType = selectErrorSimulation();
     
-    console.log(`Pyyntö ${i+1}/${TOTAL_REQUESTS}: ${provider} - ${prompt.substring(0, 20)}... - Simuloitu virhe: ${errorType}`);
+    console.log(`Request ${i+1}/${TOTAL_REQUESTS}: ${provider} - ${prompt.substring(0, 20)}... - Simulated error: ${errorType}`);
     
     await sendRequest(prompt, provider, errorType);
     
-    // Odotetaan hetki pyyntöjen välillä
+    // Wait a moment between requests
     await sleep(DELAY_BETWEEN_REQUESTS);
   }
   
   const totalDuration = Date.now() - startTime;
   
-  // Lasketaan tilastot
+  // Calculate statistics
   const avgResponseTime = responseTimes.length > 0 
     ? responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length 
     : 0;
   
-  // Lasketaan p95 vasteaika
+  // Calculate p95 response time
   let p95ResponseTime = 0;
   if (responseTimes.length > 0) {
     const sortedTimes = [...responseTimes].sort((a, b) => a - b);
@@ -232,42 +232,42 @@ async function runTest() {
     p95ResponseTime = sortedTimes[p95Index];
   }
   
-  // Tulostetaan yhteenveto
-  console.log("\n--- Testin yhteenveto ---");
-  console.log(`Yhteensä pyyntöjä: ${TOTAL_REQUESTS}`);
-  console.log(`Onnistuneet pyynnöt: ${successCount} (${(successCount/TOTAL_REQUESTS*100).toFixed(2)}%)`);
-  console.log(`Epäonnistuneet pyynnöt: ${errorCount} (${(errorCount/TOTAL_REQUESTS*100).toFixed(2)}%)`);
+  // Print summary
+  console.log("\n--- Test summary ---");
+  console.log(`Total requests: ${TOTAL_REQUESTS}`);
+  console.log(`Successful requests: ${successCount} (${(successCount/TOTAL_REQUESTS*100).toFixed(2)}%)`);
+  console.log(`Failed requests: ${errorCount} (${(errorCount/TOTAL_REQUESTS*100).toFixed(2)}%)`);
   
   if (successCount > 0) {
-    console.log(`Fallback käytössä: ${fallbackCount} (${(fallbackCount/successCount*100).toFixed(2)}% onnistuneista)`);
-    console.log(`Välimuistiosumat: ${cacheHitCount} (${(cacheHitCount/successCount*100).toFixed(2)}% onnistuneista)`);
+    console.log(`Fallback used: ${fallbackCount} (${(fallbackCount/successCount*100).toFixed(2)}% of successful requests)`);
+    console.log(`Cache hits: ${cacheHitCount} (${(cacheHitCount/successCount*100).toFixed(2)}% of successful requests)`);
   } else {
-    console.log(`Fallback käytössä: ${fallbackCount} (0% onnistuneista)`);
-    console.log(`Välimuistiosumat: ${cacheHitCount} (0% onnistuneista)`);
+    console.log(`Fallback used: ${fallbackCount} (0% of successful requests)`);
+    console.log(`Cache hits: ${cacheHitCount} (0% of successful requests)`);
   }
   
-  console.log(`\nVirhetyypit:`);
-  console.log(`- Palvelu ei saatavilla: ${serviceUnavailableCount} (${(serviceUnavailableCount/TOTAL_REQUESTS*100).toFixed(2)}%)`);
-  console.log(`- Mallia ei löydy: ${modelNotFoundCount} (${(modelNotFoundCount/TOTAL_REQUESTS*100).toFixed(2)}%)`);
-  console.log(`- Aikakatkaisu: ${timeoutCount} (${(timeoutCount/TOTAL_REQUESTS*100).toFixed(2)}%)`);
-  console.log(`- Rate limit: ${rateLimitCount} (${(rateLimitCount/TOTAL_REQUESTS*100).toFixed(2)}%)`);
-  console.log(`- Odottamattomat virheet: ${unexpectedErrorCount} (${(unexpectedErrorCount/TOTAL_REQUESTS*100).toFixed(2)}%)`);
+  console.log(`\nError types:`);
+  console.log(`- Service unavailable: ${serviceUnavailableCount} (${(serviceUnavailableCount/TOTAL_REQUESTS*100).toFixed(2)}%)`);
+  console.log(`- Model not found: ${modelNotFoundCount} (${(modelNotFoundCount/TOTAL_REQUESTS*100).toFixed(2)}%)`);
+  console.log(`- Timeout: ${timeoutCount} (${(timeoutCount/TOTAL_REQUESTS*100).toFixed(2)}%)`);
+  console.log(`- Rate limit exceeded: ${rateLimitCount} (${(rateLimitCount/TOTAL_REQUESTS*100).toFixed(2)}%)`);
+  console.log(`- Unexpected errors: ${unexpectedErrorCount} (${(unexpectedErrorCount/TOTAL_REQUESTS*100).toFixed(2)}%)`);
   
-  console.log(`\nPalveluntarjoajien tilastot:`);
+  console.log(`\nProvider statistics:`);
   for (const [provider, stats] of Object.entries(providerStats)) {
     const total = stats.success + stats.failure;
     const successRate = total > 0 ? (stats.success / total * 100).toFixed(2) : '0.00';
     const fallbackRate = stats.success > 0 ? (stats.fallback / stats.success * 100).toFixed(2) : '0.00';
     
-    console.log(`- ${provider}: ${stats.success} onnistunutta (${successRate}%), ${stats.failure} epäonnistunutta, ${stats.fallback} fallback (${fallbackRate}%)`);
+    console.log(`- ${provider}: ${stats.success} successful (${successRate}%), ${stats.failure} failed, ${stats.fallback} fallback (${fallbackRate}%)`);
   }
   
-  console.log(`\nVasteajat:`);
-  console.log(`- Keskimääräinen: ${avgResponseTime.toFixed(2)}ms`);
+  console.log(`\nResponse times:`);
+  console.log(`- Average: ${avgResponseTime.toFixed(2)}ms`);
   console.log(`- P95: ${p95ResponseTime.toFixed(2)}ms`);
-  console.log(`- Testin kokonaiskesto: ${totalDuration}ms`);
+  console.log(`- Total test duration: ${totalDuration}ms`);
   
-  // Tallennetaan tulokset JSON-tiedostoon
+  // Save results to JSON file
   const results = {
     timestamp: new Date().toISOString(),
     metrics: {
@@ -291,10 +291,10 @@ async function runTest() {
   };
   
   fs.writeFileSync('simple-fallback-test-results.json', JSON.stringify(results, null, 2));
-  console.log('\nTulokset tallennettu tiedostoon: simple-fallback-test-results.json');
+  console.log('\nResults saved to file: simple-fallback-test-results.json');
 }
 
-// Suoritetaan testi
+// Run the test
 runTest().catch(error => {
-  console.error(`Testin suoritus epäonnistui: ${error.message}`);
+  console.error(`Test failed: ${error.message}`);
 });

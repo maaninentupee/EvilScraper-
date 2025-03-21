@@ -19,53 +19,53 @@ export class LocalProvider extends BaseProvider {
 
   constructor() {
     super();
-    // Määritellään llama-binäärin polku
+    // Define the path to the llama binary
     this.LLAMA_BINARY_PATH = this.getLlamaBinaryPath();
-    // Tarkistetaan llama-binäärin olemassaolo käynnistyksen yhteydessä
+    // Check the existence of the llama binary at startup
     this.checkLlamaBinaryExists();
   }
 
   /**
-   * Määrittää llama-binäärin polun ympäristön perusteella
-   * @returns Absoluuttinen polku llama-binääriin
+   * Determines the path to the llama binary based on the environment
+   * @returns Absolute path to the llama binary
    */
   private getLlamaBinaryPath(): string {
-    // Käytetään ympäristömuuttujaa, jos se on määritetty
+    // Use the environment variable if it is defined
     if (process.env.LLAMA_BINARY_PATH) {
-      this.logger.log(`Käytetään ympäristömuuttujassa määritettyä llama-binäärin polkua: ${process.env.LLAMA_BINARY_PATH}`);
+      this.logger.log(`Using the llama binary path defined in the environment variable: ${process.env.LLAMA_BINARY_PATH}`);
       return path.resolve(process.env.LLAMA_BINARY_PATH);
     }
     
-    // Muuten käytetään projektin juuressa olevaa llama-binääriä
+    // Otherwise use the llama binary in the project root
     const defaultPath = path.resolve(process.cwd(), 'llama');
-    this.logger.log(`Käytetään oletuspolkua llama-binäärille: ${defaultPath}`);
+    this.logger.log(`Using the default path for the llama binary: ${defaultPath}`);
     return defaultPath;
   }
 
   /**
-   * Tarkistaa llama-binäärin olemassaolon
+   * Checks the existence of the llama binary
    */
   private checkLlamaBinaryExists(): void {
     try {
       const absolutePath = path.resolve(this.LLAMA_BINARY_PATH);
-      this.logger.log(`Tarkistetaan llama-binäärin olemassaolo polusta: ${absolutePath}`);
+      this.logger.log(`Checking the existence of the llama binary from path: ${absolutePath}`);
       
       if (!fs.existsSync(absolutePath)) {
         this.isServiceAvailable = false;
-        this.lastError = `Llama-binääriä ei löydy polusta: ${absolutePath}`;
+        this.lastError = `Llama binary not found at path: ${absolutePath}`;
         this.lastErrorTime = new Date();
-        this.consecutiveFailures = this.MAX_CONSECUTIVE_FAILURES; // Asetetaan maksimimäärä epäonnistumisia
+        this.consecutiveFailures = this.MAX_CONSECUTIVE_FAILURES; // Set the maximum number of consecutive failures
         
         this.logger.error(this.lastError);
       } else {
-        // Tarkistetaan, onko tiedosto suoritettava
+        // Check if the file is executable
         try {
           fs.accessSync(absolutePath, fs.constants.X_OK);
-          this.logger.log(`Llama-binääri löytyi ja on suoritettava: ${absolutePath}`);
+          this.logger.log(`Llama binary found and is executable: ${absolutePath}`);
           this.isServiceAvailable = true;
         } catch (error) {
           this.isServiceAvailable = false;
-          this.lastError = `Llama-binääri löytyi, mutta ei ole suoritettava: ${absolutePath}`;
+          this.lastError = `Llama binary found but is not executable: ${absolutePath}`;
           this.lastErrorTime = new Date();
           this.consecutiveFailures = this.MAX_CONSECUTIVE_FAILURES;
           
@@ -74,7 +74,7 @@ export class LocalProvider extends BaseProvider {
       }
     } catch (error) {
       this.isServiceAvailable = false;
-      this.lastError = `Virhe tarkistettaessa llama-binäärin olemassaoloa: ${error.message}`;
+      this.lastError = `Error checking the llama binary: ${error.message}`;
       this.lastErrorTime = new Date();
       this.consecutiveFailures = this.MAX_CONSECUTIVE_FAILURES;
       
@@ -83,26 +83,26 @@ export class LocalProvider extends BaseProvider {
   }
 
   /**
-   * Hakee mallin tiedostopolun
-   * @param modelName Mallin nimi
-   * @returns Absoluuttinen polku mallitiedostoon
+   * Gets the path to the model file
+   * @param modelName Model name
+   * @returns Absolute path to the model file
    */
   private getModelPath(modelName: string): string {
     return path.join(environment.localModelsDir, modelName);
   }
 
   /**
-   * Generoi vastauksen paikallisella mallilla
-   * @param request Pyyntö
-   * @returns Vastaus
+   * Generates a response using the local model
+   * @param request Request
+   * @returns Response
    */
   async generateCompletion(request: CompletionRequest): Promise<CompletionResult> {
     try {
-      // Tarkistetaan, onko palvelu käytettävissä
+      // Check if the service is available
       if (!await this.isAvailable()) {
         return { 
           success: false, 
-          error: this.lastError || 'Paikallinen palvelu ei ole saatavilla', 
+          error: this.lastError || 'Local service is not available', 
           errorType: 'service_unavailable',
           text: '',
           provider: this.getName(),
@@ -110,10 +110,10 @@ export class LocalProvider extends BaseProvider {
         };
       }
       
-      // Tarkistetaan mallitiedoston olemassaolo
+      // Check if the model file exists
       const modelPath = this.getModelPath(request.modelName);
       if (!fs.existsSync(modelPath)) {
-        this.lastError = `Mallitiedostoa ei löydy: ${modelPath}`;
+        this.lastError = `Model file not found: ${modelPath}`;
         this.lastErrorTime = new Date();
         this.consecutiveFailures++;
         
@@ -129,7 +129,7 @@ export class LocalProvider extends BaseProvider {
         };
       }
       
-      // Käytetään runLocalModel-metodia vastauksen generointiin
+      // Use the runLocalModel method to generate the response
       this.totalRequests++;
       const result = await this.runLocalModel(modelPath, request);
       
@@ -139,25 +139,25 @@ export class LocalProvider extends BaseProvider {
       } else {
         this.consecutiveFailures++;
         
-        // Jos peräkkäisiä epäonnistumisia on liikaa, merkitään palvelu ei-saatavilla olevaksi
+        // If there are too many consecutive failures, mark the service as unavailable
         if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
           this.isServiceAvailable = false;
-          this.logger.warn(`Palvelu merkitty ei-saatavilla olevaksi ${this.consecutiveFailures} peräkkäisen epäonnistumisen jälkeen`);
+          this.logger.warn(`Service marked as unavailable after ${this.consecutiveFailures} consecutive failures`);
         }
       }
       
       return result;
     } catch (error) {
-      this.lastError = `Virhe generoidessa vastausta: ${error.message}`;
+      this.lastError = `Error generating response: ${error.message}`;
       this.lastErrorTime = new Date();
       this.consecutiveFailures++;
       
       this.logger.error(this.lastError);
       
-      // Jos peräkkäisiä epäonnistumisia on liikaa, merkitään palvelu ei-saatavilla olevaksi
+      // If there are too many consecutive failures, mark the service as unavailable
       if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
         this.isServiceAvailable = false;
-        this.logger.warn(`Palvelu merkitty ei-saatavilla olevaksi ${this.consecutiveFailures} peräkkäisen epäonnistumisen jälkeen`);
+        this.logger.warn(`Service marked as unavailable after ${this.consecutiveFailures} consecutive failures`);
       }
       
       return {
@@ -184,33 +184,33 @@ export class LocalProvider extends BaseProvider {
       totalRequests: this.totalRequests,
       successfulRequests: this.successfulRequests,
       successRate: this.totalRequests > 0 ? `${((this.successfulRequests / this.totalRequests) * 100).toFixed(2)}%` : '0%',
-      averageLatency: 0 // Tämä pitäisi laskea oikeasti, mutta nyt käytetään oletusarvoa
+      averageLatency: 0 // This should be calculated, but for now use a default value
     };
   }
 
   /**
-   * Tarkistaa, onko palvelu käytettävissä
-   * @returns True, jos palvelu on käytettävissä
+   * Checks if the service is available
+   * @returns True if the service is available
    */
   public async isAvailable(): Promise<boolean> {
     try {
-      // Jos palvelu on jo merkitty ei-saatavilla olevaksi, tarkistetaan se uudelleen
+      // If the service is already marked as unavailable, check again
       if (!this.isServiceAvailable) {
-        this.logger.log('Palvelu on merkitty ei-saatavilla olevaksi, tarkistetaan uudelleen');
+        this.logger.log('Service is marked as unavailable, checking again');
         this.checkLlamaBinaryExists();
       }
       
-      // Jos palvelu on edelleen merkitty ei-saatavilla olevaksi, palautetaan false
+      // If the service is still marked as unavailable, return false
       if (!this.isServiceAvailable) {
-        this.logger.warn(`Paikallinen palvelu ei ole saatavilla: ${this.lastError}`);
+        this.logger.warn(`Local service is not available: ${this.lastError}`);
         return false;
       }
       
-      // Tarkistetaan llama-binäärin olemassaolo
+      // Check the existence of the llama binary
       const absolutePath = path.resolve(this.LLAMA_BINARY_PATH);
       if (!fs.existsSync(absolutePath)) {
         this.isServiceAvailable = false;
-        this.lastError = `Llama-binääriä ei löydy polusta: ${absolutePath}`;
+        this.lastError = `Llama binary not found at path: ${absolutePath}`;
         this.lastErrorTime = new Date();
         this.consecutiveFailures++;
         
@@ -218,11 +218,11 @@ export class LocalProvider extends BaseProvider {
         return false;
       }
       
-      // Kaikki kunnossa, palvelu on saatavilla
+      // Everything is fine, the service is available
       return true;
     } catch (error) {
       this.isServiceAvailable = false;
-      this.lastError = `Virhe tarkistettaessa palvelun saatavuutta: ${error.message}`;
+      this.lastError = `Error checking service availability: ${error.message}`;
       this.lastErrorTime = new Date();
       this.consecutiveFailures++;
       
@@ -232,19 +232,19 @@ export class LocalProvider extends BaseProvider {
   }
 
   /**
-   * Suorittaa paikallisen mallin
-   * @param modelPath Mallitiedoston polku
-   * @param request Pyyntö
-   * @returns Vastaus
+   * Runs the local model
+   * @param modelPath Model file path
+   * @param request Request
+   * @returns Response
    */
   private runLocalModel(modelPath: string, request: CompletionRequest): Promise<CompletionResult> {
     return new Promise((resolve) => {
-      // Tarkistetaan vielä kerran, onko palvelu käytettävissä
+      // Check again if the service is available
       if (!this.isServiceAvailable) {
-        this.logger.warn(`Paikallinen palvelu ei ole käytettävissä: ${this.lastError}`);
+        this.logger.warn(`Local service is not available: ${this.lastError}`);
         resolve({
           success: false,
-          error: this.lastError || 'Paikallinen palvelu ei ole saatavilla',
+          error: this.lastError || 'Local service is not available',
           errorType: 'service_unavailable',
           text: '',
           provider: this.getName(),
@@ -253,21 +253,21 @@ export class LocalProvider extends BaseProvider {
         return;
       }
       
-      // Varmistetaan vielä kerran, että llama-binääri on olemassa
+      // Make sure the llama binary exists
       try {
         const absolutePath = path.resolve(this.LLAMA_BINARY_PATH);
         if (!fs.existsSync(absolutePath)) {
           this.isServiceAvailable = false;
-          this.lastError = `Llama-binääriä ei löydy polusta: ${absolutePath}`;
+          this.lastError = `Llama binary not found at path: ${absolutePath}`;
           this.lastErrorTime = new Date();
-          this.consecutiveFailures = this.MAX_CONSECUTIVE_FAILURES; // Asetetaan maksimimäärä epäonnistumisia
+          this.consecutiveFailures = this.MAX_CONSECUTIVE_FAILURES; // Set the maximum number of consecutive failures
           
           this.logger.error(this.lastError);
           
           resolve({
             success: false,
             error: this.lastError,
-            errorType: 'service_unavailable', // Muutettu binary_not_found -> service_unavailable
+            errorType: 'service_unavailable', // Changed from binary_not_found to service_unavailable
             text: '',
             provider: this.getName(),
             model: request.modelName || 'unknown'
@@ -275,10 +275,9 @@ export class LocalProvider extends BaseProvider {
           return;
         }
         
-        this.logger.log(`Generoidaan vastausta paikallisella mallilla: ${request.modelName}`);
+        this.logger.log(`Generating response using local model: ${request.modelName}`);
         
-        // Käytetään execFile-metodia spawn-metodin sijaan
-        // execFile on turvallisempi ja helpompi käsitellä
+        // Use execFile instead of spawn for security and ease of use
         childProcess.execFile(absolutePath, [
           '-m', modelPath,
           '--temp', String(request.temperature || 0.7),
@@ -288,13 +287,13 @@ export class LocalProvider extends BaseProvider {
         ], { timeout: 30000 }, (error, stdout, stderr) => {
           if (error) {
             this.consecutiveFailures++;
-            this.lastError = `Virhe suoritettaessa paikallista mallia: ${error.message || 'Tuntematon virhe'}`;
+            this.lastError = `Error running local model: ${error.message || 'Unknown error'}`;
             this.lastErrorTime = new Date();
             
-            // Jos virhe johtuu siitä, että binääriä ei löydy (ENOENT)
+            // If the error is due to the binary not being found (ENOENT)
             if (error && 'code' in error && error.code === 'ENOENT') {
               this.isServiceAvailable = false;
-              this.lastError = `Llama-binääriä ei löydy tai se ei ole suoritettava: ${absolutePath}`;
+              this.lastError = `Llama binary not found or is not executable: ${absolutePath}`;
               this.logger.error(this.lastError);
               
               resolve({
@@ -310,7 +309,7 @@ export class LocalProvider extends BaseProvider {
             
             if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
               this.isServiceAvailable = false;
-              this.logger.warn(`Paikallinen palvelu merkitty ei-saatavilla olevaksi ${this.consecutiveFailures} peräkkäisen epäonnistumisen jälkeen`);
+              this.logger.warn(`Service marked as unavailable after ${this.consecutiveFailures} consecutive failures`);
             }
             
             this.logger.error(this.lastError);
@@ -327,13 +326,13 @@ export class LocalProvider extends BaseProvider {
           }
           
           if (stderr && stderr.length > 0) {
-            this.logger.warn(`Paikallinen malli tuotti virhetulosteen: ${stderr}`);
+            this.logger.warn(`Local model produced error output: ${stderr}`);
           }
           
-          // Onnistunut suoritus
-          this.logger.log(`Paikallisen mallin suoritus onnistui`);
+          // Successful execution
+          this.logger.log(`Local model execution successful`);
           
-          // Puhdistetaan vastaus
+          // Clean the output
           const cleanedOutput = this.cleanOutput(stdout);
           
           resolve({
@@ -345,12 +344,12 @@ export class LocalProvider extends BaseProvider {
         });
       } catch (error) {
         this.consecutiveFailures++;
-        this.lastError = `Odottamaton virhe: ${error.message || 'Tuntematon virhe'}`;
+        this.lastError = `Unexpected error: ${error.message || 'Unknown error'}`;
         this.lastErrorTime = new Date();
         
         if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
           this.isServiceAvailable = false;
-          this.logger.warn(`Paikallinen palvelu merkitty ei-saatavilla olevaksi ${this.consecutiveFailures} peräkkäisen epäonnistumisen jälkeen`);
+          this.logger.warn(`Service marked as unavailable after ${this.consecutiveFailures} consecutive failures`);
         }
         
         this.logger.error(this.lastError);
@@ -368,36 +367,36 @@ export class LocalProvider extends BaseProvider {
   }
 
   /**
-   * Puhdistaa mallin tuottaman tekstin
-   * @param output Mallin tuottama raaka teksti
-   * @returns Puhdistettu teksti
+   * Cleans the model output
+   * @param output Model output
+   * @returns Cleaned output
    */
   private cleanOutput(output: string): string {
     try {
-      // Poistetaan mahdolliset prompt-osiot
+      // Remove any prompt sections
       let cleanedOutput = output;
       
-      // Poistetaan mahdolliset järjestelmäviestit
+      // Remove any system messages
       cleanedOutput = cleanedOutput.replace(/^.*?<\/s>/, '').trim();
       
-      // Poistetaan ylimääräiset rivinvaihdot
+      // Remove extra line breaks
       cleanedOutput = cleanedOutput.replace(/\n{3,}/g, '\n\n');
       
-      // Poistetaan mahdolliset mallin tunnisteet
+      // Remove any model identifiers
       cleanedOutput = cleanedOutput.replace(/\[.*?\]:/g, '');
       
-      return cleanedOutput || output; // Jos puhdistus epäonnistui, palautetaan alkuperäinen
+      return cleanedOutput || output; // Return the original output if cleaning fails
     } catch (error) {
       this.logger.warn(`Error cleaning output: ${error.message}`);
-      return output; // Palautetaan alkuperäinen, jos puhdistus epäonnistui
+      return output; // Return the original output if cleaning fails
     }
   }
 
   /**
-   * Parsii mallin tuottaman tekstin
-   * @param output Mallin tuottama raaka teksti
-   * @returns Parsittu teksti
-   * @deprecated Käytä cleanOutput-metodia
+   * Parses the model output
+   * @param output Model output
+   * @returns Parsed output
+   * @deprecated Use cleanOutput instead
    */
   private parseOutput(output: string): string {
     return this.cleanOutput(output);

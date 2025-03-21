@@ -1,15 +1,15 @@
 import { ProviderHealth } from '../ProviderHealthMonitor';
 
 /**
- * Apuluokka palveluntarjoajien pisteyttämiseen
+ * Helper class for scoring service providers
  */
 export class ProviderScoreUtils {
     /**
-     * Laskee palveluntarjoajan pisteet prioriteettikartan ja terveystietojen perusteella
-     * @param health Palveluntarjoajan terveystiedot
-     * @param priorityMap Prioriteettikartta
-     * @param retryCount Uudelleenyrityskertojen määrä
-     * @returns Pisteet
+     * Calculates service provider score based on priority map and health information
+     * @param health Service provider health information
+     * @param priorityMap Priority map
+     * @param retryCount Number of retries
+     * @returns Score
      */
     public static calculateScore(
         health: ProviderHealth,
@@ -18,25 +18,25 @@ export class ProviderScoreUtils {
     ): number {
         let score = 0;
         
-        // Prioriteetti (0-100)
+        // Priority (0-100)
         const priority = priorityMap[health.name] || 0;
         score += priority * 100;
         
-        // Onnistumisprosentti (0-50)
+        // Success rate (0-50)
         const successRate = health.successRate || 1.0;
         score += successRate * 50;
         
-        // Vasteaika (0-30, käänteinen)
+        // Latency (0-30, inverse)
         const latency = health.averageLatency || 0;
         if (latency > 0) {
-            // Pienempi vasteaika = parempi pisteet
+            // Lower latency = better score
             const latencyScore = Math.max(0, 30 - (latency / 100));
             score += latencyScore;
         } else {
-            score += 30; // Oletusarvo jos vasteaikaa ei ole
+            score += 30; // Default value if latency is not available
         }
         
-        // Jos uudelleenyrityksiä on tehty, vähennetään pisteitä viimeaikaisten pyyntöjen perusteella
+        // If retries have been made, reduce score based on recent requests
         if (retryCount > 0) {
             const recentRequests = health.recentRequests || 0;
             const requestPenalty = Math.min(20, recentRequests / 5);
@@ -47,11 +47,11 @@ export class ProviderScoreUtils {
     }
     
     /**
-     * Järjestää palveluntarjoajat pisteiden mukaan
-     * @param providers Palveluntarjoajat
-     * @param priorityMap Prioriteettikartta
-     * @param retryCount Uudelleenyrityskertojen määrä
-     * @returns Järjestetty lista palveluntarjoajista
+     * Ranks service providers by score
+     * @param providers Service providers
+     * @param priorityMap Priority map
+     * @param retryCount Number of retries
+     * @returns Ranked service providers
      */
     public static rankProviders(
         providers: ProviderHealth[],
@@ -61,7 +61,7 @@ export class ProviderScoreUtils {
         return [...providers].sort((a, b) => {
             const scoreA = this.calculateScore(a, priorityMap, retryCount);
             const scoreB = this.calculateScore(b, priorityMap, retryCount);
-            return scoreB - scoreA; // Suuremmat pisteet ensin
+            return scoreB - scoreA; // Higher scores first
         });
     }
 }

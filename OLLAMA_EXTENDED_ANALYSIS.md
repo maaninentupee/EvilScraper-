@@ -1,106 +1,106 @@
-# Ollama-resurssien laajennettu analyysi
+# Extended Analysis of Ollama Resources
 
-## Yleiskatsaus
+## Overview
 
-Tämä dokumentti kuvaa laajennetun Ollama-resurssien analyysityökalun käyttöä ja tulkintaa. Laajennettu analyysi tarjoaa syvällisemmän näkemyksen Ollama-mallien resurssien käytöstä eri kuormitustasoilla ja eri malleilla.
+This document describes the use and interpretation of the extended Ollama resource analysis tool. The extended analysis provides a deeper insight into the resource usage of Ollama models at different load levels and with different models.
 
-## Laajennetun analyysin ominaisuudet
+## Features of the Extended Analysis
 
-Laajennettu analyysityökalu (`analyze-ollama-resources-extended.sh`) sisältää seuraavat ominaisuudet:
+The extended analysis tool (`analyze-ollama-resources-extended.sh`) includes the following features:
 
-1. **Järjestelmän tietojen kerääminen**:
-   - CPU-tiedot (malli, ydinten määrä)
-   - Muistitiedot (fyysinen muisti, swap)
-   - Käyttöjärjestelmätiedot
+1. **System Information Collection**:
+   - CPU information (model, number of cores)
+   - Memory information (physical memory, swap)
+   - Operating system information
 
-2. **Kaikkien saatavilla olevien mallien testaus**:
-   - Testaa automaattisesti kaikki Ollama-palvelussa saatavilla olevat mallit
-   - Kerää tietoja jokaisesta mallista erikseen
+2. **Testing All Available Models**:
+   - Automatically tests all models available in the Ollama service
+   - Collects information about each model separately
 
-3. **Eri rinnakkaisuustasojen testaus**:
-   - Testaa jokaista mallia 1, 2 ja 5 samanaikaisella pyynnöllä
-   - Analysoi resurssien käyttöä eri kuormitustasoilla
+3. **Testing Different Concurrency Levels**:
+   - Tests each model with 1, 2, and 5 concurrent requests
+   - Analyzes resource usage at different load levels
 
-4. **Kattavampi resurssien seuranta**:
-   - CPU-käyttö prosessikohtaisesti ja ytimittäin
-   - Muistinkäyttö ja muistikartat
-   - Verkkoaktiivisuus
-   - Levyaktiivisuus
+4. **More Comprehensive Resource Monitoring**:
+   - CPU usage by process and by core
+   - Memory usage and memory maps
+   - Network activity
+   - Disk activity
 
-5. **Yksityiskohtainen raportointi**:
-   - Yhteenvetoraportti Markdown-muodossa
-   - Taulukot CPU- ja muistinkäytöstä malleittain ja rinnakkaisuustasoittain
-   - Vasteaikojen analyysi
+5. **Detailed Reporting**:
+   - Summary report in Markdown format
+   - Tables of CPU and memory usage by model and concurrency level
+   - Response time analysis
 
-## Käyttö
+## Usage
 
-Laajennetun analyysityökalun käyttö:
+Using the extended analysis tool:
 
 ```bash
-# Varmista, että Ollama-palvelu on käynnissä
-# Varmista, että Windsurf-palvelin on käynnissä (npm run dev)
+# Make sure the Ollama service is running
+# Make sure the Windsurf server is running (npm run dev)
 
-# Suorita laajennettu analyysi
+# Run the extended analysis
 ./scripts/analyze-ollama-resources-extended.sh
 ```
 
-Analyysin suorittaminen kestää huomattavasti kauemmin kuin perusanalyysin, koska se testaa jokaista mallia useilla eri rinnakkaisuustasoilla.
+Running the analysis takes significantly longer than the basic analysis because it tests each model at several different concurrency levels.
 
-## Tulosten tulkinta
+## Interpreting Results
 
-Laajennettu analyysi tuottaa kattavan raportin hakemistoon `ollama-resource-analysis-extended-[aikaleima]`. Pääraportti on `extended_summary.md`, joka sisältää:
+The extended analysis produces a comprehensive report in the `ollama-resource-analysis-extended-[timestamp]` directory. The main report is `extended_summary.md`, which includes:
 
-### 1. CPU-käytön analyysi
+### 1. CPU Usage Analysis
 
-CPU-käytön taulukko näyttää jokaisen mallin ja rinnakkaisuustason minimi-, maksimi- ja keskimääräisen CPU-käytön. Tämä auttaa tunnistamaan:
+The CPU usage table shows the minimum, maximum, and average CPU usage for each model and concurrency level. This helps identify:
 
-- Mitkä mallit käyttävät eniten CPU-resursseja
-- Miten CPU-käyttö skaalautuu rinnakkaisuuden kasvaessa
-- Mahdolliset pullonkaulat korkeilla rinnakkaisuustasoilla
+- Which models use the most CPU resources
+- How CPU usage scales with increasing concurrency
+- Potential bottlenecks at high concurrency levels
 
-### 2. Muistinkäytön analyysi
+### 2. Memory Usage Analysis
 
-Muistinkäytön taulukko näyttää jokaisen mallin ja rinnakkaisuustason minimi-, maksimi- ja keskimääräisen muistinkäytön. Tämä auttaa tunnistamaan:
+The memory usage table shows the minimum, maximum, and average memory usage for each model and concurrency level. This helps identify:
 
-- Mitkä mallit käyttävät eniten muistia
-- Miten muistinkäyttö skaalautuu rinnakkaisuuden kasvaessa
-- Mahdolliset muistivuodot pitkäkestoisessa käytössä
+- Which models use the most memory
+- How memory usage scales with increasing concurrency
+- Potential memory leaks in long-term use
 
-### 3. Vasteaikojen analyysi
+### 3. Response Time Analysis
 
-Vasteaikojen taulukko näyttää jokaisen mallin ja rinnakkaisuustason keskimääräisen vasteajan. Tämä auttaa:
+The response time table shows the average response time for each model and concurrency level. This helps:
 
-- Vertailemaan eri mallien suorituskykyä
-- Arvioimaan rinnakkaisuuden vaikutusta vasteaikoihin
-- Tunnistamaan optimaalisen rinnakkaisuustason kullekin mallille
+- Compare the performance of different models
+- Evaluate the impact of concurrency on response times
+- Identify the optimal concurrency level for each model
 
-## Suositeltuja käyttötapauksia
+## Recommended Use Cases
 
-Laajennettu analyysi on erityisen hyödyllinen seuraavissa tilanteissa:
+The extended analysis is particularly useful in the following situations:
 
-1. **Mallin valinta**: Kun haluat valita optimaalisen mallin tiettyyn käyttötapaukseen suorituskyvyn ja resurssien käytön perusteella.
+1. **Model Selection**: When you want to select the optimal model for a specific use case based on performance and resource usage.
 
-2. **Kapasiteetin suunnittelu**: Kun suunnittelet palvelinresursseja tuotantoympäristöön ja haluat tietää, kuinka paljon resursseja tarvitset tietyllä käyttäjämäärällä.
+2. **Capacity Planning**: When planning server resources for a production environment and you want to know how many resources you need with a certain number of users.
 
-3. **Suorituskyvyn optimointi**: Kun haluat optimoida Ollama-konfiguraatiota (batch-size, ctx-size, threads) perustuen todellisiin suorituskykymittauksiin.
+3. **Performance Optimization**: When you want to optimize the Ollama configuration (batch-size, ctx-size, threads) based on actual performance measurements.
 
-4. **Rinnakkaisuuden optimointi**: Kun haluat määrittää optimaalisen rinnakkaisuustason, joka tasapainottaa suorituskyvyn ja resurssien käytön.
+4. **Concurrency Optimization**: When you want to determine the optimal concurrency level that balances performance and resource usage.
 
-## Rajoitukset
+## Limitations
 
-Laajennettu analyysi on kattava, mutta sillä on tiettyjä rajoituksia:
+The extended analysis is comprehensive, but it has certain limitations:
 
-1. Analyysi voi kestää pitkään, erityisesti jos käytössä on useita malleja.
-2. Korkeat rinnakkaisuustasot voivat aiheuttaa järjestelmän ylikuormittumisen.
-3. Analyysi ei ota huomioon pitkäkestoisen käytön vaikutuksia (esim. muistivuodot pitkällä aikavälillä).
-4. Tulokset voivat vaihdella järjestelmän muun kuormituksen mukaan.
+1. The analysis can take a long time, especially if multiple models are in use.
+2. High concurrency levels can cause system overload.
+3. The analysis does not take into account the effects of long-term use (e.g., memory leaks over a long period).
+4. Results may vary depending on other system load.
 
-## Jatkokehitysideoita
+## Future Development Ideas
 
-Laajennetun analyysin jatkokehitysideoita:
+Future development ideas for the extended analysis:
 
-1. Graafinen visualisointi CPU- ja muistinkäytöstä ajan funktiona
-2. Automaattinen konfiguraatioparametrien optimointi tulosten perusteella
-3. Pitkäkestoisten testien tuki (tunteja tai päiviä)
-4. Vertailu eri Ollama-versioiden välillä
-5. Lämpötilan seuranta pitkäkestoisissa testeissä
+1. Graphical visualization of CPU and memory usage over time
+2. Automatic optimization of configuration parameters based on results
+3. Support for long-term tests (hours or days)
+4. Comparison between different Ollama versions
+5. Temperature monitoring in long-term tests

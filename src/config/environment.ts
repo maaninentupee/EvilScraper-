@@ -6,7 +6,7 @@ import { ProviderType } from '../services/ModelSelector';
 config();
 
 function getProviderPriorityArray(): ProviderType[] {
-  // Järjestä palveluntarjoajat prioriteetin mukaan (pienempi numero = korkeampi prioriteetti)
+  // Sort service providers by priority (lower number = higher priority)
   const priorityObject = {
     lmstudio: parseInt(process.env.LMSTUDIO_PRIORITY || '1'),
     ollama: parseInt(process.env.OLLAMA_PRIORITY || '2'),
@@ -31,8 +31,8 @@ export const environment = {
   useLocalModels: process.env.USE_LOCAL_MODELS === 'true',
   useLMStudio: process.env.USE_LM_STUDIO === 'true',
   useOllama: process.env.USE_OLLAMA === 'true',
-  useOpenAI: process.env.USE_OPENAI !== 'false', // Oletusarvoisesti käytössä, jos ei erikseen kielletty
-  useAnthropic: process.env.USE_ANTHROPIC !== 'false', // Oletusarvoisesti käytössä, jos ei erikseen kielletty
+  useOpenAI: process.env.USE_OPENAI !== 'false', // Enabled by default unless explicitly disabled
+  useAnthropic: process.env.USE_ANTHROPIC !== 'false', // Enabled by default unless explicitly disabled
   
   // Provider API Endpoints
   localApiEndpoint: process.env.LOCAL_API_ENDPOINT || 'http://localhost:3001',

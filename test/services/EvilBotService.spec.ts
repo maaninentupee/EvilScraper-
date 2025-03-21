@@ -38,13 +38,13 @@ describe('EvilBotService', () => {
   describe('makeDecision', () => {
     it('should handle valid JSON response correctly', async () => {
       // Arrange
-      const situation = 'Käyttäjä selaa tuotesivua';
-      const options = ['Näytä alennustarra', 'Ehdota lisätuotteita'];
+      const situation = 'User is browsing a product page';
+      const options = ['Show discount label', 'Suggest additional products'];
       
       const mockAIResponse = `
       {
-        "action": "Ehdota lisätuotteita",
-        "reason": "Lisätuotteet kasvattavat keskiostosta",
+        "action": "Suggest additional products",
+        "reason": "Additional products increase the average order value",
         "confidence": 0.85
       }`;
       
@@ -55,8 +55,8 @@ describe('EvilBotService', () => {
       
       // Assert
       expect(result).toEqual({
-        action: 'Ehdota lisätuotteita',
-        reason: 'Lisätuotteet kasvattavat keskiostosta',
+        action: 'Suggest additional products',
+        reason: 'Additional products increase the average order value',
         confidence: 0.85
       });
       
@@ -67,16 +67,16 @@ describe('EvilBotService', () => {
     
     it('should handle markdown code block in response', async () => {
       // Arrange
-      const situation = 'Käyttäjä on lisännyt tuotteen ostoskoriin';
-      const options = ['Ehdota kassalle siirtymistä', 'Näytä suositeltuja tuotteita'];
+      const situation = 'User has added a product to the shopping cart';
+      const options = ['Suggest proceeding to checkout', 'Show recommended products'];
       
       const mockAIResponse = `
-      Tässä on päätös:
+      Here is the decision:
       
       \`\`\`json
       {
-        "action": "Näytä suositeltuja tuotteita",
-        "reason": "Suositukset kasvattavat myyntiä",
+        "action": "Show recommended products",
+        "reason": "Recommendations increase sales",
         "confidence": 0.9
       }
       \`\`\`
@@ -89,27 +89,27 @@ describe('EvilBotService', () => {
       
       // Assert
       expect(result).toEqual({
-        action: 'Näytä suositeltuja tuotteita',
-        reason: 'Suositukset kasvattavat myyntiä',
+        action: 'Show recommended products',
+        reason: 'Recommendations increase sales',
         confidence: 0.9
       });
     });
     
     it('should extract JSON from mixed text response', async () => {
       // Arrange
-      const situation = 'Käyttäjä on poistunut sivustolta';
-      const options = ['Lähetä sähköposti', 'Näytä ilmoitus seuraavalla käynnillä'];
+      const situation = 'User has left the site';
+      const options = ['Send an email', 'Show notification on next visit'];
       
       const mockAIResponse = `
-      Analysoituani tilanteen, päädyin seuraavaan päätökseen:
+      After analyzing the situation, I came to the following decision:
       
       {
-        "action": "Lähetä sähköposti",
-        "reason": "Sähköposti on henkilökohtaisempi",
+        "action": "Send an email",
+        "reason": "Email is a more personal approach",
         "confidence": 0.75
       }
       
-      Toivottavasti tämä auttaa päätöksenteossa!
+      Hopefully this helps with the decision-making process!
       `;
       
       (mockAIGateway.processAIRequest as jest.Mock).mockResolvedValueOnce(mockAIResponse);
@@ -119,21 +119,21 @@ describe('EvilBotService', () => {
       
       // Assert
       expect(result).toEqual({
-        action: 'Lähetä sähköposti',
-        reason: 'Sähköposti on henkilökohtaisempi',
+        action: 'Send an email',
+        reason: 'Email is a more personal approach',
         confidence: 0.75
       });
       
-      expect(mockLogger.logs.warn).toContainEqual(expect.stringContaining('JSON-jäsennys epäonnistui'));
+      expect(mockLogger.logs.warn).toContainEqual(expect.stringContaining('JSON parsing failed'));
     });
     
     it('should handle invalid JSON by returning default values', async () => {
       // Arrange
-      const situation = 'Käyttäjä selailee blogeja';
-      const options = ['Ehdota artikkeleja', 'Pyydä tilaamaan uutiskirje'];
+      const situation = 'User is browsing blogs';
+      const options = ['Suggest articles', 'Ask to subscribe to the newsletter'];
       
       const mockAIResponse = `
-      Paras toiminto olisi ehdottaa artikkeleja, koska ne voivat herättää lisää kiinnostusta.
+      The best action would be to suggest articles, as they can spark more interest.
       `;
       
       (mockAIGateway.processAIRequest as jest.Mock).mockResolvedValueOnce(mockAIResponse);
@@ -143,20 +143,20 @@ describe('EvilBotService', () => {
       
       // Assert
       expect(result).toEqual({
-        action: 'Virhe päätöksenteossa',
-        reason: 'AI-malli ei tuottanut validia JSON-vastausta',
+        action: 'Error in decision-making',
+        reason: 'AI model did not produce a valid JSON response',
         confidence: 0
       });
       
-      expect(mockLogger.logs.error).toContainEqual(expect.stringContaining('Vastauksen jäsennys epäonnistui'));
+      expect(mockLogger.logs.error).toContainEqual(expect.stringContaining('Failed to parse response'));
     });
     
     it('should handle AI service errors', async () => {
       // Arrange
-      const situation = 'Käyttäjä on poistunut sivustolta';
-      const options = ['Lähetä sähköposti', 'Näytä ilmoitus seuraavalla käynnillä'];
+      const situation = 'User has left the site';
+      const options = ['Send an email', 'Show notification on next visit'];
       
-      const mockError = new Error('AI-palvelu ei vastaa');
+      const mockError = new Error('AI service is not responding');
       (mockAIGateway.processAIRequest as jest.Mock).mockRejectedValueOnce(mockError);
       
       // Act
@@ -164,36 +164,36 @@ describe('EvilBotService', () => {
       
       // Assert
       expect(result).toEqual({
-        action: 'Virhe',
-        reason: 'Päätöksenteko epäonnistui: AI-palvelu ei vastaa',
+        action: 'Error',
+        reason: 'Decision-making failed: AI service is not responding',
         confidence: 0
       });
       
-      expect(mockLogger.logs.error).toContainEqual(expect.stringContaining('Päätöksenteko epäonnistui'));
+      expect(mockLogger.logs.error).toContainEqual(expect.stringContaining('Decision-making failed'));
     });
     
     it('should validate situation parameter', async () => {
       // Arrange
       const invalidSituation = undefined;
-      const options = ['Vaihtoehto 1', 'Vaihtoehto 2'];
+      const options = ['Option 1', 'Option 2'];
       
       // Act
       const result = await service.makeDecision(invalidSituation as any, options);
       
       // Assert
       expect(result).toEqual({
-        action: 'Virhe',
-        reason: 'Virheellinen syöte: tilanne on määrittelemätön tai tyypiltään väärä',
+        action: 'Error',
+        reason: 'Invalid input: situation is undefined or of the wrong type',
         confidence: 0
       });
       
-      expect(mockLogger.logs.error).toContainEqual('Virheellinen syöte: tilanne on määrittelemätön tai tyypiltään väärä');
+      expect(mockLogger.logs.error).toContainEqual('Invalid input: situation is undefined or of the wrong type');
       expect(mockAIGateway.processAIRequest).not.toHaveBeenCalled();
     });
     
     it('should validate options parameter', async () => {
       // Arrange
-      const situation = 'Käyttäjä on sivustolla';
+      const situation = 'User is on the site';
       const invalidOptions = [];
       
       // Act
@@ -201,23 +201,23 @@ describe('EvilBotService', () => {
       
       // Assert
       expect(result).toEqual({
-        action: 'Virhe',
-        reason: 'Virheellinen syöte: vaihtoehdot puuttuvat tai eivät ole kelvollinen lista',
+        action: 'Error',
+        reason: 'Invalid input: options are missing or not a valid list',
         confidence: 0
       });
       
-      expect(mockLogger.logs.error).toContainEqual('Virheellinen syöte: vaihtoehdot puuttuvat tai eivät ole kelvollinen lista');
+      expect(mockLogger.logs.error).toContainEqual('Invalid input: options are missing or not a valid list');
       expect(mockAIGateway.processAIRequest).not.toHaveBeenCalled();
     });
     
     it('should handle object responses directly from AI gateway', async () => {
       // Arrange
-      const situation = 'Käyttäjä on ostoskorissa';
-      const options = ['Ehdota lisäostoksia', 'Ohjaa kassalle'];
+      const situation = 'User is in the shopping cart';
+      const options = ['Suggest additional purchases', 'Proceed to checkout'];
       
       const mockResponse = {
-        action: 'Ohjaa kassalle',
-        reason: 'Käyttäjä on valmis ostamaan',
+        action: 'Proceed to checkout',
+        reason: 'User is ready to make a purchase',
         confidence: 0.95
       };
       
@@ -228,21 +228,21 @@ describe('EvilBotService', () => {
       
       // Assert
       expect(result).toEqual({
-        action: 'Ohjaa kassalle',
-        reason: 'Käyttäjä on valmis ostamaan',
+        action: 'Proceed to checkout',
+        reason: 'User is ready to make a purchase',
         confidence: 0.95
       });
     });
     
     it('should clamp confidence values to range 0-1', async () => {
       // Arrange
-      const situation = 'Käyttäjä lukee artikkelia';
-      const options = ['Näytä lisää artikkeleita', 'Ehdota uutiskirjettä'];
+      const situation = 'User is reading an article';
+      const options = ['Show more articles', 'Suggest newsletter subscription'];
       
       const mockResponse = {
-        action: 'Näytä lisää artikkeleita',
-        reason: 'Käyttäjä on kiinnostunut sisällöstä',
-        confidence: 1.5 // Yli sallitun maksimin
+        action: 'Show more articles',
+        reason: 'User is interested in the content',
+        confidence: 1.5 // Above the allowed maximum
       };
       
       (mockAIGateway.processAIRequest as jest.Mock).mockResolvedValueOnce(mockResponse);
@@ -251,7 +251,7 @@ describe('EvilBotService', () => {
       const result = await service.makeDecision(situation, options);
       
       // Assert
-      expect(result.confidence).toBe(1.0); // Rajoitettu maksimiin
+      expect(result.confidence).toBe(1.0); // Clamped to the maximum
     });
   });
 });

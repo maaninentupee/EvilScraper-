@@ -1,60 +1,60 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
-// Kuormitustestin asetukset
+// Load test settings
 export const options = {
-  // Vaiheittainen kuormitus - optimoitu tehokkaaseen testaukseen
+  // Phased loading - optimized for efficient testing
   stages: [
-    { duration: '5s', target: 1 },    // Aloitetaan yhdellä käyttäjällä (lämmittely)
-    { duration: '10s', target: 3 },   // Nostetaan 3 käyttäjään
-    { duration: '20s', target: 6 },   // Nostetaan 6 käyttäjään (huippukuorma)
-    { duration: '10s', target: 4 },   // Lasketaan 4 käyttäjään
-    { duration: '5s', target: 1 },    // Lasketaan takaisin yhteen käyttäjään (jäähdytys)
+    { duration: '5s', target: 1 },    // Start with one user (warm-up)
+    { duration: '10s', target: 3 },   // Increase to 3 users
+    { duration: '20s', target: 6 },   // Increase to 6 users (peak load)
+    { duration: '10s', target: 4 },   // Decrease to 4 users
+    { duration: '5s', target: 1 },    // Decrease back to one user (cool-down)
   ],
   thresholds: {
-    // Realistisemmat kynnysarvot AI-palveluille
-    http_req_duration: ['p(90)<30000'],  // 90% pyyntöjen tulee olla alle 30s
-    http_req_failed: ['rate<0.20'],      // Alle 20% pyynnöistä saa epäonnistua
+    // More realistic thresholds for AI services
+    http_req_duration: ['p(90)<30000'],  // 90% of requests must be under 30s
+    http_req_failed: ['rate<0.20'],      // Less than 20% of requests can fail
   },
-  // Lisätään batch-parametri tehostamaan testien suoritusta
-  batch: 2, // Suoritetaan pyynnöt 2 kerrallaan per VU
+  // Add batch parameter to enhance test performance
+  batch: 2, // Execute requests 2 at a time per VU
 };
 
-// Eri prompt-vaihtoehdot optimoitu kuormitustestausta varten
+// Different prompt options optimized for load testing
 const prompts = [
-  "TEST_LOAD: SEO optimointi",
-  "TEST_LOAD: Kello widget",
-  "TEST_LOAD: Blogi otsikko",
-  "TEST_LOAD: Some jakaminen",
-  "TEST_LOAD: Email pohja",
-  "TEST_LOAD: Nappi teksti",
-  "TEST_LOAD: Väri teema",
+  "TEST_LOAD: SEO optimization",
+  "TEST_LOAD: Clock widget",
+  "TEST_LOAD: Blog title",
+  "TEST_LOAD: Social media sharing",
+  "TEST_LOAD: Email template",
+  "TEST_LOAD: Button text",
+  "TEST_LOAD: Color theme",
   "TEST_LOAD: Logo idea"
 ];
 
-// Mallit, joita voidaan käyttää testeissä (jos mallivalinta on käytössä)
+// Models that can be used in tests (if model selection is enabled)
 const models = [
   "llama2",
   "mistral",
   "gemma"
 ];
 
-// Pääfunktio, jota k6 kutsuu jokaiselle virtuaalikäyttäjälle
+// Main function that k6 calls for each virtual user
 export default function () {
-  // Käytetään satunnaista syötettä jokaisessa pyynnössä
+  // Use random input for each request
   const randomPrompt = prompts[Math.floor(Math.random() * prompts.length)];
   
-  // Tehdään HTTP-pyyntö AIGateway-palveluun optimoiduilla parametreilla
-  // Valitaan satunnainen malli, jos malleja on määritelty
+  // Make HTTP request to AIGateway service with optimized parameters
+  // Select a random model if models are defined
   const randomModel = models[Math.floor(Math.random() * models.length)];
   
   const payload = JSON.stringify({
     taskType: "seo",
     input: randomPrompt,
-    maxTokens: 25,  // Pienennetty 30 -> 25 nopeuttamaan vastauksia
-    timeout: 25000, // Pienennetty 40000 -> 25000 nopeuttamaan testejä
-    model: randomModel, // Lisätään satunnainen malli, jos palvelu tukee tätä
-    isLoadTest: true // Merkintä kuormitustestistä palvelulle
+    maxTokens: 25,  // Reduced from 30 -> 25 to speed up responses
+    timeout: 25000, // Reduced from 40000 -> 25000 to speed up tests
+    model: randomModel, // Add random model if the service supports this
+    isLoadTest: true // Marking as load test for the service
   });
   
   const params = {
@@ -63,50 +63,50 @@ export default function () {
     }
   };
   
-  // Käytetään porttia 3001, joka on oletusportti sovellukselle
-  // Käytetään oikeaa reittiä /ai/process, joka käsittelee AIRequestDto-tyyppisiä pyyntöjä
+  // Use port 3001, which is the default port for the application
+  // Use the correct route /ai/process, which handles AIRequestDto-type requests
   const res = http.post('http://localhost:3001/ai/process', payload, params);
   
-  // Tarkistetaan vastauksen laatu - optimoidut tarkistukset
+  // Check response quality - optimized checks
   const checkResult = check(res, {
     'status was 201 or 200': (r) => r.status === 201 || r.status === 200,
-    'response time < 30s': (r) => r.timings.duration < 30000, // Tiukempi aikaraja
+    'response time < 30s': (r) => r.timings.duration < 30000, // Stricter time limit
     'response has valid data': (r) => {
       try {
         const data = r.json();
-        return data && (data.result || data.error); // Tarkistetaan että vastaus sisältää joko tuloksen tai virheen
+        return data && (data.result || data.error); // Check that the response contains either a result or an error
       } catch (e) {
         return false;
       }
     }
   });
   
-  // Lisätään tehostettu diagnostiikka
+  // Add enhanced diagnostics
   try {
     const responseData = res.json();
-    const modelInfo = responseData.model ? ` Malli: ${responseData.model},` : '';
+    const modelInfo = responseData.model ? ` Model: ${responseData.model},` : '';
     const providerInfo = responseData.provider ? ` Provider: ${responseData.provider},` : '';
     
     if (res.status === 201 || res.status === 200) {
       console.log(
         `OK [${res.timings.duration}ms]${modelInfo}${providerInfo}` +
         ` Fallback: ${responseData.wasFailover || false},` +
-        ` Pituus: ${responseData.result ? responseData.result.length : 0}`
+        ` Length: ${responseData.result ? responseData.result.length : 0}`
       );
     } else {
       console.error(
-        `VIRHE [${res.status}]${modelInfo}${providerInfo}` +
-        ` Virhe: ${responseData.error || 'Tuntematon'}`
+        `ERROR [${res.status}]${modelInfo}${providerInfo}` +
+        ` Error: ${responseData.error || 'Unknown'}`
       );
     }
   } catch (e) {
-    // Tarkistetaan, että res.body on määritelty ennen substring-metodin kutsumista
-    const bodyPreview = res.body ? res.body.substring(0, 100) : 'ei sisältöä';
-    console.error(`Virheellinen vastaus: ${res.status}, ${bodyPreview}`);
+    // Check that res.body is defined before calling the substring method
+    const bodyPreview = res.body ? res.body.substring(0, 100) : 'no content';
+    console.error(`Invalid response: ${res.status}, ${bodyPreview}`);
   }
   
-  // Optimoitu viive pyyntöjen välissä - vaihtelee kuorman mukaan
-  const currentVUs = __VU || 1; // Nykyinen virtuaalikäyttäjämäärä
-  const baseDelay = Math.max(0.5, 3 - (currentVUs * 0.3)); // Vähemmän viivettä kun käyttäjiä on enemmän
+  // Optimized delay between requests - varies according to load
+  const currentVUs = __VU || 1; // Current number of virtual users
+  const baseDelay = Math.max(0.5, 3 - (currentVUs * 0.3)); // Less delay when there are more users
   sleep(baseDelay + Math.random() * 2);
 }

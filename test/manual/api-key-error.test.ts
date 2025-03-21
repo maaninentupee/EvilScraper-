@@ -1,10 +1,10 @@
 /**
- * Manuaalinen testi: API-avaimen virhetilanteiden simulointi
+ * Manual test: API key error simulation
  * 
- * Tämä testi tarkistaa, miten järjestelmä käsittelee virheellisiä API-avaimia
- * sekä OpenAI, Anthropic että paikallisessa mallissa.
+ * This test checks how the system handles invalid API keys
+ * for OpenAI, Anthropic, and local models.
  * 
- * Suorita tämä testi manuaalisesti komennolla:
+ * Run this test manually with the command:
  * npx ts-node test/manual/api-key-error.test.ts
  */
 
@@ -14,29 +14,29 @@ import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Ohita tämä manuaalinen testi Jest-suorituksessa
-test.skip('Manuaalinen skripti API-avainvirheiden testaamiseksi', () => {
-  // Tyhjä testi ainoastaan Jest-yhteensopivuutta varten
+// Skip this manual test in Jest execution
+test.skip('Manual script for testing API key errors', () => {
+  // Empty test only for Jest compatibility
 });
 
-// Estä pääohjelman suoritus Jest-ympäristössä
+// Prevent main execution in Jest environment
 if (process.env.JEST_WORKER_ID) {
-  // Jest-suorituksessa, älä suorita testiä
+  // In Jest execution, do not run the test
 } else {
-  // Varmistetaan, että voimme palauttaa alkuperäiset ympäristömuuttujat testin jälkeen
+  // Ensure that we can restore the original environment variables after the test
   dotenv.config();
   const originalOpenAIKey = process.env.OPENAI_API_KEY;
   const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;
   const originalLocalEndpoint = process.env.LOCAL_API_ENDPOINT;
 
-  // Testipalvelimen portti
+  // Test server port
   const TEST_PORT = 3000;
 
-  // Lokitiedoston sijainti
+  // Log file location
   const logFile = path.join(__dirname, 'api-key-error.log');
 
   /**
-   * Kirjoittaa lokiin testin tuloksen
+   * Writes the test result to the log
    */
   function log(message: string): void {
     const timestamp = new Date().toISOString();
@@ -47,17 +47,17 @@ if (process.env.JEST_WORKER_ID) {
   }
 
   /**
-   * Alustaa lokin
+   * Initializes the log
    */
   function initLog(): void {
     if (fs.existsSync(logFile)) {
       fs.unlinkSync(logFile);
     }
-    log('=== API-avainten virhetilanteiden testi ===');
+    log('=== API key error simulation test ===');
   }
 
   /**
-   * Simuloi virheellisen API-avaimen aiheuttamaa virhettä
+   * Simulates an error caused by an invalid API key
    */
   async function testInvalidAPIKey(
     serviceName: string, 
@@ -66,38 +66,38 @@ if (process.env.JEST_WORKER_ID) {
     headers: Record<string, string>
   ): Promise<void> {
     try {
-      log(`Testataan palvelua ${serviceName} virheellisellä API-avaimella...`);
+      log(`Testing service ${serviceName} with an invalid API key...`);
       
       const response = await axios.post(
         endpoint,
         {
-          prompt: "Tämä on testi virheellisellä API-avaimella",
+          prompt: "This is a test with an invalid API key",
           model: "test-model"
         },
         { 
           headers,
-          timeout: 5000 // 5 sekunnin timeout
+          timeout: 5000 // 5-second timeout
         }
       );
       
-      log(`VIRHE: Pyyntö onnistui, vaikka API-avain oli virheellinen: ${JSON.stringify(response.data)}`);
+      log(`ERROR: Request succeeded despite an invalid API key: ${JSON.stringify(response.data)}`);
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const statusCode = error.response?.status;
-        log(`OK: Pyyntö epäonnistui asianmukaisesti: ${statusCode} - ${error.message}`);
+        log(`OK: Request failed as expected: ${statusCode} - ${error.message}`);
       } else {
-        log(`OK: Muu virhe: ${error.message}`);
+        log(`OK: Other error: ${error.message}`);
       }
     }
   }
 
   /**
-   * Simuloi OpenAI-palvelun API-avain virhettä
+   * Simulates an OpenAI API key error
    */
   async function testOpenAIAPIKeyError(): Promise<void> {
     const invalidKey = `sk-invalid-${randomUUID()}`;
     
-    // Aseta väliaikaisesti virheellinen API-avain
+    // Temporarily set an invalid API key
     process.env.OPENAI_API_KEY = invalidKey;
     
     await testInvalidAPIKey(
@@ -110,17 +110,17 @@ if (process.env.JEST_WORKER_ID) {
       }
     );
     
-    // Palauta alkuperäinen API-avain
+    // Restore the original API key
     process.env.OPENAI_API_KEY = originalOpenAIKey;
   }
 
   /**
-   * Simuloi Anthropic-palvelun API-avain virhettä
+   * Simulates an Anthropic API key error
    */
   async function testAnthropicAPIKeyError(): Promise<void> {
     const invalidKey = `sk-ant-invalid-${randomUUID()}`;
     
-    // Aseta väliaikaisesti virheellinen API-avain
+    // Temporarily set an invalid API key
     process.env.ANTHROPIC_API_KEY = invalidKey;
     
     await testInvalidAPIKey(
@@ -134,53 +134,53 @@ if (process.env.JEST_WORKER_ID) {
       }
     );
     
-    // Palauta alkuperäinen API-avain
+    // Restore the original API key
     process.env.ANTHROPIC_API_KEY = originalAnthropicKey;
   }
 
   /**
-   * Simuloi paikallisen mallin virheitä
+   * Simulates local model errors
    */
   async function testLocalModelError(): Promise<void> {
-    // Vääränmuotoinen lokaali endpoint (ei kohdepalvelua)
+    // Incorrect local endpoint (no target service)
     const invalidEndpoint = `http://localhost:${Math.floor(60000 + Math.random() * 5000)}`;
     
-    // Aseta väliaikaisesti virheellinen endpoint
+    // Temporarily set an invalid endpoint
     process.env.LOCAL_API_ENDPOINT = invalidEndpoint;
     
     try {
-      log(`Testataan paikallista mallia virheellisellä endpointilla ${invalidEndpoint}...`);
+      log(`Testing local model with an invalid endpoint ${invalidEndpoint}...`);
       
       const response = await axios.post(
         `${invalidEndpoint}/generate`,
         {
-          prompt: "Tämä on testi virheellisellä endpointilla",
+          prompt: "This is a test with an invalid endpoint",
           model: "mistral-7b-instruct-q8_0.gguf"
         },
         { 
-          timeout: 2000 // 2 sekunnin timeout
+          timeout: 2000 // 2-second timeout
         }
       );
       
-      log(`VIRHE: Pyyntö onnistui, vaikka endpoint oli virheellinen: ${JSON.stringify(response.data)}`);
+      log(`ERROR: Request succeeded despite an invalid endpoint: ${JSON.stringify(response.data)}`);
     } catch (error) {
       if (axios.isAxiosError(error)) {
         if (error.code === 'ECONNREFUSED') {
-          log(`OK: Yhteys kieltäytyi asianmukaisesti: ${error.message}`);
+          log(`OK: Connection refused as expected: ${error.message}`);
         } else {
-          log(`OK: Pyyntö epäonnistui muusta syystä: ${error.message}`);
+          log(`OK: Request failed for another reason: ${error.message}`);
         }
       } else {
-        log(`OK: Muu virhe: ${error.message}`);
+        log(`OK: Other error: ${error.message}`);
       }
     }
     
-    // Palauta alkuperäinen endpoint
+    // Restore the original endpoint
     process.env.LOCAL_API_ENDPOINT = originalLocalEndpoint;
   }
 
   /**
-   * Suorita testit
+   * Runs the tests
    */
   async function runTests(): Promise<void> {
     initLog();
@@ -190,17 +190,17 @@ if (process.env.JEST_WORKER_ID) {
       await testAnthropicAPIKeyError();
       await testLocalModelError();
       
-      log('\n=== Kaikki API-avaintestit suoritettu onnistuneesti ===');
+      log('\n=== All API key tests completed successfully ===');
     } catch (error) {
-      log(`\n=== Testivirhe: ${error.message} ===`);
+      log(`\n=== Test error: ${error.message} ===`);
     } finally {
-      // Palauta alkuperäiset ympäristömuuttujat
+      // Restore the original environment variables
       process.env.OPENAI_API_KEY = originalOpenAIKey;
       process.env.ANTHROPIC_API_KEY = originalAnthropicKey;
       process.env.LOCAL_API_ENDPOINT = originalLocalEndpoint;
     }
   }
 
-  // Suorita testit
+  // Run the tests
   runTests();
 }

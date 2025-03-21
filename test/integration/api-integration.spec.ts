@@ -5,11 +5,11 @@ import { AppModule } from '../../src/app.module';
 import { mockOpenAIResponse, mockAnthropicResponse } from '../test-utils';
 import axios from 'axios';
 
-// Hyödynnetään globaalia axios mockia
+// Using global axios mock
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-// Skipattaan testit, koska nykyinen toteutus käyttää provider-luokkia
-// axios.post-kutsujen sijaan, ja testit pitäisi kirjoittaa kokonaan uudestaan
+// Skipping tests because the current implementation uses provider classes
+// instead of axios.post calls, and the tests would need to be completely rewritten
 describe.skip('API Integration Tests', () => {
   let app: INestApplication;
 
@@ -36,8 +36,8 @@ describe.skip('API Integration Tests', () => {
       // Mock successful response from local AI
       mockedAxios.post.mockResolvedValueOnce({ 
         data: { response: JSON.stringify({
-          action: 'Lähetä chatbotti',
-          reason: 'Chatbotti on interaktiivisempi',
+          action: 'Send chatbot',
+          reason: 'Chatbot is more interactive',
           confidence: 0.85
         })}
       });
@@ -46,18 +46,18 @@ describe.skip('API Integration Tests', () => {
       const response = await request(app.getHttpServer())
         .post('/evil-bot/decide')
         .send({
-          situation: 'Käyttäjä on uusi sivustolla',
-          options: ['Lähetä chatbotti', 'Lähetä uutiskirje']
+          situation: 'User is new to the site',
+          options: ['Send chatbot', 'Send newsletter']
         });
 
       // Verify response
       expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('action', 'Lähetä chatbotti');
-      expect(response.body).toHaveProperty('reason', 'Chatbotti on interaktiivisempi');
+      expect(response.body).toHaveProperty('action', 'Send chatbot');
+      expect(response.body).toHaveProperty('reason', 'Chatbot is more interactive');
     });
 
     it('should handle AI service errors gracefully', async () => {
-      // Mock failed response (kaikki yritykset epäonnistuvat)
+      // Mock failed response (all attempts fail)
       mockedAxios.post.mockRejectedValueOnce(new Error('Service unavailable'));
       mockedAxios.post.mockRejectedValueOnce(new Error('OpenAI error'));
       mockedAxios.post.mockRejectedValueOnce(new Error('Anthropic error'));
@@ -66,13 +66,13 @@ describe.skip('API Integration Tests', () => {
       const response = await request(app.getHttpServer())
         .post('/evil-bot/decide')
         .send({
-          situation: 'Käyttäjä on uusi sivustolla',
-          options: ['Lähetä chatbotti', 'Lähetä uutiskirje']
+          situation: 'User is new to the site',
+          options: ['Send chatbot', 'Send newsletter']
         });
 
-      // Verify error response - nykyinen toteutus ei palauta 'error' kenttää
+      // Verify error response - current implementation doesn't return an 'error' field
       expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('action', 'Ei toimintoa');
+      expect(response.body).toHaveProperty('action', 'No action');
       expect(response.body).toHaveProperty('confidence');
       expect(response.body).toHaveProperty('reason');
     });
@@ -83,10 +83,10 @@ describe.skip('API Integration Tests', () => {
       // Mock successful response from OpenAI
       mockedAxios.post.mockResolvedValueOnce({ 
         data: { response: JSON.stringify({
-          keywords: ['avainsana1', 'avainsana2'],
-          summary: 'Sivuston yhteenveto',
+          keywords: ['keyword1', 'keyword2'],
+          summary: 'Site summary',
           score: 85,
-          recommendations: ['Suositus 1', 'Suositus 2']
+          recommendations: ['Recommendation 1', 'Recommendation 2']
         })}
       });
 
@@ -99,7 +99,7 @@ describe.skip('API Integration Tests', () => {
         });
 
       // Verify response
-      expect(response.status).toBe(400); // Nykyinen toteutus palauttaa 400
+      expect(response.status).toBe(400); // Current implementation returns 400
       expect(response.body).toHaveProperty('message', 'Invalid scraped data');
       expect(response.body).toHaveProperty('statusCode', 400);
     });
@@ -109,19 +109,19 @@ describe.skip('API Integration Tests', () => {
     it('should make a decision with successful response', async () => {
       // Mock successful response from OpenAI
       mockedAxios.post.mockResolvedValueOnce({ 
-        data: { response: 'Vastaus päätökseen' }
+        data: { response: 'Response to decision' }
       });
 
       // Make the API call
       const response = await request(app.getHttpServer())
         .post('/evil-bot/decision')
         .send({
-          options: ['Näytä tarjous', 'Pyydä yhteystiedot'],
-          context: 'Käyttäjä on tutkinut tuotteita 5 minuuttia'
+          options: ['Show offer', 'Request contact information'],
+          context: 'User has been exploring products for 5 minutes'
         });
 
       // Verify response
-      expect(response.status).toBe(404); // /evil-bot/decision endpoint ei ole olemassa
+      expect(response.status).toBe(404); // /evil-bot/decision endpoint doesn't exist
       expect(response.body).toHaveProperty('error');
     });
   });
@@ -132,8 +132,8 @@ describe.skip('API Integration Tests', () => {
       mockedAxios.post.mockRejectedValueOnce(new Error('Local service error'));
       mockedAxios.post.mockResolvedValueOnce({ 
         data: { choices: [{ message: { content: JSON.stringify({
-          action: 'Näytä tarjous',
-          reason: 'Tarjous kannustaa ostopäätökseen',
+          action: 'Show offer',
+          reason: 'Offer encourages purchase decision',
           confidence: 0.75
         }) } }] } 
       });
@@ -142,8 +142,8 @@ describe.skip('API Integration Tests', () => {
       const response = await request(app.getHttpServer())
         .post('/evil-bot/decide')
         .send({
-          situation: 'Käyttäjä on tutkinut tuotteita 5 minuuttia',
-          options: ['Näytä tarjous', 'Pyydä yhteystiedot']
+          situation: 'User has been exploring products for 5 minutes',
+          options: ['Show offer', 'Request contact information']
         });
 
       // Verify response from OpenAI
@@ -158,8 +158,8 @@ describe.skip('API Integration Tests', () => {
       mockedAxios.post.mockRejectedValueOnce(new Error('OpenAI error'));
       mockedAxios.post.mockResolvedValueOnce({ 
         data: { content: [{ text: JSON.stringify({
-          action: 'Pyydä yhteystiedot',
-          reason: 'Yhteystiedot mahdollistavat personoidun yhteydenoton',
+          action: 'Request contact information',
+          reason: 'Contact information enables personalized contact',
           confidence: 0.8
         }) }] }
       });
@@ -168,8 +168,8 @@ describe.skip('API Integration Tests', () => {
       const response = await request(app.getHttpServer())
         .post('/evil-bot/decide')
         .send({
-          situation: 'Käyttäjä on tutkinut tuotteita 5 minuuttia',
-          options: ['Näytä tarjous', 'Pyydä yhteystiedot']
+          situation: 'User has been exploring products for 5 minutes',
+          options: ['Show offer', 'Request contact information']
         });
 
       // Verify response from Anthropic

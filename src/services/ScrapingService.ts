@@ -6,7 +6,7 @@ export class ScrapingService {
     constructor(private readonly aiGateway: AIGateway) {}
 
     public async analyzeSEO(scrapedData: any): Promise<any> {
-        const input = `Analysoi SEO-laatu seuraaville tiedoille: ${JSON.stringify(scrapedData)}`;
+        const input = `Analyze SEO quality for the following data: ${JSON.stringify(scrapedData)}`;
         return this.aiGateway.processAIRequest("seo", input);
     }
 }

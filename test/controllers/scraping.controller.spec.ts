@@ -5,7 +5,7 @@ import { AIGateway } from '../../src/services/AIGateway';
 import { ScrapingService } from '../../src/services/ScrapingService';
 import { MockLogger } from '../test-utils';
 
-// Kopioidaan tyyppi testeille
+// Copied type for tests
 interface ScrapedDataDto {
   url: string;
   title: string;
@@ -52,19 +52,19 @@ describe('ScrapingController', () => {
       // Arrange
       const seoRequest: ScrapedDataDto = {
         url: 'https://www.example.com',
-        title: 'Testisivu',
-        description: 'Tämä on testisivu',
-        keywords: ['testi', 'analyysi', 'seo'],
-        content: '<html><body><h1>Testisivu</h1><p>Sisältöä</p></body></html>'
+        title: 'Test page',
+        description: 'This is a test page',
+        keywords: ['test', 'analysis', 'seo'],
+        content: '<html><body><h1>Test page</h1><p>Content</p></body></html>'
       };
       
       const mockAnalysis = {
         score: 85,
-        suggestions: ['Lisää keywords metatag', 'Pidennä sisältöä'],
-        strength: 'Hyvä meta-otsikko',
+        suggestions: ['Add keywords metatag', 'Extend content'],
+        strength: 'Good meta title',
         keywords: {
-          testi: 0.85,
-          analyysi: 0.65,
+          test: 0.85,
+          analysis: 0.65,
           seo: 0.9
         }
       };
@@ -90,10 +90,10 @@ describe('ScrapingController', () => {
       // Arrange
       const seoRequest: ScrapedDataDto = {
         url: 'https://www.example.com',
-        title: 'Testisivu',
-        description: 'Tämä on testisivu',
-        keywords: ['testi', 'analyysi', 'seo'],
-        content: '<html><body><h1>Testisivu</h1><p>Sisältöä</p></body></html>'
+        title: 'Test page',
+        description: 'This is a test page',
+        keywords: ['test', 'analysis', 'seo'],
+        content: '<html><body><h1>Test page</h1><p>Content</p></body></html>'
       };
       
       // AIGateway throws when invalid JSON, but the service will handle this already 
@@ -108,33 +108,33 @@ describe('ScrapingController', () => {
       // Arrange
       const seoRequest: ScrapedDataDto = {
         url: 'https://www.example.com',
-        title: 'Testisivu',
-        description: 'Tämä on testisivu',
-        keywords: ['testi', 'analyysi', 'seo'],
-        content: '<html><body><h1>Testisivu</h1><p>Sisältöä</p></body></html>'
+        title: 'Test page',
+        description: 'This is a test page',
+        keywords: ['test', 'analysis', 'seo'],
+        content: '<html><body><h1>Test page</h1><p>Content</p></body></html>'
       };
       
       const errorResponse = {
         error: true,
-        message: 'AI-palvelu ei ole käytettävissä',
-        details: 'Kaikki palvelut epäonnistuivat'
+        message: 'AI service is not available',
+        details: 'All services failed'
       };
       
       (mockScrapingService.analyzeSEO as jest.Mock).mockResolvedValueOnce(errorResponse);
       
       // Act & Assert
       await expect(controller.analyzeSEO(seoRequest)).rejects.toThrow(HttpException);
-      expect(mockLogger.logs.error).toContain('AI-palvelun virhe SEO-analyysissa: AI-palvelu ei ole käytettävissä');
+      expect(mockLogger.logs.error).toContain('AI service error in SEO analysis: AI service is not available');
     });
 
     it('should handle incomplete analysis response', async () => {
       // Arrange
       const seoRequest: ScrapedDataDto = {
         url: 'https://www.example.com',
-        title: 'Testisivu',
-        description: 'Tämä on testisivu',
-        keywords: ['testi', 'analyysi', 'seo'],
-        content: '<html><body><h1>Testisivu</h1><p>Sisältöä</p></body></html>'
+        title: 'Test page',
+        description: 'This is a test page',
+        keywords: ['test', 'analysis', 'seo'],
+        content: '<html><body><h1>Test page</h1><p>Content</p></body></html>'
       };
       
       const error = new HttpException('Missing required fields', 400);
@@ -148,10 +148,10 @@ describe('ScrapingController', () => {
       // Arrange
       const seoRequest: ScrapedDataDto = {
         url: 'https://www.example.com',
-        title: 'Testisivu',
-        description: 'Tämä on testisivu',
-        keywords: ['testi', 'analyysi', 'seo'],
-        content: '<html><body><h1>Testisivu</h1><p>Sisältöä</p></body></html>'
+        title: 'Test page',
+        description: 'This is a test page',
+        keywords: ['test', 'analysis', 'seo'],
+        content: '<html><body><h1>Test page</h1><p>Content</p></body></html>'
       };
       
       const mockAnalysis = {

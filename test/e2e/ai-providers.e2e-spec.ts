@@ -2,15 +2,15 @@ import axios from 'axios';
 import { execSync } from 'child_process';
 import * as path from 'path';
 
-// Pidetään aikakatkaisu kohtuullisena
-jest.setTimeout(10000); // 10 sekuntia
+// Keep timeout reasonable
+jest.setTimeout(10000); // 10 seconds
 
 describe('AI Providers E2E Tests', () => {
   const API_BASE_URL = 'http://localhost:3001';
   
-  // Ohitetaan esilämmitys nopeuden vuoksi
+  // Skip warmup for speed
   /*
-  // Suoritetaan esilämmitysskripti ennen testien ajamista
+  // Run warmup script before tests
   beforeAll(async () => {
     try {
       console.log('Warming up Ollama models before tests...');
@@ -43,7 +43,7 @@ describe('AI Providers E2E Tests', () => {
     });
   });
 
-  // Ohitetaan hitaat kuormitustestit
+  // Skip slow load tests
   describe.skip('AI Provider Load Tests', () => {
     // Test Ollama if it's available
     it('POST /ai/load-test/ollama should handle basic load test', async () => {
@@ -56,7 +56,7 @@ describe('AI Providers E2E Tests', () => {
           return;
         }
         
-        // Small load test with 1 iteration ja lyhyempi prompt
+        // Small load test with 1 iteration and shorter prompt
         const response = await axios.post(`${API_BASE_URL}/ai/load-test/ollama`, {
           prompt: 'Hello',
           iterations: 1

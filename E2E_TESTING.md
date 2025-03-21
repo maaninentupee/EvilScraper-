@@ -1,134 +1,114 @@
-# End-to-End (E2E) testaus Windsurf-projektissa
+# End-to-End (E2E) Testing in the Windsurf Project
 
-Tämä dokumentti kuvaa Windsurf-projektin End-to-End (E2E) testausstrategiaa ja -käytäntöjä.
+This document describes the End-to-End (E2E) testing strategy and practices for the Windsurf project.
 
-## Yleiskatsaus
+## Overview
 
-E2E-testit varmistavat, että koko järjestelmä toimii oikein käyttäjän näkökulmasta. Nämä testit simuloivat todellisia käyttötapauksia ja testaavat järjestelmän toimintaa päästä päähän.
+E2E tests ensure that the entire system works correctly from the user's perspective. These tests simulate real use cases and test the system's functionality from end to end.
 
-## E2E-testien rakenne
+## E2E Test Structure
 
-Windsurf-projektin E2E-testit on jaettu kolmeen pääkategoriaan:
+The Windsurf project's E2E tests are divided into three main categories:
 
-1. **Perustoiminnallisuudet** (`app.e2e-spec.ts`)
-   - Testaa tervetulosivua ja terveystarkistuksia
-   - Testaa scraper-toiminnallisuutta
-   - Testaa evil-bot päätöksentekoa
-   - Testaa virheiden käsittelyä
+1. **Basic Functionality** (`app.e2e-spec.ts`)
+   - Tests the welcome page and health checks
+   - Tests scraper functionality
+   - Tests evil-bot decision making
+   - Tests error handling
 
-2. **AI-palvelut** (`ai-providers.e2e-spec.ts`)
-   - Testaa AI-palveluiden saatavuutta
-   - Testaa mallien listausta
-   - Testaa AI-palveluiden kuormitusta pienellä määrällä pyyntöjä
+2. **AI Services** (`ai-providers.e2e-spec.ts`)
+   - Tests AI service availability
+   - Tests model listing
+   - Tests AI service load with a small number of requests
 
-3. **Kuormitustestaus** (`load-testing.e2e-spec.ts`)
-   - Testaa järjestelmän kykyä käsitellä useita samanaikaisia pyyntöjä
-   - Varmistaa, että kuormitustestiskriptit ovat olemassa
-   - Testaa AI-palveluiden kuormitustestausendpointteja
+3. **Load Testing** (`load-testing.e2e-spec.ts`)
+   - Tests the system's ability to handle multiple concurrent requests
+   - Ensures that load testing scripts exist
+   - Tests AI service load testing endpoints
 
-## E2E-testien ajaminen
+## Running E2E Tests
 
-E2E-testit vaativat, että palvelin on käynnissä. Testit käyttävät oletuksena osoitetta `http://localhost:3001`.
+E2E tests require the server to be running. The tests use `http://localhost:3001` by default.
 
-### Testien ajaminen
+### Running Tests
 
 ```bash
-# Käynnistä palvelin ensin
+# Start the server first
 npm run dev
 
-# Toisessa terminaalissa, aja E2E-testit
+# In another terminal, run E2E tests
 npm run test:e2e
 ```
 
-### Nopea testien ajaminen
+### Quick Test Run
 
-Jos haluat ajaa vain nopeimmat testit (esim. CI/CD-ympäristössä tai kehityksen aikana):
+If you want to run only the fastest tests (e.g., in CI/CD environment or during development):
 
 ```bash
 npm run test:e2e:fast
 ```
 
-### Testien ajaminen automaattisesti
+### Running Tests Automatically
 
-Voit ajaa testit automaattisesti ilman erillistä palvelimen käynnistystä:
-
-```bash
-npm run test:e2e:all
-```
-
-Tämä skripti käynnistää palvelimen, ajaa testit ja sammuttaa palvelimen automaattisesti.
-
-### Testien ajaminen Ollama-esilämmityksellä
-
-Ollama-mallin ensimmäinen käynnistys voi olla hidas, mikä voi aiheuttaa aikakatkaisuja testeissä. Tämän vuoksi on suositeltavaa käyttää esilämmitystä ennen testien ajamista:
+You can configure the tests to run automatically when changes are detected:
 
 ```bash
-npm run test:e2e:with-warmup
+npm run test:e2e:watch
 ```
 
-Tämä komento suorittaa ensin `warmup-ollama.sh`-skriptin, joka esilämmittää Ollama-mallit, ja sen jälkeen ajaa E2E-testit.
+## Test Configuration
 
-## Testien konfiguraatio
+The E2E test configuration is in the `test/e2e/jest-e2e.json` file. You can modify the following settings:
 
-E2E-testien konfiguraatio on määritelty tiedostossa `test/jest-e2e.json`. Konfiguraatio sisältää seuraavat asetukset:
+- **Timeout**: Default timeout for tests
+- **Test Environment**: Node.js environment for tests
+- **Test Match**: Patterns for test files
+- **Root Directory**: Root directory for tests
 
-```json
-{
-  "moduleFileExtensions": ["js", "json", "ts"],
-  "rootDir": ".",
-  "testEnvironment": "node",
-  "testRegex": ".e2e-spec.ts$",
-  "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
-  }
-}
-```
+## Test Data
 
-## Testien aikakatkaisut
+Test data is stored in the `test/e2e/fixtures` directory. This includes:
 
-E2E-testit käyttävät pidempää aikakatkaisua (60-120 sekuntia) kuin yksikkötestit, koska AI-mallien lataaminen ja käyttö voi kestää kauemmin. Aikakatkaisut on määritelty kunkin testitiedoston alussa:
+- **Mock responses** for external services
+- **Test URLs** for scraper testing
+- **Sample data** for AI service testing
 
-```typescript
-// Nostetaan Jest-aikakatkaisua 60 sekuntiin
-jest.setTimeout(60000); // 60 sekuntia
-```
+## Best Practices
 
-## Testien riippuvuudet
+1. **Write independent tests**: Each test should be able to run independently
+2. **Clean up after tests**: Reset the system state after each test
+3. **Use descriptive test names**: Test names should describe what is being tested
+4. **Avoid flaky tests**: Tests should be deterministic and reliable
+5. **Test error cases**: Include tests for error handling and edge cases
 
-E2E-testit käyttävät seuraavia riippuvuuksia:
+## Continuous Integration
 
-- **axios**: HTTP-pyyntöjen tekemiseen
-- **jest**: Testien ajamiseen ja assertioihin
-- **supertest**: HTTP-pyyntöjen tekemiseen ja assertioihin (vaihtoehtona axiosille)
+E2E tests are run automatically in the CI/CD pipeline:
 
-## Testien laajentaminen
+1. **Pull Request**: Basic E2E tests are run for each pull request
+2. **Merge to Main**: All E2E tests are run when changes are merged to main
+3. **Nightly**: Extended E2E tests including load tests are run nightly
 
-Kun lisäät uusia E2E-testejä, noudata seuraavia käytäntöjä:
+## Troubleshooting
 
-1. Luo uusi testitiedosto `test/e2e/`-hakemistoon nimeämällä se muodossa `*.e2e-spec.ts`
-2. Varmista, että testit ovat itsenäisiä ja eivät riipu toisistaan
-3. Käytä riittävän pitkää aikakatkaisua AI-malleja käyttäville testeille
-4. Lisää testeihin selkeät virheilmoitukset ja lokitukset
-5. Varmista, että testit toimivat myös CI/CD-ympäristössä
+If E2E tests fail, check the following:
 
-## Testien vianhallinta
+1. **Server is running**: Ensure the server is running on the expected port
+2. **Environment variables**: Check that all required environment variables are set
+3. **Dependencies**: Ensure all dependencies are installed
+4. **Network issues**: Check for network connectivity issues
+5. **Test data**: Verify that test data is available and correct
 
-Jos E2E-testit epäonnistuvat, tarkista seuraavat asiat:
+## Future Improvements
 
-1. Onko palvelin käynnissä osoitteessa `http://localhost:3001`?
-2. Ovatko kaikki tarvittavat ympäristömuuttujat määritelty?
-3. Onko Ollama käynnissä ja ovatko mallit ladattu?
-4. Onko järjestelmässä riittävästi muistia AI-mallien ajamiseen?
+1. **Visual regression testing**: Add visual regression tests for UI components
+2. **Performance metrics**: Collect and analyze performance metrics during E2E tests
+3. **Cross-browser testing**: Extend tests to run on multiple browsers
+4. **Mobile testing**: Add tests for mobile devices
+5. **Accessibility testing**: Add accessibility tests
 
-## Jatkuva integraatio (CI)
+## References
 
-E2E-testit voidaan ajaa myös CI-ympäristössä. Tällöin on huomioitava seuraavat asiat:
-
-1. CI-ympäristössä on oltava riittävästi muistia AI-mallien ajamiseen
-2. Palvelin on käynnistettävä ennen testien ajamista
-3. Ollama-mallit on esilämmitettävä ennen testien ajamista
-4. Testien aikakatkaisut on säädettävä CI-ympäristöön sopiviksi
-
-## Yhteenveto
-
-E2E-testit ovat tärkeä osa Windsurf-projektin laadunvarmistusta. Ne varmistavat, että järjestelmä toimii oikein käyttäjän näkökulmasta ja että kaikki komponentit toimivat yhdessä odotetusti.
+- [Jest Documentation](https://jestjs.io/docs/en/getting-started)
+- [Supertest Documentation](https://github.com/visionmedia/supertest)
+- [NestJS Testing Documentation](https://docs.nestjs.com/fundamentals/testing)

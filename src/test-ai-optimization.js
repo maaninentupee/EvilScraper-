@@ -1,50 +1,50 @@
 /**
- * Tämä tiedosto on luotu GitHub Actions -työnkulun testaamiseksi.
- * Se sisältää tarkoituksella muutamia koodiongelmia, jotka SonarQube voi tunnistaa.
+ * This file was created for testing the GitHub Actions workflow.
+ * It intentionally contains some code issues that SonarQube can identify.
  * 
- * Päivitetty 2025-03-15: Lisätty testauskommentti CI/CD-työnkulun testaamiseksi
+ * Updated 2025-03-15: Added testing comment for CI/CD workflow testing
  */
 
-// Käyttämätön muuttuja (SonarQube Code Smell)
-const unusedVariable = "Tätä ei käytetä missään";
+// Unused variable (SonarQube Code Smell)
+const unusedVariable = "This is not used anywhere";
 
-// Puuttuva virheenkäsittely (SonarQube Bug)
+// Missing error handling (SonarQube Bug)
 function fetchData(url) {
   return fetch(url).then(response => response.json());
 }
 
-// Puuttuvat tyyppimäärittelyt (SonarQube Code Smell)
+// Missing type definitions (SonarQube Code Smell)
 function calculateSum(a, b) {
   return a + b;
 }
 
-// Toistuva koodi (SonarQube Code Smell)
+// Duplicate code (SonarQube Code Smell)
 function processUser(user) {
-  console.log("Käsitellään käyttäjä:", user.name);
-  console.log("Käyttäjän ikä:", user.age);
-  console.log("Käyttäjän sähköposti:", user.email);
+  console.log("Processing user:", user.name);
+  console.log("User age:", user.age);
+  console.log("User email:", user.email);
 }
 
 function processAdmin(admin) {
-  console.log("Käsitellään admin:", admin.name);
-  console.log("Adminin ikä:", admin.age);
-  console.log("Adminin sähköposti:", admin.email);
+  console.log("Processing admin:", admin.name);
+  console.log("Admin age:", admin.age);
+  console.log("Admin email:", admin.email);
 }
 
-// Mahdollinen null-viittaus (SonarQube Bug)
+// Possible null reference (SonarQube Bug)
 function getUserName(user) {
   return user.name.toUpperCase();
 }
 
-// Tietoturvariski: kovakoodattu salasana (SonarQube Vulnerability)
+// Security risk: hardcoded password (SonarQube Vulnerability)
 const dbConfig = {
   host: "localhost",
   user: "admin",
-  password: "admin123",
+  password: "admin123", 
   database: "testdb"
 };
 
-// Monimutkainen funktio (SonarQube Code Smell)
+// Complex function (SonarQube Code Smell)
 function complexFunction(a, b, c, d, e) {
   if (a <= 0) return 0;
   
@@ -59,12 +59,12 @@ function complexFunction(a, b, c, d, e) {
   return sum;
 }
 
-// Vientimäärittelyt
+// Export definitions
 module.exports = {
   calculateSum,
   processUser,
   processAdmin,
   getUserName,
   complexFunction,
-  // fetchData puuttuu vientimäärittelyistä (SonarQube Code Smell)
+  fetchData
 };

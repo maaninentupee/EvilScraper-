@@ -1,51 +1,51 @@
 /**
- * Fallback-mekanismin testaus
+ * Fallback mechanism testing
  * 
- * Tämä skripti testaa AI-palvelun fallback-mekanismin toimivuutta
- * simuloimalla eri palveluntarjoajien virhetilanteita ja varmistamalla,
- * että järjestelmä siirtyy automaattisesti käyttämään vaihtoehtoisia malleja.
+ * This script tests the functionality of the AI service's fallback mechanism
+ * by simulating error situations for different service providers and ensuring
+ * that the system automatically switches to using alternative models.
  */
 
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
-// Konfiguraatio
+// Configuration
 const config = {
-  // API-osoite
+  // API address
   apiUrl: 'http://localhost:3001/ai/process',
   
-  // Testien määrä per virhetyyppi
+  // Number of tests per error type
   testsPerErrorType: 5,
   
-  // Virheiden simulointi
+  // Error simulation
   simulateErrors: true,
   
-  // Virhetyypit testausta varten
+  // Error types for testing
   errorTypes: ['timeout', 'service_unavailable', 'rate_limit_exceeded', 'invalid_request'],
   
-  // Tehtävätyypit
+  // Task types
   taskTypes: ['general', 'code', 'translation', 'summarization'],
   
-  // Testisyötteet
+  // Test inputs
   inputs: [
-    'Mikä on tekoälyn tulevaisuus?',
-    'Kirjoita Python-funktio, joka laskee Fibonaccin lukujonon.',
-    'Translate the following text to English: "Tekoäly on muuttamassa maailmaa nopeasti."',
-    'Tiivistä seuraava teksti: "Tekoäly on tietojenkäsittelytieteen osa-alue, joka pyrkii luomaan älykkäitä koneita. Se on tärkeä teknologia-ala, joka sisältää monia erilaisia menetelmiä, kuten koneoppimisen, syväoppimisen ja vahvistusoppimisen. Tekoäly on jo käytössä monissa sovelluksissa, kuten kuvantunnistuksessa, luonnollisen kielen käsittelyssä ja autonomisissa ajoneuvoissa."'
+    'What is the future of artificial intelligence?',
+    'Write a Python function that calculates the Fibonacci sequence.',
+    'Translate the following text to English: "Artificial intelligence is changing the world rapidly."',
+    'Summarize the following text: "Artificial intelligence is a field of computer science that aims to create intelligent machines. It is an important technology area that includes many different methods, such as machine learning, deep learning, and reinforcement learning. AI is already used in many applications, such as image recognition, natural language processing, and autonomous vehicles."'
   ]
 };
 
-// Tulosten tallennuskansio
+// Results directory
 const resultsDir = path.join(__dirname, 'results');
 if (!fs.existsSync(resultsDir)) {
   fs.mkdirSync(resultsDir);
 }
 
-// Testitulosten tallennustiedosto
+// Test results file
 const resultsFile = path.join(resultsDir, `fallback-test-results-${new Date().toISOString().replace(/:/g, '-')}.json`);
 
-// Testitulosten alustus
+// Initialize test results
 const testResults = {
   summary: {
     totalTests: 0,
@@ -60,22 +60,22 @@ const testResults = {
 };
 
 /**
- * Suorittaa yksittäisen testin
- * @param {string} taskType - Tehtävän tyyppi
- * @param {string} input - Syöte
- * @param {string} errorType - Simuloitava virhetyyppi
- * @returns {Promise<Object>} - Testin tulos
+ * Runs a single test
+ * @param {string} taskType - Task type
+ * @param {string} input - Input
+ * @param {string} errorType - Error type to simulate
+ * @returns {Promise<Object>} - Test result
  */
 async function runTest(taskType, input, errorType) {
   const startTime = Date.now();
   
   try {
-    // Asetetaan ympäristömuuttujat virheiden simulointia varten
+    // Set environment variables for error simulation
     process.env.SIMULATE_ERRORS = config.simulateErrors ? 'true' : 'false';
     process.env.ERROR_TYPE = errorType;
-    process.env.ERROR_RATE = '0.8'; // 80% todennäköisyys virheelle
+    process.env.ERROR_RATE = '0.8'; // 80% probability of error
     
-    // Lähetetään pyyntö API:lle
+    // Send request to the API
     const response = await axios.post(config.apiUrl, {
       taskType,
       input
@@ -83,13 +83,13 @@ async function runTest(taskType, input, errorType) {
       headers: {
         'Content-Type': 'application/json'
       },
-      timeout: 30000 // 30 sekunnin timeout
+      timeout: 30000 // 30 second timeout
     });
     
     const endTime = Date.now();
     const responseTime = endTime - startTime;
     
-    // Palautetaan testin tulos
+    // Return test result
     return {
       success: response.data.success,
       result: response.data.result,
@@ -101,13 +101,13 @@ async function runTest(taskType, input, errorType) {
       taskType,
       input,
       simulatedErrorType: errorType,
-      fallbackTriggered: response.data.provider !== 'openai' // Oletetaan että OpenAI on ensisijainen palveluntarjoaja
+      fallbackTriggered: response.data.provider !== 'openai' // Assume OpenAI is the primary service provider
     };
   } catch (error) {
     const endTime = Date.now();
     const responseTime = endTime - startTime;
     
-    // Palautetaan virhetilanne
+    // Return error situation
     return {
       success: false,
       result: null,
@@ -125,11 +125,11 @@ async function runTest(taskType, input, errorType) {
 }
 
 /**
- * Päivittää testitulokset
- * @param {Object} result - Yksittäisen testin tulos
+ * Updates test results
+ * @param {Object} result - Result of a single test
  */
 function updateTestResults(result) {
-  // Päivitetään yhteenveto
+  // Update summary
   testResults.summary.totalTests++;
   
   if (result.success) {
@@ -146,7 +146,7 @@ function updateTestResults(result) {
     (testResults.summary.averageResponseTime * (testResults.summary.totalTests - 1) + result.responseTime) / 
     testResults.summary.totalTests;
   
-  // Päivitetään palveluntarjoajatilastot
+  // Update service provider statistics
   const provider = result.provider || 'unknown';
   if (!testResults.providerStats[provider]) {
     testResults.providerStats[provider] = {
@@ -169,7 +169,7 @@ function updateTestResults(result) {
     (testResults.providerStats[provider].averageResponseTime * (testResults.providerStats[provider].totalCalls - 1) + result.responseTime) / 
     testResults.providerStats[provider].totalCalls;
   
-  // Päivitetään virhetyyppitilastot
+  // Update error type statistics
   if (!result.success) {
     const errorType = result.errorType || 'unknown';
     if (!testResults.errorTypeStats[errorType]) {
@@ -186,95 +186,95 @@ function updateTestResults(result) {
     }
   }
   
-  // Lisätään yksityiskohtaiset tulokset
+  // Add detailed results
   testResults.detailedResults.push(result);
 }
 
 /**
- * Tallentaa testitulokset tiedostoon
+ * Saves test results to a file
  */
 function saveTestResults() {
   fs.writeFileSync(resultsFile, JSON.stringify(testResults, null, 2));
-  console.log(`Testitulokset tallennettu tiedostoon: ${resultsFile}`);
+  console.log(`Test results saved to file: ${resultsFile}`);
 }
 
 /**
- * Tulostaa yhteenvedon testituloksista
+ * Prints a summary of test results
  */
 function printSummary() {
-  console.log('\n===== FALLBACK-TESTIEN YHTEENVETO =====');
-  console.log(`Testejä yhteensä: ${testResults.summary.totalTests}`);
-  console.log(`Onnistuneita testejä: ${testResults.summary.successfulTests} (${(testResults.summary.successfulTests / testResults.summary.totalTests * 100).toFixed(2)}%)`);
-  console.log(`Epäonnistuneita testejä: ${testResults.summary.failedTests} (${(testResults.summary.failedTests / testResults.summary.totalTests * 100).toFixed(2)}%)`);
-  console.log(`Fallback-mekanismi laukaistiin: ${testResults.summary.fallbacksTriggered} kertaa (${(testResults.summary.fallbacksTriggered / testResults.summary.totalTests * 100).toFixed(2)}%)`);
-  console.log(`Keskimääräinen vasteaika: ${testResults.summary.averageResponseTime.toFixed(2)} ms`);
+  console.log('\n===== FALLBACK TESTS SUMMARY =====');
+  console.log(`Total tests: ${testResults.summary.totalTests}`);
+  console.log(`Successful tests: ${testResults.summary.successfulTests} (${(testResults.summary.successfulTests / testResults.summary.totalTests * 100).toFixed(2)}%)`);
+  console.log(`Failed tests: ${testResults.summary.failedTests} (${(testResults.summary.failedTests / testResults.summary.totalTests * 100).toFixed(2)}%)`);
+  console.log(`Fallback mechanism triggered: ${testResults.summary.fallbacksTriggered} times (${(testResults.summary.fallbacksTriggered / testResults.summary.totalTests * 100).toFixed(2)}%)`);
+  console.log(`Average response time: ${testResults.summary.averageResponseTime.toFixed(2)} ms`);
   
-  console.log('\n----- Palveluntarjoajatilastot -----');
+  console.log('\n----- Service Provider Statistics -----');
   for (const [provider, stats] of Object.entries(testResults.providerStats)) {
     console.log(`${provider}:`);
-    console.log(`  Kutsuja yhteensä: ${stats.totalCalls}`);
-    console.log(`  Onnistuneita kutsuja: ${stats.successfulCalls} (${(stats.successfulCalls / stats.totalCalls * 100).toFixed(2)}%)`);
-    console.log(`  Epäonnistuneita kutsuja: ${stats.failedCalls} (${(stats.failedCalls / stats.totalCalls * 100).toFixed(2)}%)`);
-    console.log(`  Keskimääräinen vasteaika: ${stats.averageResponseTime.toFixed(2)} ms`);
+    console.log(`  Total calls: ${stats.totalCalls}`);
+    console.log(`  Successful calls: ${stats.successfulCalls} (${(stats.successfulCalls / stats.totalCalls * 100).toFixed(2)}%)`);
+    console.log(`  Failed calls: ${stats.failedCalls} (${(stats.failedCalls / stats.totalCalls * 100).toFixed(2)}%)`);
+    console.log(`  Average response time: ${stats.averageResponseTime.toFixed(2)} ms`);
   }
   
-  console.log('\n----- Virhetyyppitilastot -----');
+  console.log('\n----- Error Type Statistics -----');
   for (const [errorType, stats] of Object.entries(testResults.errorTypeStats)) {
     console.log(`${errorType}:`);
-    console.log(`  Esiintymisiä: ${stats.count}`);
-    console.log(`  Fallback-mekanismi laukaistiin: ${stats.fallbacksTriggered} kertaa (${(stats.fallbacksTriggered / stats.count * 100).toFixed(2)}%)`);
+    console.log(`  Occurrences: ${stats.count}`);
+    console.log(`  Fallback mechanism triggered: ${stats.fallbacksTriggered} times (${(stats.fallbacksTriggered / stats.count * 100).toFixed(2)}%)`);
   }
   
   console.log('\n======================================');
 }
 
 /**
- * Pääfunktio testien suorittamiseen
+ * Main function for running tests
  */
 async function main() {
-  console.log('Aloitetaan fallback-mekanismin testaus...');
+  console.log('Starting fallback mechanism testing...');
   
-  // Suoritetaan testit jokaiselle virhetyypille
+  // Run tests for each error type
   for (const errorType of config.errorTypes) {
-    console.log(`\nTestataan virhetyyppiä: ${errorType}`);
+    console.log(`\nTesting error type: ${errorType}`);
     
-    // Suoritetaan testit jokaiselle tehtävätyypille
+    // Run tests for each task type
     for (const taskType of config.taskTypes) {
-      // Suoritetaan testit jokaiselle syötteelle
+      // Run tests for each input
       for (const input of config.inputs) {
-        // Suoritetaan useita testejä samalla konfiguraatiolla
+        // Run multiple tests with the same configuration
         for (let i = 0; i < config.testsPerErrorType; i++) {
-          console.log(`Suoritetaan testi #${i + 1} tehtävätyypille '${taskType}' virhetyypillä '${errorType}'...`);
+          console.log(`Running test #${i + 1} for task type '${taskType}' with error type '${errorType}'...`);
           
-          // Suoritetaan testi
+          // Run the test
           const result = await runTest(taskType, input, errorType);
           
-          // Päivitetään testitulokset
+          // Update test results
           updateTestResults(result);
           
-          // Tulostetaan testin tulos
+          // Print test result
           if (result.success) {
-            console.log(`  Testi onnistui! Palveluntarjoaja: ${result.provider}, Malli: ${result.model}, Vasteaika: ${result.responseTime} ms`);
+            console.log(`  Test successful! Service provider: ${result.provider}, Model: ${result.model}, Response time: ${result.responseTime} ms`);
           } else {
-            console.log(`  Testi epäonnistui! Virhe: ${result.error}, Virhetyyppi: ${result.errorType}, Vasteaika: ${result.responseTime} ms`);
+            console.log(`  Test failed! Error: ${result.error}, Error type: ${result.errorType}, Response time: ${result.responseTime} ms`);
           }
           
-          // Pieni viive testien välillä
+          // Small delay between tests
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
     }
   }
   
-  // Tallennetaan testitulokset
+  // Save test results
   saveTestResults();
   
-  // Tulostetaan yhteenveto
+  // Print summary
   printSummary();
 }
 
-// Suoritetaan testit
+// Run tests
 main().catch(error => {
-  console.error('Virhe testien suorituksessa:', error);
+  console.error('Error running tests:', error);
   process.exit(1);
 });

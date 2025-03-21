@@ -21,9 +21,9 @@ module.exports = {
     '^.+\\.(t|j)s$': 'ts-jest'
   },
   setupFilesAfterEnv: ['<rootDir>/test/jest-setup.ts'],
-  // Lisätään SonarQube-yhteensopiva testiraportin generointi
-  reporters: [
-    'default',
-    ['jest-sonar-reporter', { outputDirectory: 'coverage', outputName: 'sonar-report.xml' }]
-  ]
-};
+  // Temporarily commenting out SonarQube reporter to run tests
+  // reporters: [
+  //   'default',
+  //   ['jest-sonar-reporter', { outputDirectory: 'coverage', outputName: 'sonar-report.xml' }]
+  // ]
+}

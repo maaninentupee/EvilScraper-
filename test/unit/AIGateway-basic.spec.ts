@@ -36,60 +36,65 @@ describe('AIGateway Basic Tests', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         
-        modelSelector = new ModelSelector() as jest.Mocked<ModelSelector>;
-        openAIProvider = new OpenAIProvider() as jest.Mocked<OpenAIProvider>;
-        anthropicProvider = new AnthropicProvider() as jest.Mocked<AnthropicProvider>;
-        ollamaProvider = new OllamaProvider() as jest.Mocked<OllamaProvider>;
-        lmStudioProvider = new LMStudioProvider() as jest.Mocked<LMStudioProvider>;
-        localProvider = new LocalProvider() as jest.Mocked<LocalProvider>;
-
-        // Asetetaan oletusarvot mockien metodeille
-        modelSelector.getModel = jest.fn().mockImplementation((taskType, providerName) => {
-            if (providerName === 'ollama' || !providerName) return 'mistral';
-            if (providerName === 'openai') return 'gpt-4-turbo';
-            if (providerName === 'anthropic') return 'claude-3-opus-20240229';
-            if (providerName === 'lmstudio') return 'mistral-7b-instruct-v0.2';
-            if (providerName === 'local') return 'mistral-7b-instruct-q8_0.gguf';
-            return 'default-model';
-        });
-
-        modelSelector.isOllamaModel = jest.fn().mockImplementation((model) => model === 'mistral');
-        modelSelector.isOpenAIModel = jest.fn().mockImplementation((model) => model === 'gpt-4-turbo');
-        modelSelector.isAnthropicModel = jest.fn().mockImplementation((model) => model === 'claude-3-opus-20240229');
-        modelSelector.isLMStudioModel = jest.fn().mockImplementation((model) => model === 'mistral-7b-instruct-v0.2');
-        modelSelector.isLocalModel = jest.fn().mockImplementation((model) => model === 'mistral-7b-instruct-q8_0.gguf');
-
-        // Asetetaan palveluntarjoajien nimet
-        ollamaProvider.getName = jest.fn().mockReturnValue('Ollama');
-        openAIProvider.getName = jest.fn().mockReturnValue('OpenAI');
-        anthropicProvider.getName = jest.fn().mockReturnValue('Anthropic');
-        lmStudioProvider.getName = jest.fn().mockReturnValue('LMStudio');
-        localProvider.getName = jest.fn().mockReturnValue('Local');
-
-        // Asetetaan palveluntarjoajien saatavuus
-        ollamaProvider.getServiceStatus = jest.fn().mockReturnValue({ isAvailable: true });
-        openAIProvider.getServiceStatus = jest.fn().mockReturnValue({ isAvailable: true });
-        anthropicProvider.getServiceStatus = jest.fn().mockReturnValue({ isAvailable: true });
-        lmStudioProvider.getServiceStatus = jest.fn().mockReturnValue({ isAvailable: true });
-        localProvider.getServiceStatus = jest.fn().mockReturnValue({ isAvailable: true });
-
+        // Create mock providers
+        localProvider = createMockProvider('local');
+        openAIProvider = createMockProvider('openai');
+        anthropicProvider = createMockProvider('anthropic');
+        lmStudioProvider = createMockProvider('lmstudio');
+        ollamaProvider = createMockProvider('ollama');
+        
+        // Mock the model selector
+        modelSelector = {
+            selectModel: jest.fn()
+        };
+        
+        // Create mock dependencies for AIGateway
+        const mockProviderRegistry = {
+            getProvider: jest.fn(),
+            getAllProviders: jest.fn().mockReturnValue([
+                localProvider,
+                openAIProvider,
+                anthropicProvider,
+                lmStudioProvider,
+                ollamaProvider
+            ])
+        };
+        
+        const mockConfigService = {
+            get: jest.fn()
+        };
+        
+        const mockHealthMonitor = {
+            isProviderHealthy: jest.fn().mockReturnValue(true),
+            recordSuccess: jest.fn(),
+            recordFailure: jest.fn()
+        };
+        
+        const mockSelectionStrategy = {
+            selectProvider: jest.fn()
+        };
+        
+        const mockErrorClassifier = {
+            classifyError: jest.fn()
+        };
+        
+        // Create AIGateway instance with mocked dependencies
         aiGateway = new AIGateway(
-            modelSelector,
-            localProvider,
-            openAIProvider,
-            anthropicProvider,
-            lmStudioProvider,
-            ollamaProvider
+            mockProviderRegistry as any,
+            mockConfigService as any,
+            mockHealthMonitor as any,
+            mockSelectionStrategy as any,
+            mockErrorClassifier as any
         );
     });
 
     it('should use the Ollama model when available', async () => {
-        const input = "Testi";
+        const input = "Test";
         const model = "mistral";
         
         ollamaProvider.generateCompletion.mockResolvedValue({
             success: true,
-            text: "Paikallisen mallin vastaus",
+            text: "Local model response",
             provider: "ollama",
             model,
             latency: 200
@@ -97,29 +102,29 @@ describe('AIGateway Basic Tests', () => {
 
         const result = await aiGateway.processAIRequest("seo", input);
 
-        expect(result.result).toBe("Paikallisen mallin vastaus");
+        expect(result.result).toBe("Local model response");
         expect(result.provider).toBe("ollama");
         expect(result.model).toBe(model);
-        // Ollama-provideria kutsutaan vain kerran, koska se epäonnistuu ja siirrytään seuraavaan provideriin
-        // Ollama-provideria voidaan kutsua useammin kuin kerran, jos se on saatavilla
-        // mutta epäonnistuu ensimmäisellä kerralla
+        // Ollama provider is called only once because it fails and moves to the next provider
+        // Ollama provider can be called more than once if it's available
+        // but fails on the first attempt
         expect(ollamaProvider.generateCompletion).toHaveBeenCalled();
     });
 
     it('should fallback to OpenAI when Ollama model fails', async () => {
-        const input = "Testi";
+        const input = "Test";
         
         ollamaProvider.generateCompletion.mockResolvedValue({
             success: false,
             text: "",
             provider: "ollama",
             model: "mistral",
-            error: "Paikallinen malli epäonnistui"
+            error: "Local model failed"
         });
 
         openAIProvider.generateCompletion.mockResolvedValue({
             success: true,
-            text: "Fallback OpenAI vastaus",
+            text: "Fallback OpenAI response",
             provider: "openai",
             model: "gpt-4-turbo",
             latency: 300
@@ -127,26 +132,26 @@ describe('AIGateway Basic Tests', () => {
 
         const result = await aiGateway.processAIRequestWithFallback("seo", input);
 
-        expect(result.result).toBe("Fallback OpenAI vastaus");
+        expect(result.result).toBe("Fallback OpenAI response");
         expect(result.provider).toBe("openai");
         expect(result.model).toBe("gpt-4-turbo");
         expect(result.wasFailover).toBe(true);
-        // Ollama-provideria kutsutaan vain kerran, koska se epäonnistuu ja siirrytään seuraavaan provideriin
-        // Ollama-provideria voidaan kutsua useammin kuin kerran, jos se on saatavilla
-        // mutta epäonnistuu ensimmäisellä kerralla
+        // Ollama provider is called only once because it fails and moves to the next provider
+        // Ollama provider can be called more than once if it's available
+        // but fails on the first attempt
         expect(ollamaProvider.generateCompletion).toHaveBeenCalled();
         expect(openAIProvider.generateCompletion).toHaveBeenCalledTimes(1);
     });
 
     it('should retry with different provider on failure', async () => {
-        const input = "Testi";
+        const input = "Test";
         
         ollamaProvider.generateCompletion.mockResolvedValue({
             success: false,
             text: "",
             provider: "ollama",
             model: "mistral",
-            error: "Ollama epäonnistui"
+            error: "Ollama failed"
         });
 
         openAIProvider.generateCompletion.mockResolvedValue({
@@ -154,7 +159,7 @@ describe('AIGateway Basic Tests', () => {
             text: "",
             provider: "openai",
             model: "gpt-4-turbo",
-            error: "OpenAI epäonnistui"
+            error: "OpenAI failed"
         });
 
         anthropicProvider.generateCompletion.mockResolvedValue({
@@ -170,9 +175,9 @@ describe('AIGateway Basic Tests', () => {
         expect(result.result).toBe("Anthropic fallback");
         expect(result.provider).toBe("anthropic");
         expect(result.wasFailover).toBe(true);
-        // Ollama-provideria kutsutaan vain kerran, koska se epäonnistuu ja siirrytään seuraavaan provideriin
-        // Ollama-provideria voidaan kutsua useammin kuin kerran, jos se on saatavilla
-        // mutta epäonnistuu ensimmäisellä kerralla
+        // Ollama provider is called only once because it fails and moves to the next provider
+        // Ollama provider can be called more than once if it's available
+        // but fails on the first attempt
         expect(ollamaProvider.generateCompletion).toHaveBeenCalled();
         expect(openAIProvider.generateCompletion).toHaveBeenCalledTimes(1);
         expect(anthropicProvider.generateCompletion).toHaveBeenCalledTimes(1);
@@ -183,7 +188,7 @@ describe('AIGateway Basic Tests', () => {
         
         openAIProvider.generateCompletion.mockResolvedValue({
             success: true,
-            text: "OpenAI vastaus fallback",
+            text: "OpenAI response fallback",
             provider: "openai",
             model: "gpt-4-turbo",
             latency: 300
@@ -191,21 +196,21 @@ describe('AIGateway Basic Tests', () => {
 
         const result = await aiGateway.processAIRequestWithFallback("seo", input);
 
-        expect(result.result).toBe("OpenAI vastaus fallback");
+        expect(result.result).toBe("OpenAI response fallback");
         expect(result.provider).toBe("openai");
         expect(result.wasFailover).toBe(true);
     });
 
     it('should return error object when all providers fail', async () => {
-        const input = "Testi";
+        const input = "Test";
         
-        // Asetetaan kaikki palveluntarjoajat epäonnistumaan
+        // Set all providers to fail
         ollamaProvider.generateCompletion.mockResolvedValue({
             success: false,
             text: "",
             provider: "ollama",
             model: "mistral",
-            error: "Ollama epäonnistui"
+            error: "Ollama failed"
         });
 
         openAIProvider.generateCompletion.mockResolvedValue({
@@ -213,7 +218,7 @@ describe('AIGateway Basic Tests', () => {
             text: "",
             provider: "openai",
             model: "gpt-4-turbo",
-            error: "OpenAI epäonnistui"
+            error: "OpenAI failed"
         });
 
         anthropicProvider.generateCompletion.mockResolvedValue({
@@ -221,7 +226,7 @@ describe('AIGateway Basic Tests', () => {
             text: "",
             provider: "anthropic",
             model: "claude-3-opus-20240229",
-            error: "Anthropic epäonnistui"
+            error: "Anthropic failed"
         });
 
         lmStudioProvider.generateCompletion.mockResolvedValue({
@@ -229,7 +234,7 @@ describe('AIGateway Basic Tests', () => {
             text: "",
             provider: "lmstudio",
             model: "mistral-7b-instruct-v0.2",
-            error: "LMStudio epäonnistui"
+            error: "LMStudio failed"
         });
 
         localProvider.generateCompletion.mockResolvedValue({
@@ -237,16 +242,16 @@ describe('AIGateway Basic Tests', () => {
             text: "",
             provider: "local",
             model: "mistral-7b-instruct-q8_0.gguf",
-            error: "Local epäonnistui"
+            error: "Local failed"
         });
 
         const result = await aiGateway.processAIRequestWithFallback("seo", input);
 
         expect(result.error).toBe(true);
-        expect(result.message).toContain("Kaikki AI-palvelut epäonnistuivat");
-        // Ollama-provideria kutsutaan vain kerran, koska se epäonnistuu ja siirrytään seuraavaan provideriin
-        // Ollama-provideria voidaan kutsua useammin kuin kerran, jos se on saatavilla
-        // mutta epäonnistuu ensimmäisellä kerralla
+        expect(result.message).toContain("All AI services failed");
+        // Ollama provider is called only once because it fails and moves to the next provider
+        // Ollama provider can be called more than once if it's available
+        // but fails on the first attempt
         expect(ollamaProvider.generateCompletion).toHaveBeenCalled();
         expect(openAIProvider.generateCompletion).toHaveBeenCalledTimes(1);
         expect(anthropicProvider.generateCompletion).toHaveBeenCalledTimes(1);
@@ -255,18 +260,18 @@ describe('AIGateway Basic Tests', () => {
     });
 
     it('should handle retryable errors', async () => {
-        const input = "Testi";
+        const input = "Test";
         
         ollamaProvider.generateCompletion.mockResolvedValueOnce({
             success: false,
             text: "",
             provider: "ollama",
             model: "mistral",
-            error: "Tilapäinen verkkovirhe",
+            error: "Temporary network error",
             errorType: "network_error"
         }).mockResolvedValueOnce({
             success: true,
-            text: "Ollama vastaus uudelleenyrityksen jälkeen",
+            text: "Ollama response after retry",
             provider: "ollama",
             model: "mistral",
             latency: 200
@@ -274,7 +279,7 @@ describe('AIGateway Basic Tests', () => {
 
         const result = await aiGateway.processAIRequestWithFallback("seo", input);
 
-        expect(result.result).toBe("Ollama vastaus uudelleenyrityksen jälkeen");
+        expect(result.result).toBe("Ollama response after retry");
         expect(result.provider).toBe("ollama");
         expect(result.wasRetry).toBe(true);
         expect(ollamaProvider.generateCompletion).toHaveBeenCalledTimes(2);
@@ -282,60 +287,60 @@ describe('AIGateway Basic Tests', () => {
 
     describe('getInitialProvider', () => {
         it('should return the first available provider based on priority', async () => {
-            // Asetetaan vain Ollama ja OpenAI saataville
+            // Set only Ollama and OpenAI as available
             ollamaProvider.isAvailable = jest.fn().mockResolvedValue(true);
             openAIProvider.isAvailable = jest.fn().mockResolvedValue(true);
             anthropicProvider.isAvailable = jest.fn().mockResolvedValue(false);
             lmStudioProvider.isAvailable = jest.fn().mockResolvedValue(false);
             localProvider.isAvailable = jest.fn().mockResolvedValue(false);
 
-            // @ts-ignore - Kutsutaan yksityistä metodia testausta varten
+            // @ts-ignore - Call private method for testing
             const provider = await aiGateway['getInitialProvider']('seo');
             expect(provider).toBe(ollamaProvider);
         });
 
         it('should use the provider based on environment priority', async () => {
-            // Asetetaan vain OpenAI saataville
+            // Set only OpenAI as available
             ollamaProvider.isAvailable = jest.fn().mockResolvedValue(false);
             openAIProvider.isAvailable = jest.fn().mockResolvedValue(true);
             anthropicProvider.isAvailable = jest.fn().mockResolvedValue(false);
             lmStudioProvider.isAvailable = jest.fn().mockResolvedValue(false);
             localProvider.isAvailable = jest.fn().mockResolvedValue(false);
 
-            // Asetetaan ollamaProvider ensimmäiseksi prioriteetissa
-            // @ts-ignore - Asetetaan environment.providerPriorityArray
+            // Set Ollama as the first priority
+            // @ts-ignore - Set environment.providerPriorityArray
             environment.providerPriorityArray = ['ollama', 'openai', 'anthropic', 'lmstudio', 'local'];
 
-            // @ts-ignore - Kutsutaan yksityistä metodia testausta varten
+            // @ts-ignore - Call private method for testing
             const provider = await aiGateway['getInitialProvider']();
             expect(provider).toBe(ollamaProvider);
         });
 
         it('should return local provider as fallback when no specific provider is enabled', async () => {
-            // Asetetaan kaikki palveluntarjoajat ei-saataville
+            // Set all providers as unavailable
             ollamaProvider.isAvailable = jest.fn().mockResolvedValue(false);
             openAIProvider.isAvailable = jest.fn().mockResolvedValue(false);
             anthropicProvider.isAvailable = jest.fn().mockResolvedValue(false);
             lmStudioProvider.isAvailable = jest.fn().mockResolvedValue(false);
             localProvider.isAvailable = jest.fn().mockResolvedValue(true);
 
-            // Asetetaan localProvider viimeiseksi prioriteetissa
-            // @ts-ignore - Asetetaan environment.providerPriorityArray
+            // Set local provider as the last priority
+            // @ts-ignore - Set environment.providerPriorityArray
             environment.providerPriorityArray = ['ollama', 'openai', 'anthropic', 'lmstudio', 'local'];
             
-            // Asetetaan kaikki muut palveluntarjoajat pois käytöstä paitsi local
-            // @ts-ignore - Asetetaan environment.useOllama
+            // Disable all providers except local
+            // @ts-ignore - Set environment.useOllama
             environment.useOllama = false;
-            // @ts-ignore - Asetetaan environment.useOpenAI
+            // @ts-ignore - Set environment.useOpenAI
             environment.useOpenAI = false;
-            // @ts-ignore - Asetetaan environment.useAnthropic
+            // @ts-ignore - Set environment.useAnthropic
             environment.useAnthropic = false;
-            // @ts-ignore - Asetetaan environment.useLMStudio
+            // @ts-ignore - Set environment.useLMStudio
             environment.useLMStudio = false;
-            // @ts-ignore - Asetetaan environment.useLocalModels
+            // @ts-ignore - Set environment.useLocalModels
             environment.useLocalModels = true;
 
-            // @ts-ignore - Kutsutaan yksityistä metodia testausta varten
+            // @ts-ignore - Call private method for testing
             const provider = await aiGateway['getInitialProvider']();
             expect(provider).toBe(localProvider);
         });
@@ -343,8 +348,8 @@ describe('AIGateway Basic Tests', () => {
 
     describe('tryNextProvider', () => {
         it('should return response object when using the next provider in priority order', async () => {
-            // Asetetaan providerStats-kartta
-            // @ts-ignore - Asetetaan aiGateway.providerStats
+            // Set provider stats map
+            // @ts-ignore - Set aiGateway.providerStats
             aiGateway.providerStats = new Map([
                 ['ollama', { available: false, successRate: 0, avgLatency: 0, lastCheck: Date.now() }],
                 ['openai', { available: true, successRate: 1, avgLatency: 100, lastCheck: Date.now() }],
@@ -353,42 +358,42 @@ describe('AIGateway Basic Tests', () => {
                 ['local', { available: false, successRate: 0, avgLatency: 0, lastCheck: Date.now() }]
             ]);
             
-            // Mock updateProviderStats-metodi
-            // @ts-ignore - Mockataan yksityinen metodi
+            // Mock updateProviderStats method
+            // @ts-ignore - Mock private method
             aiGateway.updateProviderStats = jest.fn();
 
-            // Asetetaan ympäristömuuttujat
-            // @ts-ignore - Asetetaan environment.providerPriorityArray
+            // Set environment variables
+            // @ts-ignore - Set environment.providerPriorityArray
             environment.providerPriorityArray = ['ollama', 'openai', 'anthropic', 'lmstudio', 'local'];
-            // @ts-ignore - Asetetaan environment.useOllama
-            environment.useOllama = false; // Ollama ei ole käytössä
-            // @ts-ignore - Asetetaan environment.useOpenAI
+            // @ts-ignore - Set environment.useOllama
+            environment.useOllama = false; // Ollama is not available
+            // @ts-ignore - Set environment.useOpenAI
             environment.useOpenAI = true;
-            // @ts-ignore - Asetetaan environment.useAnthropic
+            // @ts-ignore - Set environment.useAnthropic
             environment.useAnthropic = false;
-            // @ts-ignore - Asetetaan environment.useLMStudio
+            // @ts-ignore - Set environment.useLMStudio
             environment.useLMStudio = false;
-            // @ts-ignore - Asetetaan environment.useLocalModels
+            // @ts-ignore - Set environment.useLocalModels
             environment.useLocalModels = false;
-            
+
             // Mock openAIProvider.generateCompletion to return a successful response
             openAIProvider.generateCompletion = jest.fn().mockResolvedValue({
                 success: true,
-                text: 'OpenAI vastaus',
+                text: 'OpenAI response',
                 provider: 'openai',
                 model: 'gpt-4-turbo'
             });
 
-            // @ts-ignore - Kutsutaan yksityistä metodia testausta varten
-            const result = await aiGateway['tryNextProvider']('seo', "Testi", "Edellinen virhe");
-            expect(result).toHaveProperty('result', 'OpenAI vastaus');
+            // @ts-ignore - Call private method for testing
+            const result = await aiGateway['tryNextProvider']('seo', "Test", "Previous error");
+            expect(result).toHaveProperty('result', 'OpenAI response');
             expect(result).toHaveProperty('provider', 'openai');
             expect(result).toHaveProperty('wasFailover', true);
         });
 
         it('should skip unavailable providers and use the next available one', async () => {
-            // Asetetaan providerStats-kartta
-            // @ts-ignore - Asetetaan aiGateway.providerStats
+            // Set provider stats map
+            // @ts-ignore - Set aiGateway.providerStats
             aiGateway.providerStats = new Map([
                 ['ollama', { available: false, successRate: 0, avgLatency: 0, lastCheck: Date.now() }],
                 ['openai', { available: false, successRate: 0, avgLatency: 0, lastCheck: Date.now() }],
@@ -397,42 +402,42 @@ describe('AIGateway Basic Tests', () => {
                 ['local', { available: false, successRate: 0, avgLatency: 0, lastCheck: Date.now() }]
             ]);
             
-            // Mock updateProviderStats-metodi
-            // @ts-ignore - Mockataan yksityinen metodi
+            // Mock updateProviderStats method
+            // @ts-ignore - Mock private method
             aiGateway.updateProviderStats = jest.fn();
 
-            // Asetetaan ympäristömuuttujat
-            // @ts-ignore - Asetetaan environment.providerPriorityArray
+            // Set environment variables
+            // @ts-ignore - Set environment.providerPriorityArray
             environment.providerPriorityArray = ['ollama', 'openai', 'anthropic', 'lmstudio', 'local'];
-            // @ts-ignore - Asetetaan environment.useOllama
-            environment.useOllama = false; // Ollama ei ole käytössä
-            // @ts-ignore - Asetetaan environment.useOpenAI
-            environment.useOpenAI = false; // OpenAI ei ole käytössä
-            // @ts-ignore - Asetetaan environment.useAnthropic
+            // @ts-ignore - Set environment.useOllama
+            environment.useOllama = false; // Ollama is not available
+            // @ts-ignore - Set environment.useOpenAI
+            environment.useOpenAI = false; // OpenAI is not available
+            // @ts-ignore - Set environment.useAnthropic
             environment.useAnthropic = true;
-            // @ts-ignore - Asetetaan environment.useLMStudio
+            // @ts-ignore - Set environment.useLMStudio
             environment.useLMStudio = false;
-            // @ts-ignore - Asetetaan environment.useLocalModels
+            // @ts-ignore - Set environment.useLocalModels
             environment.useLocalModels = false;
 
             // Mock anthropicProvider.generateCompletion to return a successful response
             anthropicProvider.generateCompletion = jest.fn().mockResolvedValue({
                 success: true,
-                text: 'Anthropic vastaus',
+                text: 'Anthropic response',
                 provider: 'anthropic',
                 model: 'claude-3-opus'
             });
 
-            // @ts-ignore - Kutsutaan yksityistä metodia testausta varten
-            const result = await aiGateway['tryNextProvider']('seo', "Testi", "Edellinen virhe");
-            expect(result).toHaveProperty('result', 'Anthropic vastaus');
+            // @ts-ignore - Call private method for testing
+            const result = await aiGateway['tryNextProvider']('seo', "Test", "Previous error");
+            expect(result).toHaveProperty('result', 'Anthropic response');
             expect(result).toHaveProperty('provider', 'anthropic');
             expect(result).toHaveProperty('wasFailover', true);
         });
 
         it('should return error object if all providers fail', async () => {
-            // Asetetaan providerStats-kartta
-            // @ts-ignore - Asetetaan aiGateway.providerStats
+            // Set provider stats map
+            // @ts-ignore - Set aiGateway.providerStats
             aiGateway.providerStats = new Map([
                 ['ollama', { available: true, successRate: 0.8, avgLatency: 100, lastCheck: Date.now() }],
                 ['openai', { available: true, successRate: 0.9, avgLatency: 200, lastCheck: Date.now() }],
@@ -441,76 +446,76 @@ describe('AIGateway Basic Tests', () => {
                 ['local', { available: true, successRate: 0.6, avgLatency: 50, lastCheck: Date.now() }]
             ]);
             
-            // Mock updateProviderStats-metodi
-            // @ts-ignore - Mockataan yksityinen metodi
+            // Mock updateProviderStats method
+            // @ts-ignore - Mock private method
             aiGateway.updateProviderStats = jest.fn();
 
-            // Asetetaan ympäristömuuttujat
-            // @ts-ignore - Asetetaan environment.providerPriorityArray
+            // Set environment variables
+            // @ts-ignore - Set environment.providerPriorityArray
             environment.providerPriorityArray = ['ollama', 'openai', 'anthropic', 'lmstudio', 'local'];
-            // @ts-ignore - Asetetaan environment.useOllama
+            // @ts-ignore - Set environment.useOllama
             environment.useOllama = true;
-            // @ts-ignore - Asetetaan environment.useOpenAI
+            // @ts-ignore - Set environment.useOpenAI
             environment.useOpenAI = true;
-            // @ts-ignore - Asetetaan environment.useAnthropic
+            // @ts-ignore - Set environment.useAnthropic
             environment.useAnthropic = true;
-            // @ts-ignore - Asetetaan environment.useLMStudio
+            // @ts-ignore - Set environment.useLMStudio
             environment.useLMStudio = true;
-            // @ts-ignore - Asetetaan environment.useLocalModels
+            // @ts-ignore - Set environment.useLocalModels
             environment.useLocalModels = true;
             
-            // Asetetaan kaikki palveluntarjoajat epäonnistumaan
-            ollamaProvider.generateCompletion = jest.fn().mockResolvedValue({
+            // Set all providers to fail
+            ollamaProvider.generateCompletion.mockResolvedValue({
                 success: false,
                 text: "",
                 provider: "ollama",
                 model: "mistral",
-                error: "Ollama epäonnistui"
+                error: "Ollama failed"
             });
             
-            openAIProvider.generateCompletion = jest.fn().mockResolvedValue({
+            openAIProvider.generateCompletion.mockResolvedValue({
                 success: false,
                 text: "",
                 provider: "openai",
                 model: "gpt-4-turbo",
-                error: "OpenAI epäonnistui"
+                error: "OpenAI failed"
             });
             
-            anthropicProvider.generateCompletion = jest.fn().mockResolvedValue({
+            anthropicProvider.generateCompletion.mockResolvedValue({
                 success: false,
                 text: "",
                 provider: "anthropic",
                 model: "claude-3-opus-20240229",
-                error: "Anthropic epäonnistui"
+                error: "Anthropic failed"
             });
             
-            lmStudioProvider.generateCompletion = jest.fn().mockResolvedValue({
+            lmStudioProvider.generateCompletion.mockResolvedValue({
                 success: false,
                 text: "",
                 provider: "lmstudio",
                 model: "mistral-7b-instruct-v0.2",
-                error: "LMStudio epäonnistui"
+                error: "LMStudio failed"
             });
             
-            localProvider.generateCompletion = jest.fn().mockResolvedValue({
+            localProvider.generateCompletion.mockResolvedValue({
                 success: false,
                 text: "",
                 provider: "local",
                 model: "mistral-7b-instruct-q8_0.gguf",
-                error: "Local epäonnistui"
+                error: "Local failed"
             });
 
-            // @ts-ignore - Kutsutaan yksityistä metodia testausta varten
-            const result = await aiGateway['tryNextProvider']('seo', "Testi");
+            // @ts-ignore - Call private method for testing
+            const result = await aiGateway['tryNextProvider']('seo', "Test");
             
-            // Tarkistetaan, että palautetaan virheobjekti
+            // Check that an error object is returned
             expect(result).toHaveProperty('error', true);
-            expect(result.message).toContain('Kaikki AI-palvelut epäonnistuivat');
+            expect(result.message).toContain('All AI services failed');
         });
 
         it('should return error object if no more available providers exist', async () => {
-            // Asetetaan providerStats-kartta
-            // @ts-ignore - Asetetaan aiGateway.providerStats
+            // Set provider stats map
+            // @ts-ignore - Set aiGateway.providerStats
             aiGateway.providerStats = new Map([
                 ['ollama', { available: true, successRate: 0.8, avgLatency: 100, lastCheck: Date.now() }],
                 ['openai', { available: false, successRate: 0, avgLatency: 0, lastCheck: Date.now() }],
@@ -519,39 +524,50 @@ describe('AIGateway Basic Tests', () => {
                 ['local', { available: false, successRate: 0, avgLatency: 0, lastCheck: Date.now() }]
             ]);
             
-            // Mock updateProviderStats-metodi
-            // @ts-ignore - Mockataan yksityinen metodi
+            // Mock updateProviderStats method
+            // @ts-ignore - Mock private method
             aiGateway.updateProviderStats = jest.fn();
 
-            // Asetetaan ympäristömuuttujat
-            // @ts-ignore - Asetetaan environment.providerPriorityArray
+            // Set environment variables
+            // @ts-ignore - Set environment.providerPriorityArray
             environment.providerPriorityArray = ['ollama', 'openai', 'anthropic', 'lmstudio', 'local'];
-            // @ts-ignore - Asetetaan environment.useOllama
+            // @ts-ignore - Set environment.useOllama
             environment.useOllama = true;
-            // @ts-ignore - Asetetaan environment.useOpenAI
+            // @ts-ignore - Set environment.useOpenAI
             environment.useOpenAI = false;
-            // @ts-ignore - Asetetaan environment.useAnthropic
+            // @ts-ignore - Set environment.useAnthropic
             environment.useAnthropic = false;
-            // @ts-ignore - Asetetaan environment.useLMStudio
+            // @ts-ignore - Set environment.useLMStudio
             environment.useLMStudio = false;
-            // @ts-ignore - Asetetaan environment.useLocalModels
+            // @ts-ignore - Set environment.useLocalModels
             environment.useLocalModels = false;
 
-            // Asetetaan Ollama epäonnistumaan
-            ollamaProvider.generateCompletion = jest.fn().mockResolvedValue({
+            // Set Ollama to fail
+            ollamaProvider.generateCompletion.mockResolvedValue({
                 success: false,
                 text: "",
                 provider: "ollama",
                 model: "mistral",
-                error: "Ollama epäonnistui"
+                error: "Ollama failed"
             });
 
-            // @ts-ignore - Kutsutaan yksityistä metodia testausta varten
-            const result = await aiGateway['tryNextProvider']('seo', "Testi");
+            // @ts-ignore - Call private method for testing
+            const result = await aiGateway['tryNextProvider']('seo', "Test");
             
-            // Tarkistetaan, että palautetaan virheobjekti
+            // Check that an error object is returned
             expect(result).toHaveProperty('error', true);
-            expect(result.message).toContain('Kaikki AI-palvelut epäonnistuivat');
+            expect(result.message).toContain('All AI services failed');
         });
     });
 });
+
+function createMockProvider(providerName: string) {
+    return {
+        getName: jest.fn().mockReturnValue(providerName),
+        getServiceStatus: jest.fn().mockReturnValue({ isAvailable: true }),
+        generateCompletion: jest.fn(),
+        isAvailable: jest.fn().mockResolvedValue(true),
+        isModelAvailable: jest.fn().mockResolvedValue(true),
+        generateBatchCompletions: jest.fn()
+    };
+}

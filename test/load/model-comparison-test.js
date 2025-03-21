@@ -3,37 +3,37 @@ import { check, sleep } from 'k6';
 import { Rate, Trend, Counter } from 'k6/metrics';
 import { SharedArray } from 'k6/data';
 
-// Määritellään metriikat
+// Define metrics
 const errorRate = new Rate('error_rate');
 const aiProcessingTime = new Trend('ai_processing_time');
 const successfulRequests = new Counter('successful_requests');
 const failedRequests = new Counter('failed_requests');
 
-// Määritellään eri mallien metriikat
+// Define metrics for different models
 const openaiTime = new Trend('openai_processing_time');
 const anthropicTime = new Trend('anthropic_processing_time');
 const ollamaTime = new Trend('ollama_processing_time');
 const lmstudioTime = new Trend('lmstudio_processing_time');
 
-// Määritellään eri promptien metriikat
+// Define metrics for different prompts
 const shortPromptTime = new Trend('short_prompt_time');
 const longPromptTime = new Trend('long_prompt_time');
 
-// Testin asetukset
+// Test settings
 export const options = {
   stages: [
-    { duration: '30s', target: 10 },  // Lämmittelyvaihe
-    { duration: '1m', target: 30 },   // Keskitason kuorma
-    { duration: '30s', target: 0 }    // Jäähdyttelyvaihe
+    { duration: '30s', target: 10 },  // Warm-up phase
+    { duration: '1m', target: 30 },   // Medium load
+    { duration: '30s', target: 0 }    // Cool-down phase
   ],
   thresholds: {
-    'error_rate': ['rate<0.3'],            // Virheprosentti alle 30%
-    'http_req_duration': ['p(95)<30000'],  // 95% pyynnöistä alle 30s
-    'ai_processing_time': ['avg<15000'],   // Keskimääräinen käsittelyaika alle 15s
+    'error_rate': ['rate<0.3'],            // Error rate below 30%
+    'http_req_duration': ['p(95)<30000'],  // 95% of requests under 30s
+    'ai_processing_time': ['avg<15000'],   // Average processing time under 15s
   },
 };
 
-// Määritellään eri promptit
+// Define different prompts
 const prompts = [
   {
     name: 'short',
@@ -47,20 +47,20 @@ const prompts = [
   }
 ];
 
-// Määritellään eri AI-mallit
+// Define different AI models
 const models = [
   { name: 'openai', forceProvider: 'openai' },
   { name: 'anthropic', forceProvider: 'anthropic' },
   { name: 'ollama', forceProvider: 'ollama' }
 ];
 
-// Testin pääfunktio
+// Main test function
 export default function() {
-  // Valitaan satunnainen prompti
+  // Select a random prompt
   const promptIndex = Math.floor(Math.random() * prompts.length);
   const prompt = prompts[promptIndex];
   
-  // Valitaan satunnainen malli
+  // Select a random model
   const modelIndex = Math.floor(Math.random() * models.length);
   const model = models[modelIndex];
   
@@ -76,18 +76,18 @@ export default function() {
     headers: {
       'Content-Type': 'application/json',
     },
-    timeout: '60s', // Pidempi timeout raskaalle kuormalle
+    timeout: '60s', // Longer timeout for heavy load
   };
   
   const startTime = new Date().getTime();
   const response = http.post(url, payload, params);
   const endTime = new Date().getTime();
   
-  // Lasketaan käsittelyaika millisekunteina
+  // Calculate processing time in milliseconds
   const processingTime = endTime - startTime;
   aiProcessingTime.add(processingTime);
   
-  // Lisätään mallikohtainen metriikka
+  // Add model-specific metric
   if (model.name === 'openai') {
     openaiTime.add(processingTime);
   } else if (model.name === 'anthropic') {
@@ -96,14 +96,14 @@ export default function() {
     ollamaTime.add(processingTime);
   }
   
-  // Lisätään promptikohtainen metriikka
+  // Add prompt-specific metric
   if (prompt.name === 'short') {
     shortPromptTime.add(processingTime);
   } else if (prompt.name === 'long') {
     longPromptTime.add(processingTime);
   }
   
-  // Tarkistetaan vastauksen onnistuminen
+  // Check response success
   const success = check(response, {
     'status is 200': (r) => r.status === 200,
     'response has result': (r) => {
@@ -115,26 +115,26 @@ export default function() {
     },
   });
   
-  // Päivitetään metriikat
+  // Update metrics
   errorRate.add(!success);
   
   if (success) {
     successfulRequests.add(1);
     
-    // Lokitetaan käytetty malli
+    // Log used model
     try {
       const responseData = response.json();
       if (responseData.provider) {
         console.log(`Provider: ${responseData.provider}, Time: ${processingTime}ms, Prompt: ${prompt.name}`);
       }
     } catch (e) {
-      // Jatketaan, vaikka JSON-parsinta epäonnistuisi
+      // Continue, even if JSON parsing fails
     }
   } else {
     failedRequests.add(1);
-    console.log(`Virhe: ${response.status}, Body: ${response.body}, Provider: ${model.name}, Prompt: ${prompt.name}`);
+    console.log(`Error: ${response.status}, Body: ${response.body}, Provider: ${model.name}, Prompt: ${prompt.name}`);
   }
   
-  // Lisätään pieni tauko pyyntöjen väliin
-  sleep(Math.random() * 3 + 1); // 1-4 sekunnin tauko
+  // Add a small delay between requests
+  sleep(Math.random() * 3 + 1); // 1-4 second delay
 }

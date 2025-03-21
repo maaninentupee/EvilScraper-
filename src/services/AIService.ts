@@ -13,48 +13,48 @@ export class AIService {
     ) {}
 
     /**
-     * Suorittaa SEO-analyysin annetulle sisällölle hyödyntäen fallback-mekanismia
-     * @param content Analysoitava sisältö
-     * @returns Analyysitulos
+     * Performs SEO analysis for the given content using fallback mechanism
+     * @param content Content to be analyzed
+     * @returns Analysis result
      */
     async analyzeSEO(content: { title: string, description?: string, content?: string }) {
         return this.processWithFallback('seo', this.buildSEOPrompt(content));
     }
 
     /**
-     * Suorittaa koodigeneroinnin annetulle sisällölle hyödyntäen fallback-mekanismia
-     * @param content Koodin generoinnin ohjeet
-     * @returns Generoitu koodi
+     * Performs code generation for the given content using fallback mechanism
+     * @param content Code generation instructions
+     * @returns Generated code
      */
     async generateCode(content: { language: string, description: string, requirements?: string[] }) {
         return this.processWithFallback('code', this.buildCodePrompt(content));
     }
 
     /**
-     * Suorittaa päätöksentekotoiminnon annetulle tilanteelle hyödyntäen fallback-mekanismia
-     * @param content Päätöksentekotilanne
-     * @returns Päätöstulos
+     * Performs decision-making function for the given situation using fallback mechanism
+     * @param content Decision-making situation
+     * @returns Decision result
      */
     async makeDecision(content: { situation: string, options: string[] }) {
         return this.processWithFallback('decision', this.buildDecisionPrompt(content));
     }
 
     /**
-     * Käsittelee AI-pyynnön ja yrittää käyttää eri malleja järjestyksessä, jos edelliset epäonnistuvat
-     * @param taskType Tehtävätyyppi
-     * @param prompt Kysely mallille
-     * @returns Mallin vastaus
+     * Processes AI request and tries to use different models in sequence if previous ones fail
+     * @param taskType Task type
+     * @param prompt Query for the model
+     * @returns Model response
      */
     private async processWithFallback(taskType: string, prompt: string) {
         try {
-            // Käytetään AIGateway-luokan omaa fallback-mekanismia
+            // Use AIGateway class's own fallback mechanism
             const result = await this.aiGateway.processAIRequestWithFallback(taskType, prompt);
             
             if (result.success) {
-                this.logger.log(`AI-pyyntö onnistui käyttäen mallia: ${result.model} (${result.provider})`);
+                this.logger.log(`AI request was successful using model: ${result.model} (${result.provider})`);
                 
                 if (result.usedFallback) {
-                    this.logger.log(`Käytettiin vaihtoehtoista mallia alkuperäisen sijaan`);
+                    this.logger.log(`A fallback model was used instead of the original one`);
                 }
                 
                 return {
@@ -65,8 +65,8 @@ export class AIService {
                     usedFallback: result.usedFallback || false
                 };
             } else {
-                // Käsitellään virhetilanne
-                const errorMessage = `AI-pyyntö epäonnistui: ${result.error} (${result.errorType})`;
+                // Handle error situation
+                const errorMessage = `AI request failed: ${result.error} (${result.errorType})`;
                 this.logger.error(errorMessage);
                 
                 return {
@@ -79,13 +79,13 @@ export class AIService {
                 };
             }
         } catch (error) {
-            // Käsitellään odottamattomat virheet
-            const errorMessage = `Odottamaton virhe AI-pyynnössä: ${error.message}`;
+            // Handle unexpected errors
+            const errorMessage = `An unexpected error occurred during AI request: ${error.message}`;
             this.logger.error(errorMessage);
             
             return {
                 success: false,
-                error: error.message || 'Tuntematon virhe',
+                error: error.message || 'Unknown error',
                 errorType: 'unexpected_error',
                 text: '',
                 provider: 'none',
@@ -95,47 +95,54 @@ export class AIService {
     }
 
     /**
-     * Rakentaa SEO-analyysin kyselyn
+     * Builds a prompt for SEO analysis
+     * @param content Content to be analyzed
+     * @returns Formatted prompt
      */
     private buildSEOPrompt(content: { title: string, description?: string, content?: string }): string {
-        return `Analysoi seuraava sisältö SEO-näkökulmasta:
-Otsikko: ${content.title}
-${content.description ? `Kuvaus: ${content.description}\n` : ''}
-${content.content ? `Sisältö: ${content.content}\n` : ''}
+        return `Analyze the following content for SEO optimization:
 
-Palauta SEO-analyysi kattaen seuraavat osa-alueet:
-1. Avainsanojen käyttö ja optimointi
-2. Otsikon ja metakuvauksen tehokkuus
-3. Sisällön laatu ja relevanssi
-4. Parannusehdotukset`;
+TITLE: ${content.title}
+${content.description ? `DESCRIPTION: ${content.description}\n` : ''}
+${content.content ? `CONTENT: ${content.content}\n` : ''}
+
+Provide a comprehensive SEO analysis including:
+1. Keyword analysis
+2. Title optimization suggestions
+3. Meta description evaluation
+4. Content structure recommendations
+5. Overall SEO score (0-100)
+
+Format your response in a structured way with clear sections.`;
     }
 
     /**
-     * Rakentaa koodigeneroinnin kyselyn
+     * Builds a prompt for code generation
+     * @param content Code generation instructions
+     * @returns Formatted prompt
      */
     private buildCodePrompt(content: { language: string, description: string, requirements?: string[] }): string {
-        return `Generoi koodia seuraavasti:
-Ohjelmointikieli: ${content.language}
-Kuvaus: ${content.description}
-${content.requirements ? `Vaatimukset:\n${content.requirements.map(req => `- ${req}`).join('\n')}\n` : ''}
+        return `Generate code in ${content.language} based on the following requirements:
 
-Palauta vain toimiva koodi ilman selityksiä.`;
+DESCRIPTION: ${content.description}
+${content.requirements ? `REQUIREMENTS:\n${content.requirements.map(req => `- ${req}`).join('\n')}\n` : ''}
+
+Provide clean, well-documented, and efficient code. Include comments explaining complex parts.`;
     }
 
     /**
-     * Rakentaa päätöksenteon kyselyn
+     * Builds a prompt for decision making
+     * @param content Decision-making situation
+     * @returns Formatted prompt
      */
     private buildDecisionPrompt(content: { situation: string, options: string[] }): string {
-        return `Tee päätös seuraavassa tilanteessa:
-Tilanne: ${content.situation}
-Vaihtoehdot:
+        return `Help make a decision for the following situation:
+
+SITUATION: ${content.situation}
+
+OPTIONS:
 ${content.options.map((option, index) => `${index + 1}. ${option}`).join('\n')}
 
-Palauta JSON-muodossa:
-{
-  "action": "valittu vaihtoehto",
-  "confidence": lukuarvo välillä 0-1,
-  "reasoning": "lyhyt perustelu päätökselle"
-}`;
+Analyze each option considering pros and cons. Recommend the best option and explain your reasoning.`;
     }
 }

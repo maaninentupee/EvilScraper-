@@ -6,14 +6,14 @@ interface DecisionRequestDto {
   options: string[];
 }
 
-// AIGateway:n palauttama virhetyyppi
+// AIGateway's error response type
 interface AIErrorResponse {
   error: boolean;
   message: string;
   details?: string;
 }
 
-// Tyypinvarmistukset
+// Type validations
 function isAIErrorResponse(obj: any): obj is AIErrorResponse {
   return obj 
     && typeof obj === 'object'
@@ -42,46 +42,46 @@ export class EvilBotController {
   async makeDecision(@Body() request: DecisionRequestDto): Promise<Decision> {
     // Validate request
     if (!request || typeof request !== 'object') {
-      this.logger.error('Virheellinen pyyntö: pyyntöobjekti puuttuu');
+      this.logger.error('Invalid request: request object missing');
       throw new HttpException({
         status: HttpStatus.BAD_REQUEST,
-        error: 'Virheellinen pyyntö: pyyntöobjekti puuttuu'
+        error: 'Invalid request: request object missing'
       }, HttpStatus.BAD_REQUEST);
     }
     
     if (!request.situation || typeof request.situation !== 'string' || request.situation.trim() === '') {
-      this.logger.error('Virheellinen pyyntö: tilanne puuttuu tai on tyhjä');
+      this.logger.error('Invalid request: situation missing or empty');
       throw new HttpException({
         status: HttpStatus.BAD_REQUEST,
-        error: 'Virheellinen pyyntö: tilanne puuttuu tai on tyhjä'
+        error: 'Invalid request: situation missing or empty'
       }, HttpStatus.BAD_REQUEST);
     }
     
     if (!request.options || !Array.isArray(request.options) || request.options.length === 0) {
-      this.logger.error('Virheellinen pyyntö: vaihtoehdot puuttuvat tai lista on tyhjä');
+      this.logger.error('Invalid request: options missing or empty array');
       throw new HttpException({
         status: HttpStatus.BAD_REQUEST,
-        error: 'Virheellinen pyyntö: vaihtoehdot puuttuvat tai lista on tyhjä' 
+        error: 'Invalid request: options missing or empty array'
       }, HttpStatus.BAD_REQUEST);
     }
     
-    // Varmistetaan, että kaikki vaihtoehdot ovat merkkijonoja
+    // Validate that all options are non-empty strings
     if (!request.options.every(option => typeof option === 'string' && option.trim() !== '')) {
-      this.logger.error('Virheellinen pyyntö: kaikki vaihtoehdot eivät ole kelvollisia merkkijonoja');
+      this.logger.error('Invalid request: not all options are valid non-empty strings');
       throw new HttpException({
         status: HttpStatus.BAD_REQUEST,
-        error: 'Virheellinen pyyntö: kaikki vaihtoehdot eivät ole kelvollisia merkkijonoja'
+        error: 'Invalid request: not all options are valid non-empty strings'
       }, HttpStatus.BAD_REQUEST);
     }
     
-    this.logger.log(`Evil Bot tekee päätöstä tilanteessa: ${request.situation.substring(0, 50)}...`);
+    this.logger.log(`Evil Bot making decision in situation: ${request.situation.substring(0, 50)}...`);
     
     try {
       const result = await this.evilBotService.makeDecision(request.situation, request.options);
       
-      // Tarkista, onko vastaus AIGateway:n virheilmoitus
+      // Check if the response is an AI gateway error
       if (isAIErrorResponse(result)) {
-        this.logger.error(`AI-palvelun virhe: ${result.message}`);
+        this.logger.error(`AI service error: ${result.message}`);
         throw new HttpException({
           status: HttpStatus.SERVICE_UNAVAILABLE,
           error: result.message,
@@ -89,27 +89,27 @@ export class EvilBotController {
         }, HttpStatus.SERVICE_UNAVAILABLE);
       }
       
-      // Varmistetaan, että kyseessä on Decision-tyyppinen vastaus
+      // Validate that the response is a valid decision
       if (isDecision(result)) {
         return result;
       } else {
-        this.logger.error('Odottamaton vastausmuoto AI-palvelulta');
+        this.logger.error('Unexpected response format from AI service');
         throw new HttpException({
           status: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: 'Odottamaton vastausmuoto AI-palvelulta'
+          error: 'Unexpected response format from AI service'
         }, HttpStatus.INTERNAL_SERVER_ERROR);
       }
     } catch (error) {
-      // Jos kyseessä on jo HttpException, heitetään se eteenpäin
+      // If the error is already an HttpException, rethrow it
       if (error instanceof HttpException) {
         throw error;
       }
       
-      // Muu tuntematon virhe
-      this.logger.error(`Odottamaton virhe päätöksenteossa: ${error.message}`);
+      // Handle any other unexpected errors
+      this.logger.error(`Unexpected error making decision: ${error.message}`);
       throw new HttpException({
         status: HttpStatus.INTERNAL_SERVER_ERROR,
-        error: 'Järjestelmävirhe päätöksenteossa',
+        error: 'System error making decision',
         details: error.message
       }, HttpStatus.INTERNAL_SERVER_ERROR);
     }

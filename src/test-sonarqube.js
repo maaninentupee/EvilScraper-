@@ -1,27 +1,27 @@
-// Tämä tiedosto on tarkoitettu SonarCloud-integraation testaamiseen
-// Lisätty kommentti testausta varten - 2025-03-16
-// Lisätty kommentti testausta varten - 2025-03-21 - Testataan putkea
+// This file is intended for testing SonarCloud integration
+// Added comment for testing - 2025-03-16
+// Added comment for testing - 2025-03-21 - Testing the pipeline
 
-// Tämä on testitiedosto SonarQube-analyysia varten
-// Sisältää tarkoituksella koodivirheitä, jotka SonarQube voi havaita
+// This is a test file for SonarQube analysis
+// Intentionally contains code errors that SonarQube can detect
 
-// Käyttämätön muuttuja (code smell)
+// Unused variable (code smell)
 const unusedVariable = "This is never used";
 
-// Puuttuva puolipiste (code smell)
+// Missing semicolon (code smell)
 const missingTerminator = "Missing semicolon"
 
-// Turha console.log (security hotspot)
+// Unnecessary console.log (security hotspot)
 console.log("This is a security issue in production code");
 
-// Puuttuva virheenkäsittely (bug)
+// Missing error handling (bug)
 function fetchData() {
   return fetch('https://api.example.com/data')
     .then(response => response.json());
-  // Puuttuu catch-lohko
+  // Missing catch block
 }
 
-// Monimutkainen funktio ilman kommentteja (code smell)
+// Complex function without comments (code smell)
 function complexFunction(a, b, c, d, e) {
   let result = 0;
   if (a > b) {
@@ -57,40 +57,40 @@ function complexFunction(a, b, c, d, e) {
 }
 
 /**
- * Yksinkertainen funktio, joka laskee kaksi lukua yhteen
- * @param {number} a - Ensimmäinen luku
- * @param {number} b - Toinen luku
- * @returns {number} Lukujen summa
+ * Simple function that adds two numbers
+ * @param {number} a - First number
+ * @param {number} b - Second number
+ * @returns {number} Sum of the numbers
  */
 function addNumbers(a, b) {
   return a + b;
 }
 
 /**
- * Yksinkertainen funktio, joka kertoo kaksi lukua
- * @param {number} a - Ensimmäinen luku
- * @param {number} b - Toinen luku
- * @returns {number} Lukujen tulo
+ * Simple function that multiplies two numbers
+ * @param {number} a - First number
+ * @param {number} b - Second number
+ * @returns {number} Product of the numbers
  */
 function multiplyNumbers(a, b) {
   return a * b;
 }
 
 /**
- * Yksinkertainen funktio, joka jakaa kaksi lukua
- * @param {number} a - Jaettava luku
- * @param {number} b - Jakaja
- * @returns {number} Lukujen osamäärä
- * @throws {Error} Jos jakaja on nolla
+ * Simple function that divides two numbers
+ * @param {number} a - Dividend
+ * @param {number} b - Divisor
+ * @returns {number} Quotient of the numbers
+ * @throws {Error} If divisor is zero
  */
 function divideNumbers(a, b) {
   if (b === 0) {
-    throw new Error("Jakaja ei voi olla nolla");
+    throw new Error("Divisor cannot be zero");
   }
   return a / b;
 }
 
-// Viedään funktiot
+// Export functions
 module.exports = {
   fetchData,
   complexFunction,

@@ -3,7 +3,7 @@ import { CompletionRequest, CompletionResult, ServiceStatus } from '../../src/se
 // Import a spy to check if methods are called
 import { jest } from '@jest/globals';
 
-// Laajennettu TestProvider-luokka testejä varten
+// Extended TestProvider class for tests
 class ExtendedTestProvider extends BaseProvider {
   getName(): string {
     return 'extended-test-provider';
@@ -119,7 +119,7 @@ describe('BaseProvider Coverage', () => {
         try {
           throw new Error('Intentional test error');
         } catch (error) {
-          // Käytetään suoraa console.error-kutsua logError-metodin sijaan
+          // Using direct console.error call instead of logError method
           console.error('Error in BaseProvider.isAvailable:', error);
           return false;
         }

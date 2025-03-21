@@ -2,31 +2,31 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
 
-// Määritellään metriikat
+// Define metrics
 const errorRate = new Rate('error_rate');
 const aiProcessingTime = new Trend('ai_processing_time');
 
-// Testin asetukset - 500 samanaikaista pyyntöä
+// Test settings - 500 concurrent requests
 export const options = {
   scenarios: {
-    perustaso: {
+    baselevel: {
       executor: 'ramping-vus',
       startVUs: 0,
       stages: [
-        { duration: '10s', target: 50 },  // Nopeasti 50 käyttäjään
-        { duration: '40s', target: 50 },  // Pidetään 50 käyttäjää 40 sekuntia
-        { duration: '10s', target: 0 }    // Lasketaan käyttäjämäärä alas
+        { duration: '10s', target: 50 },  // Quickly ramp up to 50 users
+        { duration: '40s', target: 50 },  // Maintain 50 users for 40 seconds
+        { duration: '10s', target: 0 }    // Ramp down to 0 users
       ],
     },
   },
   thresholds: {
-    'error_rate': ['rate<0.1'],       // Virheprosentti alle 10%
-    'http_req_duration': ['p(95)<5000'], // 95% pyynnöistä alle 5s
-    'ai_processing_time': ['avg<3000'],  // Keskimääräinen käsittelyaika alle 3s
+    'error_rate': ['rate<0.1'],       // Error rate below 10%
+    'http_req_duration': ['p(95)<5000'], // 95% of requests under 5s
+    'ai_processing_time': ['avg<3000'],  // Average processing time under 3s
   },
 };
 
-// Testin pääfunktio
+// Main test function
 export default function() {
   const url = 'http://localhost:3001/ai/seo';
   const payload = JSON.stringify({
@@ -45,16 +45,16 @@ export default function() {
   const response = http.post(url, payload, params);
   const endTime = new Date().getTime();
   
-  // Lasketaan käsittelyaika millisekunteina
+  // Calculate processing time in milliseconds
   const processingTime = endTime - startTime;
   aiProcessingTime.add(processingTime);
   
-  // Tarkistetaan vastauksen onnistuminen
+  // Check response success
   let success = check(response, {
     'status is 200': (r) => r.status === 200,
   });
   
-  // Tarkistetaan vastauksen sisältö vain jos status on 200
+  // Check response content only if status is 200
   if (success && response.body) {
     try {
       const jsonData = response.json();
@@ -62,18 +62,18 @@ export default function() {
         'response has result': (r) => jsonData && jsonData.hasOwnProperty('result'),
       });
     } catch (e) {
-      console.error(`JSON-käsittelyvirhe: ${e.message}`);
+      console.error(`JSON processing error: ${e.message}`);
       success = false;
     }
   } else if (response.status !== 200) {
-    console.warn(`Virheellinen vastaus: Status ${response.status}`);
+    console.warn(`Invalid response: Status ${response.status}`);
   } else if (!response.body) {
-    console.warn('Vastauksen body on tyhjä');
+    console.warn('Response body is empty');
   }
   
-  // Päivitetään virheprosentti
+  // Update error rate
   errorRate.add(!success);
   
-  // Lisätään pieni tauko pyyntöjen väliin
+  // Add a small pause between requests
   sleep(1);
 }

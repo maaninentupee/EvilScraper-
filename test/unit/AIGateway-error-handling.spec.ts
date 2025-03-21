@@ -30,7 +30,7 @@ describe('AIGateway Error Handling', () => {
   let mockOllamaProvider: jest.Mocked<Partial<OllamaProvider>>;
 
   beforeEach(async () => {
-    // Luodaan mock-toteutukset kaikille palveluntarjoajille
+    // Create mock implementations for all service providers
     mockModelSelector = {
       getModel: jest.fn(),
       getProviderForModel: jest.fn(),
@@ -42,7 +42,7 @@ describe('AIGateway Error Handling', () => {
       isLMStudioModel: jest.fn()
     } as jest.Mocked<Partial<ModelSelector>>;
 
-    // Luodaan mock-toteutukset palveluntarjoajille
+    // Create mock implementations for service providers
     mockLocalProvider = {
       generateCompletion: jest.fn(),
       isAvailable: jest.fn(),
@@ -118,7 +118,7 @@ describe('AIGateway Error Handling', () => {
       })
     } as jest.Mocked<Partial<OllamaProvider>>;
 
-    // Määritellään default-paluuarvot mockeille
+    // Set default return values for mocks
     mockModelSelector.getModel.mockImplementation((taskType, provider) => {
       if (provider === 'openai') {
         return 'gpt-4-turbo';
@@ -129,7 +129,7 @@ describe('AIGateway Error Handling', () => {
       } else if (provider === 'ollama') {
         return 'mistral';
       } else {
-        // local provider tai oletuspalveluntarjoaja
+        // local provider or default provider
         return 'mistral-7b-instruct-q8_0.gguf';
       }
     });
@@ -173,7 +173,7 @@ describe('AIGateway Error Handling', () => {
     it('should handle successful request', async () => {
       // Arrange
       const taskType = 'test';
-      const input = 'Testisyöte';
+      const input = 'Test input';
       const modelName = 'mistral-7b-instruct-q8_0.gguf';
       
       mockModelSelector.getModel.mockReturnValue(modelName);
@@ -185,7 +185,7 @@ describe('AIGateway Error Handling', () => {
       
       mockLocalProvider.generateCompletion.mockResolvedValueOnce({
         success: true,
-        text: 'Onnistunut vastaus',
+        text: 'Successful response',
         provider: 'local',
         model: modelName,
         latency: 100
@@ -196,7 +196,7 @@ describe('AIGateway Error Handling', () => {
       
       // Assert
       expect(result).toEqual({
-        result: 'Onnistunut vastaus',
+        result: 'Successful response',
         model: modelName,
         latency: expect.any(Number),
         provider: 'local'
@@ -207,7 +207,7 @@ describe('AIGateway Error Handling', () => {
     it('should handle provider error', async () => {
       // Arrange
       const taskType = 'test';
-      const input = 'Testisyöte';
+      const input = 'Test input';
       const modelName = 'mistral-7b-instruct-q8_0.gguf';
       
       mockModelSelector.getModel.mockReturnValue(modelName);
@@ -219,8 +219,8 @@ describe('AIGateway Error Handling', () => {
       
       mockLocalProvider.generateCompletion.mockResolvedValueOnce({
         success: false,
-        text: "", // Lisätään puuttuva text-kenttä
-        error: 'Virhe palveluntarjoajassa',
+        text: "", // Add missing text field
+        error: 'Error in service provider',
         errorType: 'server_error',
         provider: 'local',
         model: modelName
@@ -228,13 +228,13 @@ describe('AIGateway Error Handling', () => {
 
       // Act & Assert
       await expect(aiGateway.processAIRequest(taskType, input, modelName))
-        .rejects.toThrow('Local epäonnistui: Virhe palveluntarjoajassa');
+        .rejects.toThrow('Local failed: Error in service provider');
     });
 
     it('should handle unavailable provider', async () => {
       // Arrange
       const taskType = 'test';
-      const input = 'Testisyöte';
+      const input = 'Test input';
       const modelName = 'mistral-7b-instruct-q8_0.gguf';
       
       mockModelSelector.getModel.mockReturnValue(modelName);
@@ -244,10 +244,10 @@ describe('AIGateway Error Handling', () => {
       mockModelSelector.isOpenAIModel.mockReturnValue(false);
       mockModelSelector.isAnthropicModel.mockReturnValue(false);
       
-      // Asetetaan palveluntarjoaja ei-saatavilla-tilaan
+      // Set provider to unavailable state
       mockLocalProvider.getServiceStatus.mockReturnValue({
         isAvailable: false,
-        lastError: 'Palvelu ei ole saatavilla',
+        lastError: 'Service is not available',
         lastErrorTime: new Date(),
         consecutiveFailures: 5,
         totalRequests: 10,
@@ -255,14 +255,14 @@ describe('AIGateway Error Handling', () => {
         successRate: '50%'
       });
       
-      // Varmistetaan, että generateCompletion heittää virheen
+      // Ensure generateCompletion throws an error
       mockLocalProvider.generateCompletion.mockRejectedValueOnce(
-        new Error('Palveluntarjoaja Local ei ole saatavilla')
+        new Error('Service provider Local is not available')
       );
 
       // Act & Assert
       await expect(aiGateway.processAIRequest(taskType, input, modelName))
-        .rejects.toThrow(/Palveluntarjoaja Local ei ole saatavilla/);
+        .rejects.toThrow(/Service provider Local is not available/);
     });
   });
 
@@ -270,7 +270,7 @@ describe('AIGateway Error Handling', () => {
     it('should use initial provider successfully', async () => {
       // Arrange
       const taskType = 'test';
-      const input = 'Testisyöte';
+      const input = 'Test input';
       const modelName = 'mistral-7b-instruct-q8_0.gguf';
       
       mockModelSelector.getModel.mockReturnValue(modelName);
@@ -278,7 +278,7 @@ describe('AIGateway Error Handling', () => {
       
       mockLocalProvider.generateCompletion.mockResolvedValueOnce({
         success: true,
-        text: 'Onnistunut vastaus',
+        text: 'Successful response',
         provider: 'local',
         model: modelName,
         latency: 100
@@ -289,7 +289,7 @@ describe('AIGateway Error Handling', () => {
       
       // Assert
       expect(result).toEqual({
-        result: 'Onnistunut vastaus',
+        result: 'Successful response',
         model: modelName,
         latency: expect.any(Number),
         provider: 'local'
@@ -300,11 +300,11 @@ describe('AIGateway Error Handling', () => {
     it('should try next provider when initial provider fails', async () => {
       // Arrange
       const taskType = 'test';
-      const input = 'Testisyöte';
+      const input = 'Test input';
       const localModelName = 'mistral-7b-instruct-q8_0.gguf';
       const lmStudioModelName = 'mistral-7b-instruct-v0.2';
       
-      // Nollataan mockit ennen testiä
+      // Reset mocks before test
       jest.clearAllMocks();
       
       // Mock model selector behavior
@@ -320,20 +320,20 @@ describe('AIGateway Error Handling', () => {
         .mockReturnValueOnce(false)  // First check (not LM Studio)
         .mockReturnValueOnce(true);  // Second check (is LM Studio)
       
-      // Ensimmäinen palveluntarjoaja epäonnistuu
+      // First provider fails
       mockLocalProvider.generateCompletion.mockResolvedValueOnce({
         success: false,
         text: '',
-        error: 'Virhe palveluntarjoajassa',
+        error: 'Error in service provider',
         errorType: 'server_error',
         provider: 'local',
         model: localModelName
       });
 
-      // Seuraava palveluntarjoaja onnistuu
+      // Next provider succeeds
       mockLMStudioProvider.generateCompletion.mockResolvedValueOnce({
         success: true,
-        text: 'Vaihtoehtoinen vastaus',
+        text: 'Alternative response',
         provider: 'lmstudio',
         model: lmStudioModelName,
         latency: 150
@@ -344,15 +344,15 @@ describe('AIGateway Error Handling', () => {
       
       // Assert
       expect(result).toEqual({
-        result: 'Vaihtoehtoinen vastaus',
+        result: 'Alternative response',
         model: lmStudioModelName,
         latency: expect.any(Number),
         provider: 'lmstudio',
         wasFailover: true
       });
       
-      // Huom: AIGateway.ts:n toteutuksessa mockLocalProvider.generateCompletion-metodia kutsutaan
-      // useamman kerran, joten emme tarkista tarkkaa kutsujen määrää
+      // Note: In AIGateway.ts implementation, mockLocalProvider.generateCompletion may be called multiple times
+      // so we cannot be sure it is not called at all
       expect(mockLocalProvider.generateCompletion).toHaveBeenCalled();
       expect(mockLMStudioProvider.generateCompletion).toHaveBeenCalled();
     });
@@ -360,26 +360,26 @@ describe('AIGateway Error Handling', () => {
     it('should retry with same provider for retryable errors', async () => {
       // Arrange
       const taskType = 'test';
-      const input = 'Testisyöte';
+      const input = 'Test input';
       const modelName = 'mistral-7b-instruct-q8_0.gguf';
       
       mockModelSelector.getModel.mockReturnValue(modelName);
       mockModelSelector.isLocalModel.mockReturnValue(true);
       
-      // Ensimmäinen yritys epäonnistuu, mutta virhetyyppi on uudelleenyritettävä
+      // First attempt fails, but error type is retryable
       mockLocalProvider.generateCompletion.mockResolvedValueOnce({
         success: false,
-        text: "", // Lisätään puuttuva text-kenttä
-        error: 'Tilapäinen verkkovirhe',
+        text: "", // Add missing text field
+        error: 'Temporary network error',
         errorType: 'network_error',
         provider: 'local',
         model: modelName
       });
 
-      // Uudelleenyritys onnistuu
+      // Retry succeeds
       mockLocalProvider.generateCompletion.mockResolvedValueOnce({
         success: true,
-        text: 'Onnistunut vastaus uudelleenyrityksen jälkeen',
+        text: 'Successful response after retry',
         provider: 'local',
         model: modelName,
         latency: 120
@@ -390,7 +390,7 @@ describe('AIGateway Error Handling', () => {
       
       // Assert
       expect(result).toEqual(expect.objectContaining({
-        result: 'Onnistunut vastaus uudelleenyrityksen jälkeen',
+        result: 'Successful response after retry',
         model: modelName,
         provider: 'local',
         wasRetry: true
@@ -402,13 +402,13 @@ describe('AIGateway Error Handling', () => {
     it('should handle all providers failing', async () => {
       // Arrange
       const taskType = 'test';
-      const input = 'Testisyöte';
+      const input = 'Test input';
       
-      // Kaikki palveluntarjoajat epäonnistuvat
+      // All service providers fail
       mockLocalProvider.generateCompletion.mockResolvedValue({
         success: false,
         text: '',
-        error: 'Virhe paikallisessa palveluntarjoajassa',
+        error: 'Error in local service provider',
         errorType: 'server_error',
         provider: 'local',
         model: 'mistral-7b-instruct-q8_0.gguf'
@@ -417,7 +417,7 @@ describe('AIGateway Error Handling', () => {
       mockLMStudioProvider.generateCompletion.mockResolvedValue({
         success: false,
         text: '',
-        error: 'Virhe LM Studio -palveluntarjoajassa',
+        error: 'Error in LM Studio service provider',
         errorType: 'server_error',
         provider: 'lmstudio',
         model: 'mistral-7b-instruct-v0.2'
@@ -426,7 +426,7 @@ describe('AIGateway Error Handling', () => {
       mockOllamaProvider.generateCompletion.mockResolvedValue({
         success: false,
         text: '',
-        error: 'Virhe Ollama-palveluntarjoajassa',
+        error: 'Error in Ollama service provider',
         errorType: 'server_error',
         provider: 'ollama',
         model: 'mistral'
@@ -435,7 +435,7 @@ describe('AIGateway Error Handling', () => {
       mockOpenAIProvider.generateCompletion.mockResolvedValue({
         success: false,
         text: '',
-        error: 'Virhe OpenAI-palveluntarjoajassa',
+        error: 'Error in OpenAI service provider',
         errorType: 'server_error',
         provider: 'openai',
         model: 'gpt-4-turbo'
@@ -444,7 +444,7 @@ describe('AIGateway Error Handling', () => {
       mockAnthropicProvider.generateCompletion.mockResolvedValue({
         success: false,
         text: '',
-        error: 'Virhe Anthropic-palveluntarjoajassa',
+        error: 'Error in Anthropic service provider',
         errorType: 'server_error',
         provider: 'anthropic',
         model: 'claude-3-opus-20240229'
@@ -454,19 +454,19 @@ describe('AIGateway Error Handling', () => {
       const result = await aiGateway.processAIRequestWithFallback(taskType, input);
       
       // Assert
-      // Kun kaikki palveluntarjoajat epäonnistuvat, pitäisi palauttaa virheobjekti
+      // When all service providers fail, should return error object
       expect(result).toHaveProperty('error', true);
-      expect(result.message).toContain('Kaikki AI-palvelut epäonnistuivat');
+      expect(result.message).toContain('All AI services failed');
     });
 
     it('should skip unavailable providers and use fallback', async () => {
       // Arrange
       const taskType = 'test';
-      const input = 'Testisyöte';
+      const input = 'Test input';
       const localModelName = 'mistral-7b-instruct-q8_0.gguf';
       const lmStudioModelName = 'mistral-7b-instruct-v0.2';
       
-      // Nollataan mockit ennen testiä
+      // Reset mocks before test
       jest.clearAllMocks();
       
       // Mock model selector behavior
@@ -477,7 +477,7 @@ describe('AIGateway Error Handling', () => {
       mockModelSelector.isLocalModel.mockReturnValueOnce(true);
       mockModelSelector.isLMStudioModel.mockReturnValueOnce(true);
       
-      // Asetetaan providerStats-map paikalliselle palveluntarjoajalle
+      // Set providerStats map for local provider
       const mockLocalStats = {
         successCount: 5,
         errorCount: 5,
@@ -487,7 +487,7 @@ describe('AIGateway Error Handling', () => {
         available: false
       };
       
-      // Asetetaan providerStats-map LM Studio -palveluntarjoajalle
+      // Set providerStats map for LM Studio provider
       const mockLMStudioStats = {
         successCount: 10,
         errorCount: 0,
@@ -497,7 +497,7 @@ describe('AIGateway Error Handling', () => {
         available: true
       };
       
-      // Asetetaan providerStats.get() palauttamaan oikeat tilat
+      // Set providerStats.get() to return correct states
       const mockProviderStatsGet = jest.spyOn(aiGateway['providerStats'], 'get');
       mockProviderStatsGet.mockImplementation((provider) => {
         if (provider === 'local') return mockLocalStats;
@@ -512,14 +512,14 @@ describe('AIGateway Error Handling', () => {
         };
       });
       
-      // Asetetaan environment.providerPriorityArray
+      // Set environment.providerPriorityArray
       const originalProviderPriority = environment.providerPriorityArray;
       environment.providerPriorityArray = ['local', 'lmstudio', 'ollama', 'openai', 'anthropic'];
 
-      // Seuraava palveluntarjoaja onnistuu
+      // Next provider succeeds
       mockLMStudioProvider.generateCompletion.mockResolvedValueOnce({
         success: true,
-        text: 'Vaihtoehtoinen vastaus',
+        text: 'Alternative response',
         provider: 'lmstudio',
         model: lmStudioModelName,
         latency: 150
@@ -530,17 +530,17 @@ describe('AIGateway Error Handling', () => {
       
       // Assert
       expect(result).toEqual(expect.objectContaining({
-        result: 'Vaihtoehtoinen vastaus',
+        result: 'Alternative response',
         model: lmStudioModelName,
         provider: 'lmstudio',
         wasFailover: true
       }));
       
-      // Huom: AIGateway.ts:n toteutuksessa mockLocalProvider.generateCompletion-metodia saatetaan kutsua
-      // tryNextProvider-metodissa, joten emme voi olla varmoja että sitä ei kutsuta ollenkaan
+      // Note: In AIGateway.ts implementation, mockLocalProvider.generateCompletion may be called multiple times
+      // so we cannot be sure it is not called at all
       expect(mockLMStudioProvider.generateCompletion).toHaveBeenCalled();
       
-      // Puhdistetaan mock
+      // Clean up mock
       mockProviderStatsGet.mockRestore();
       environment.providerPriorityArray = originalProviderPriority;
     });
@@ -554,48 +554,48 @@ describe('AIGateway Error Handling', () => {
       // Local provider error simulation
       mockModelSelector.isLocalModel.mockReturnValueOnce(true);
       mockLocalProvider.generateCompletion.mockRejectedValueOnce(
-        new Error('Simuloitu virhe paikallisessa palveluntarjoajassa')
+        new Error('Simulated error in local service provider')
       );
       
       // OpenAI provider error simulation
       mockModelSelector.isOpenAIModel.mockReturnValueOnce(true);
       mockOpenAIProvider.generateCompletion.mockRejectedValueOnce(
-        new Error('Simuloitu virhe OpenAI-palveluntarjoajassa')
+        new Error('Simulated error in OpenAI service provider')
       );
       
       // Anthropic provider error simulation
       mockModelSelector.isAnthropicModel.mockReturnValueOnce(true);
       mockAnthropicProvider.generateCompletion.mockRejectedValueOnce(
-        new Error('Simuloitu virhe Anthropic-palveluntarjoajassa')
+        new Error('Simulated error in Anthropic service provider')
       );
       
       // LM Studio provider error simulation
       mockModelSelector.isLMStudioModel.mockReturnValueOnce(true);
       mockLMStudioProvider.generateCompletion.mockRejectedValueOnce(
-        new Error('Simuloitu virhe LM Studio -palveluntarjoajassa')
+        new Error('Simulated error in LM Studio service provider')
       );
       
       // Ollama provider error simulation
       mockModelSelector.isOllamaModel.mockReturnValueOnce(true);
       mockOllamaProvider.generateCompletion.mockRejectedValueOnce(
-        new Error('Simuloitu virhe Ollama-palveluntarjoajassa')
+        new Error('Simulated error in Ollama service provider')
       );
 
       // Act & Assert
       await expect(aiGateway.processAIRequest(taskType, 'TEST_LOCAL_ERROR', 'mistral-7b-instruct-q8_0.gguf'))
-        .rejects.toThrow(/LOCAL simuloitu virhe testisyötteestä/);
+        .rejects.toThrow(/LOCAL simulated error from test input/);
 
       await expect(aiGateway.processAIRequest(taskType, 'TEST_OPENAI_ERROR', 'gpt-4-turbo'))
-        .rejects.toThrow(/OPENAI simuloitu virhe testisyötteestä/);
+        .rejects.toThrow(/OPENAI simulated error from test input/);
 
       await expect(aiGateway.processAIRequest(taskType, 'TEST_ANTHROPIC_ERROR', 'claude-3-opus-20240229'))
-        .rejects.toThrow(/ANTHROPIC simuloitu virhe testisyötteestä/);
+        .rejects.toThrow(/ANTHROPIC simulated error from test input/);
 
       await expect(aiGateway.processAIRequest(taskType, 'TEST_LMSTUDIO_ERROR', 'mistral-7b-instruct-v0.2'))
-        .rejects.toThrow(/LMSTUDIO simuloitu virhe testisyötteestä/);
+        .rejects.toThrow(/LMSTUDIO simulated error from test input/);
 
       await expect(aiGateway.processAIRequest(taskType, 'TEST_OLLAMA_ERROR', 'mistral'))
-        .rejects.toThrow(/OLLAMA simuloitu virhe testisyötteestä/);
+        .rejects.toThrow(/OLLAMA simulated error from test input/);
     });
     
     it('should simulate network errors and retry', async () => {
@@ -607,20 +607,20 @@ describe('AIGateway Error Handling', () => {
       mockModelSelector.getModel.mockReturnValue(modelName);
       mockModelSelector.isLocalModel.mockReturnValue(true);
       
-      // Ensimmäinen yritys epäonnistuu verkkovirheeseen
+      // First attempt fails with network error
       mockLocalProvider.generateCompletion.mockResolvedValueOnce({
         success: false,
-        text: '',
-        error: 'Verkkovirhe yhteyden muodostamisessa',
+        text: "", // Add missing text field
+        error: 'Temporary network error',
         errorType: 'network_error',
         provider: 'local',
         model: modelName
       });
       
-      // Toinen yritys onnistuu
+      // Retry succeeds
       mockLocalProvider.generateCompletion.mockResolvedValueOnce({
         success: true,
-        text: 'Onnistunut vastaus verkkovirheen jälkeen',
+        text: 'Successful response after retry',
         provider: 'local',
         model: modelName,
         latency: 120
@@ -631,7 +631,7 @@ describe('AIGateway Error Handling', () => {
       
       // Assert
       expect(result).toEqual(expect.objectContaining({
-        result: 'Onnistunut vastaus verkkovirheen jälkeen',
+        result: 'Successful response after retry',
         model: modelName,
         provider: 'local',
         wasRetry: true
@@ -655,20 +655,20 @@ describe('AIGateway Error Handling', () => {
       mockModelSelector.isOpenAIModel.mockReturnValueOnce(true);
       mockModelSelector.isAnthropicModel.mockReturnValueOnce(true);
       
-      // OpenAI palveluntarjoaja epäonnistuu rate limit -virheeseen
+      // OpenAI provider fails with rate limit error
       mockOpenAIProvider.generateCompletion.mockResolvedValueOnce({
         success: false,
-        text: "", // Lisätään puuttuva text-kenttä
+        text: "", // Add missing text field
         error: 'Rate limit exceeded',
         errorType: 'rate_limit_error',
         provider: 'openai',
         model: openAIModelName
       });
       
-      // Anthropic palveluntarjoaja onnistuu
+      // Anthropic provider succeeds
       mockAnthropicProvider.generateCompletion.mockResolvedValueOnce({
         success: true,
-        text: 'Vaihtoehtoinen vastaus Anthropicilta',
+        text: 'Alternative response from Anthropic',
         provider: 'anthropic',
         model: anthropicModelName,
         latency: 200
@@ -679,7 +679,7 @@ describe('AIGateway Error Handling', () => {
       
       // Assert
       expect(result).toEqual(expect.objectContaining({
-        result: 'Vaihtoehtoinen vastaus Anthropicilta',
+        result: 'Alternative response from Anthropic',
         model: anthropicModelName,
         provider: 'anthropic',
         wasFailover: true
@@ -694,11 +694,11 @@ describe('AIGateway Error Handling', () => {
       const taskType = 'test';
       const input = 'TEST_ALL_ERROR';
       
-      // Kaikki palveluntarjoajat epäonnistuvat
+      // All service providers fail
       mockLocalProvider.generateCompletion.mockResolvedValue({
         success: false,
-        text: "", // Lisätään puuttuva text-kenttä
-        error: 'Simuloitu virhe testisyötteestä',
+        text: "",
+        error: 'Simulated error from test input',
         errorType: 'server_error',
         provider: 'local',
         model: 'mistral-7b-instruct-q8_0.gguf'
@@ -706,8 +706,8 @@ describe('AIGateway Error Handling', () => {
       
       mockLMStudioProvider.generateCompletion.mockResolvedValue({
         success: false,
-        text: "", // Lisätään puuttuva text-kenttä
-        error: 'Simuloitu virhe testisyötteestä',
+        text: "",
+        error: 'Simulated error from test input',
         errorType: 'server_error',
         provider: 'lmstudio',
         model: 'mistral-7b-instruct-v0.2'
@@ -715,8 +715,8 @@ describe('AIGateway Error Handling', () => {
       
       mockOllamaProvider.generateCompletion.mockResolvedValue({
         success: false,
-        text: "", // Lisätään puuttuva text-kenttä
-        error: 'Simuloitu virhe testisyötteestä',
+        text: "",
+        error: 'Simulated error from test input',
         errorType: 'server_error',
         provider: 'ollama',
         model: 'mistral'
@@ -724,8 +724,8 @@ describe('AIGateway Error Handling', () => {
       
       mockOpenAIProvider.generateCompletion.mockResolvedValue({
         success: false,
-        text: "", // Lisätään puuttuva text-kenttä
-        error: 'Simuloitu virhe testisyötteestä',
+        text: "",
+        error: 'Simulated error from test input',
         errorType: 'server_error',
         provider: 'openai',
         model: 'gpt-4-turbo'
@@ -733,8 +733,8 @@ describe('AIGateway Error Handling', () => {
       
       mockAnthropicProvider.generateCompletion.mockResolvedValue({
         success: false,
-        text: "", // Lisätään puuttuva text-kenttä
-        error: 'Simuloitu virhe testisyötteestä',
+        text: "",
+        error: 'Simulated error from test input',
         errorType: 'server_error',
         provider: 'anthropic',
         model: 'claude-3-opus-20240229'
@@ -744,9 +744,10 @@ describe('AIGateway Error Handling', () => {
       const result = await aiGateway.processAIRequestWithFallback(taskType, input);
       
       // Assert
+      // When all service providers fail, should return error object
       expect(result).toEqual(expect.objectContaining({
         error: true,
-        message: expect.stringContaining('Kaikki AI-palvelut epäonnistuivat')
+        message: expect.stringContaining('All AI services failed')
       }));
     });
   });

@@ -10,22 +10,22 @@ import axios from 'axios';
 import * as childProcess from 'child_process';
 import { TestProvider } from '../../src/services/providers/TestProvider';
 
-// Mockataan axios-kirjasto
+// Mock axios library
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-describe('AIProvider-luokat', () => {
-  // OllamaProvider-testit
+describe('AIProvider classes', () => {
+  // OllamaProvider tests
   describe('OllamaProvider', () => {
     let provider: OllamaProvider;
     let mockedAxios;
     let originalEnv;
     
     beforeEach(() => {
-      // Tallenna alkuperäiset ympäristömuuttujat
+      // Save original environment variables
       originalEnv = { ...environment };
       
-      // Aseta tarvittavat ympäristömuuttujat
+      // Set required environment variables
       environment.useOllama = true;
       
       // Mocking axios
@@ -41,15 +41,15 @@ describe('AIProvider-luokat', () => {
     });
     
     afterEach(() => {
-      // Palauta alkuperäiset ympäristömuuttujat
+      // Restore original environment variables
       Object.assign(environment, originalEnv);
     });
     
-    test('getName palauttaa oikean nimen', () => {
+    test('getName returns the correct name', () => {
       expect(provider.getName()).toBe('ollama');
     });
     
-    test('isAvailable palauttaa true kun API on saatavilla', async () => {
+    test('isAvailable returns true when API is available', async () => {
       mockedAxios.get.mockResolvedValue({ status: 200, data: { models: [{ name: 'mistral' }] } });
       
       const result = await provider.isAvailable();
@@ -58,7 +58,7 @@ describe('AIProvider-luokat', () => {
       expect(mockedAxios.get).toHaveBeenCalledWith('/api/tags', { timeout: 3000 });
     });
 
-    test('isAvailable palauttaa false kun API ei ole saatavilla', async () => {
+    test('isAvailable returns false when API is not available', async () => {
       mockedAxios.get.mockRejectedValue(new Error('Connection refused'));
       
       const result = await provider.isAvailable();
@@ -66,29 +66,29 @@ describe('AIProvider-luokat', () => {
       expect(result).toBe(false);
     });
     
-    test('generateCompletion palauttaa oikean vastauksen onnistuneesta pyynnöstä', async () => {
+    test('generateCompletion returns the correct response from a successful request', async () => {
       mockedAxios.post.mockResolvedValue({
         data: {
-          response: 'Tämä on vastaus Ollamalta'
+          response: 'This is a response from Ollama'
         }
       });
       
       const result = await provider.generateCompletion({
-        prompt: 'Testiprompt Ollamalle',
+        prompt: 'Test prompt for Ollama',
         modelName: 'mistral',
         maxTokens: 150,
         temperature: 0.7,
         stopSequences: ['###']
       });
       
-      expect(result.text).toBe('Tämä on vastaus Ollamalta');
+      expect(result.text).toBe('This is a response from Ollama');
       
-      // Varmista, että axios.post kutsuttiin oikeilla parametreilla
+      // Verify that axios.post was called with the correct parameters
       expect(mockedAxios.post).toHaveBeenCalledWith(
         '/api/generate',
         {
           model: 'mistral',
-          prompt: 'Testiprompt Ollamalle',
+          prompt: 'Test prompt for Ollama',
           system: '',
           stream: false,
           options: {
@@ -101,17 +101,17 @@ describe('AIProvider-luokat', () => {
     });
   });
 
-  // LMStudioProvider-testit
+  // LMStudioProvider tests
   describe('LMStudioProvider', () => {
     let provider: LMStudioProvider;
     let mockedAxios;
     let originalEnv;
     
     beforeEach(() => {
-      // Tallenna alkuperäiset ympäristömuuttujat
+      // Save original environment variables
       originalEnv = { ...environment };
       
-      // Aseta tarvittavat ympäristömuuttujat
+      // Set required environment variables
       environment.useLMStudio = true;
       environment.lmStudioApiEndpoint = 'http://localhost:1234';
       
@@ -128,15 +128,15 @@ describe('AIProvider-luokat', () => {
     });
     
     afterEach(() => {
-      // Palauta alkuperäiset ympäristömuuttujat
+      // Restore original environment variables
       Object.assign(environment, originalEnv);
     });
     
-    test('getName palauttaa oikean nimen', () => {
+    test('getName returns the correct name', () => {
       expect(provider.getName()).toBe('lmstudio');
     });
     
-    test('isAvailable palauttaa true kun API on saatavilla', async () => {
+    test('isAvailable returns true when API is available', async () => {
       mockedAxios.get.mockResolvedValue({ 
         status: 200, 
         data: { 
@@ -150,7 +150,7 @@ describe('AIProvider-luokat', () => {
       expect(mockedAxios.get).toHaveBeenCalledWith('/models');
     });
     
-    test('isAvailable palauttaa false kun API ei ole saatavilla', async () => {
+    test('isAvailable returns false when API is not available', async () => {
       mockedAxios.get.mockRejectedValue(new Error('Connection refused'));
       
       const result = await provider.isAvailable();
@@ -158,7 +158,7 @@ describe('AIProvider-luokat', () => {
       expect(result).toBe(false);
     });
     
-    test('isAvailable palauttaa false kun LM Studio on pois käytöstä', async () => {
+    test('isAvailable returns false when LM Studio is disabled', async () => {
       environment.useLMStudio = false;
       
       const result = await provider.isAvailable();
@@ -166,13 +166,13 @@ describe('AIProvider-luokat', () => {
       expect(result).toBe(false);
     });
     
-    test('generateCompletion palauttaa oikean vastauksen onnistuneesta pyynnöstä', async () => {
+    test('generateCompletion returns the correct response from a successful request', async () => {
       mockedAxios.post.mockResolvedValue({
         status: 200,
         data: {
           choices: [
             {
-              text: 'Tämä on vastaus LM Studiolta',
+              text: 'This is a response from LM Studio',
               finish_reason: 'stop'
             }
           ],
@@ -183,7 +183,7 @@ describe('AIProvider-luokat', () => {
       });
       
       const result = await provider.generateCompletion({
-        prompt: 'Testiprompt LM Studiolle',
+        prompt: 'Test prompt for LM Studio',
         modelName: 'mistral-7b-instruct',
         maxTokens: 150,
         temperature: 0.7,
@@ -191,7 +191,7 @@ describe('AIProvider-luokat', () => {
       });
       
       expect(result).toEqual({
-        text: 'Tämä on vastaus LM Studiolta',
+        text: 'This is a response from LM Studio',
         totalTokens: 150,
         provider: 'lmstudio',
         model: 'mistral-7b-instruct',
@@ -200,12 +200,12 @@ describe('AIProvider-luokat', () => {
         qualityScore: expect.any(Number)
       });
       
-      // Varmista, että axios.post kutsuttiin oikeilla parametreilla
+      // Verify that axios.post was called with the correct parameters
       expect(mockedAxios.post).toHaveBeenCalledWith(
         '/completions',
         {
           model: 'mistral-7b-instruct',
-          prompt: 'Testiprompt LM Studiolle',
+          prompt: 'Test prompt for LM Studio',
           max_tokens: 150,
           temperature: 0.7,
           stop: ['###']
@@ -213,11 +213,11 @@ describe('AIProvider-luokat', () => {
       );
     });
     
-    test('generateCompletion käsittelee API-virheet', async () => {
+    test('generateCompletion handles API errors', async () => {
       mockedAxios.post.mockRejectedValue(new Error('Connection timeout'));
       
       const result = await provider.generateCompletion({
-        prompt: 'Testiprompt LM Studiolle',
+        prompt: 'Test prompt for LM Studio',
         modelName: 'mistral-7b-instruct'
       });
       
@@ -232,17 +232,17 @@ describe('AIProvider-luokat', () => {
     });
   });
 
-  // OpenAIProvider-testit
+  // OpenAIProvider tests
   describe('OpenAIProvider', () => {
     let provider: OpenAIProvider;
     let mockOpenAIClient;
     let originalEnv;
     
     beforeEach(() => {
-      // Tallenna alkuperäiset ympäristömuuttujat
+      // Save original environment variables
       originalEnv = { ...environment };
       
-      // Aseta tarvittavat ympäristömuuttujat
+      // Set required environment variables
       environment.openaiApiKey = 'test-api-key';
       environment.useOpenAI = true;
       
@@ -265,15 +265,15 @@ describe('AIProvider-luokat', () => {
     });
     
     afterEach(() => {
-      // Palauta alkuperäiset ympäristömuuttujat
+      // Restore original environment variables
       Object.assign(environment, originalEnv);
     });
     
-    test('getName palauttaa oikean nimen', () => {
+    test('getName returns the correct name', () => {
       expect(provider.getName()).toBe('openai');
     });
     
-    test('isAvailable palauttaa true kun API on saatavilla', async () => {
+    test('isAvailable returns true when API is available', async () => {
       mockOpenAIClient.models.list.mockResolvedValue({ data: [{ id: 'gpt-4' }] });
       
       const result = await provider.isAvailable();
@@ -282,7 +282,7 @@ describe('AIProvider-luokat', () => {
       expect(mockOpenAIClient.models.list).toHaveBeenCalled();
     });
 
-    test('isAvailable palauttaa false kun API ei ole saatavilla', async () => {
+    test('isAvailable returns false when API is not available', async () => {
       mockOpenAIClient.models.list.mockRejectedValue(new Error('API error'));
       
       const result = await provider.isAvailable();
@@ -290,7 +290,7 @@ describe('AIProvider-luokat', () => {
       expect(result).toBe(false);
     });
     
-    test('isAvailable palauttaa false kun API-avain puuttuu', async () => {
+    test('isAvailable returns false when API key is missing', async () => {
       environment.openaiApiKey = '';
       
       const result = await provider.isAvailable();
@@ -298,12 +298,12 @@ describe('AIProvider-luokat', () => {
       expect(result).toBe(false);
     });
     
-    test('generateCompletion palauttaa oikean vastauksen onnistuneesta pyynnöstä', async () => {
+    test('generateCompletion returns the correct response from a successful request', async () => {
       mockOpenAIClient.chat.completions.create.mockResolvedValue({
         choices: [
           {
             message: {
-              content: 'Tämä on vastaus OpenAI:lta'
+              content: 'This is a response from OpenAI'
             },
             finish_reason: 'stop'
           }
@@ -314,7 +314,7 @@ describe('AIProvider-luokat', () => {
       });
       
       const result = await provider.generateCompletion({
-        prompt: 'Testiprompt OpenAI:lle',
+        prompt: 'Test prompt for OpenAI',
         modelName: 'gpt-4-turbo',
         maxTokens: 150,
         temperature: 0.7,
@@ -322,7 +322,7 @@ describe('AIProvider-luokat', () => {
       });
       
       expect(result).toEqual({
-        text: 'Tämä on vastaus OpenAI:lta',
+        text: 'This is a response from OpenAI',
         totalTokens: 150,
         provider: 'openai',
         model: 'gpt-4-turbo',
@@ -331,11 +331,11 @@ describe('AIProvider-luokat', () => {
         qualityScore: expect.any(Number)
       });
       
-      // Varmista, että OpenAI client kutsuttiin oikeilla parametreilla
+      // Verify that OpenAI client was called with the correct parameters
       expect(mockOpenAIClient.chat.completions.create).toHaveBeenCalledWith({
         model: 'gpt-4-turbo',
         messages: [
-          { role: 'user', content: 'Testiprompt OpenAI:lle' }
+          { role: 'user', content: 'Test prompt for OpenAI' }
         ],
         max_tokens: 150,
         temperature: 0.7,
@@ -343,11 +343,11 @@ describe('AIProvider-luokat', () => {
       });
     });
     
-    test('generateCompletion käsittelee API-virheet', async () => {
+    test('generateCompletion handles API errors', async () => {
       mockOpenAIClient.chat.completions.create.mockRejectedValue(new Error('API rate limit exceeded'));
       
       const result = await provider.generateCompletion({
-        prompt: 'Testiprompt OpenAI:lle',
+        prompt: 'Test prompt for OpenAI',
         modelName: 'gpt-4-turbo'
       });
       
@@ -361,13 +361,13 @@ describe('AIProvider-luokat', () => {
       });
     });
     
-    test('generateCompletion käsittelee puuttuvan API-avaimen', async () => {
-      // Luodaan uusi provider ilman client-määrittelyä
+    test('generateCompletion handles missing API key', async () => {
+      // Create a new provider without client definition
       environment.openaiApiKey = '';
       const newProvider = new OpenAIProvider();
       
       const result = await newProvider.generateCompletion({
-        prompt: 'Testiprompt',
+        prompt: 'Test prompt',
         modelName: 'gpt-4-turbo'
       });
       
@@ -382,7 +382,7 @@ describe('AIProvider-luokat', () => {
     });
   });
 
-  // AnthropicProvider-testit
+  // AnthropicProvider tests
   describe('AnthropicProvider', () => {
     let provider: AnthropicProvider;
     const originalEnv = { ...environment };
@@ -394,25 +394,25 @@ describe('AIProvider-luokat', () => {
 
       provider = module.get<AnthropicProvider>(AnthropicProvider);
       
-      // Varmistetaan että ympäristömuuttujat ovat testeille sopivia
+      // Ensure that environment variables are suitable for tests
       environment.anthropicApiKey = 'test-anthropic-key';
       environment.useAnthropic = true;
       
-      // Nollataan mockit
+      // Reset mocks
       jest.clearAllMocks();
     });
 
     afterEach(() => {
-      // Palautetaan ympäristömuuttujat
+      // Restore environment variables
       Object.assign(environment, originalEnv);
     });
 
-    test('getName palauttaa oikean arvon', () => {
+    test('getName returns the correct value', () => {
       expect(provider.getName()).toBe('anthropic');
     });
 
-    test('isAvailable palauttaa false kun API-avain puuttuu', async () => {
-      // Luodaan uusi instanssi jolla ei ole API-avainta
+    test('isAvailable returns false when API key is missing', async () => {
+      // Create a new instance without API key
       environment.anthropicApiKey = '';
       const module: TestingModule = await Test.createTestingModule({
         providers: [AnthropicProvider],
@@ -423,8 +423,8 @@ describe('AIProvider-luokat', () => {
       expect(result).toBe(false);
     });
 
-    test('isAvailable palauttaa true kun API on saatavilla', async () => {
-      // Mockaa axios.get palauttamaan onnistuneen vastauksen
+    test('isAvailable returns true when API is available', async () => {
+      // Mock axios.get to return a successful response
       mockedAxios.get.mockResolvedValueOnce({ status: 200, data: { models: [] } });
       
       const result = await provider.isAvailable();
@@ -440,17 +440,17 @@ describe('AIProvider-luokat', () => {
       );
     });
 
-    test('generateCompletion käsittelee puuttuvan API-avaimen', async () => {
+    test('generateCompletion handles missing API key', async () => {
       environment.anthropicApiKey = '';
       
-      // Luodaan uusi instanssi, jotta apiKey ei ole alustettu
+      // Create a new instance without API key
       const module: TestingModule = await Test.createTestingModule({
         providers: [AnthropicProvider],
       }).compile();
       const newProvider = module.get<AnthropicProvider>(AnthropicProvider);
       
       const request: CompletionRequest = {
-        prompt: 'Testiprompt',
+        prompt: 'Test prompt',
         modelName: 'claude-3-opus-20240229'
       };
       
@@ -466,11 +466,11 @@ describe('AIProvider-luokat', () => {
       });
     });
 
-    test('generateCompletion palauttaa oikean vastauksen onnistuneesta pyynnöstä', async () => {
-      // Mockaa axios.post palauttamaan onnistuneen vastauksen
+    test('generateCompletion returns the correct response from a successful request', async () => {
+      // Mock axios.post to return a successful response
       mockedAxios.post.mockResolvedValueOnce({
         data: {
-          content: [{ text: 'Tämä on Anthropic testivastaus' }],
+          content: [{ text: 'This is an Anthropic test response' }],
           stop_reason: 'stop_sequence',
           usage: {
             input_tokens: 50,
@@ -480,18 +480,18 @@ describe('AIProvider-luokat', () => {
       });
       
       const request: CompletionRequest = {
-        prompt: 'Testiprompt Anthropicille',
+        prompt: 'Test prompt for Anthropic',
         modelName: 'claude-3-opus-20240229',
         maxTokens: 200,
         temperature: 0.8,
-        systemPrompt: 'Olet avulias tekoäly'
+        systemPrompt: 'You are a helpful AI'
       };
       
       const result = await provider.generateCompletion(request);
       
-      // Varmista, että vastaus on oikein muotoiltu
+      // Verify that the response is correctly formatted
       expect(result).toEqual({
-        text: 'Tämä on Anthropic testivastaus',
+        text: 'This is an Anthropic test response',
         totalTokens: 150,
         provider: 'anthropic',
         model: 'claude-3-opus-20240229',
@@ -500,17 +500,17 @@ describe('AIProvider-luokat', () => {
         qualityScore: expect.any(Number)
       });
       
-      // Varmista, että axios.post kutsuttiin oikeilla parametreilla
+      // Verify that axios.post was called with the correct parameters
       expect(mockedAxios.post).toHaveBeenCalledWith(
         'https://api.anthropic.com/v1/messages',
         {
           model: 'claude-3-opus-20240229',
           messages: [
-            { role: 'user', content: 'Testiprompt Anthropicille' }
+            { role: 'user', content: 'Test prompt for Anthropic' }
           ],
           max_tokens: 200,
           temperature: 0.8,
-          system: 'Olet avulias tekoäly'
+          system: 'You are a helpful AI'
         },
         expect.objectContaining({
           headers: expect.objectContaining({
@@ -522,13 +522,13 @@ describe('AIProvider-luokat', () => {
     });
   });
 
-  // LocalProvider-testit
+  // LocalProvider tests
   describe('LocalProvider', () => {
     let provider: LocalProvider;
     const originalEnv = { ...environment };
     
     beforeEach(async () => {
-      // Asetetaan mock ja tyhjennä aiemmat mockit
+      // Set up mock and clear previous mocks
       jest.resetAllMocks();
       
       const module: TestingModule = await Test.createTestingModule({
@@ -537,46 +537,46 @@ describe('AIProvider-luokat', () => {
 
       provider = module.get<LocalProvider>(LocalProvider);
       
-      // Varmistetaan että ympäristömuuttujat ovat testeille sopivia
+      // Ensure that environment variables are suitable for tests
       environment.useLocalModels = true;
       environment.localModelsDir = '/path/to/local/models';
     });
 
     afterEach(() => {
-      // Palautetaan ympäristömuuttujat
+      // Restore environment variables
       Object.assign(environment, originalEnv);
       jest.restoreAllMocks();
     });
 
-    test('getName palauttaa oikean arvon', () => {
+    test('getName returns the correct value', () => {
       expect(provider.getName()).toBe('local');
     });
 
-    test('isAvailable palauttaa false kun useLocalModels on false', async () => {
+    test('isAvailable returns false when useLocalModels is false', async () => {
       environment.useLocalModels = false;
       const result = await provider.isAvailable();
       expect(result).toBe(false);
     });
 
-    test('isAvailable palauttaa true kun paikalliset mallit ovat käytössä', async () => {
+    test('isAvailable returns true when local models are enabled', async () => {
       const result = await provider.isAvailable();
       expect(result).toBe(true);
     });
 
-    test('generateCompletion palauttaa oikean vastauksen', async () => {
-      // Mockataan runLocalModel-metodi suoraan
+    test('generateCompletion returns the correct response', async () => {
+      // Mock runLocalModel method directly
       const mockResult = {
-        text: 'Tämä on local model testivastaus',
+        text: 'This is a local model test response',
         provider: 'local',
         model: 'falcon-7b-q4_0.gguf',
         success: true
       };
       
-      // @ts-ignore - Käytetään private-metodia testauksessa
+      // @ts-ignore - Use private method for testing
       jest.spyOn(provider, 'runLocalModel').mockResolvedValue(mockResult);
       
       const request: CompletionRequest = {
-        prompt: 'Testiprompt paikalliselle mallille',
+        prompt: 'Test prompt for local model',
         modelName: 'falcon-7b-q4_0.gguf',
         maxTokens: 100,
         temperature: 0.7
@@ -584,26 +584,26 @@ describe('AIProvider-luokat', () => {
       
       const result = await provider.generateCompletion(request);
       
-      expect(result.text).toBe('Tämä on local model testivastaus');
+      expect(result.text).toBe('This is a local model test response');
       expect(result.provider).toBe('local');
       expect(result.model).toBe('falcon-7b-q4_0.gguf');
       expect(result.success).toBe(true);
       
-      // Tarkistetaan, että runLocalModel kutsuttiin oikeilla parametreilla
-      // @ts-ignore - Käytetään private-metodia testauksessa
+      // Verify that runLocalModel was called with the correct parameters
+      // @ts-ignore - Use private method for testing
       expect(provider.runLocalModel).toHaveBeenCalledWith(
         '/path/to/local/models/falcon-7b-q4_0.gguf',
         request
       );
     });
 
-    test('generateCompletion käsittelee virheet oikein', async () => {
-      // Mockataan runLocalModel-metodi heittämään virhe
-      // @ts-ignore - Käytetään private-metodia testauksessa
-      jest.spyOn(provider, 'runLocalModel').mockRejectedValue(new Error('Testivirhe paikallisessa mallissa'));
+    test('generateCompletion handles errors correctly', async () => {
+      // Mock runLocalModel method to throw an error
+      // @ts-ignore - Use private method for testing
+      jest.spyOn(provider, 'runLocalModel').mockRejectedValue(new Error('Test error in local model'));
       
       const request: CompletionRequest = {
-        prompt: 'Testiprompt paikalliselle mallille',
+        prompt: 'Test prompt for local model',
         modelName: 'falcon-7b-q4_0.gguf',
         maxTokens: 100,
         temperature: 0.7
@@ -611,16 +611,16 @@ describe('AIProvider-luokat', () => {
       
       const result = await provider.generateCompletion(request);
       
-      // Tarkistetaan, että virhe käsitellään oikein
+      // Verify that the error is handled correctly
       expect(result.success).toBe(false);
-      expect(result.error).toBe('Testivirhe paikallisessa mallissa');
+      expect(result.error).toBe('Test error in local model');
       expect(result.text).toBe('');
       expect(result.provider).toBe('local');
       expect(result.model).toBe('falcon-7b-q4_0.gguf');
       expect(result.qualityScore).toBe(0);
       
-      // Tarkistetaan, että runLocalModel kutsuttiin oikeilla parametreilla
-      // @ts-ignore - Käytetään private-metodia testauksessa
+      // Verify that runLocalModel was called with the correct parameters
+      // @ts-ignore - Use private method for testing
       expect(provider.runLocalModel).toHaveBeenCalledWith(
         '/path/to/local/models/falcon-7b-q4_0.gguf',
         request
@@ -628,7 +628,7 @@ describe('AIProvider-luokat', () => {
     });
   });
 
-  // BaseProvider-testit
+  // BaseProvider tests
   describe('BaseProvider', () => {
     // Create a concrete implementation of the abstract BaseProvider for testing
     class TestProvider extends BaseProvider {
@@ -689,38 +689,38 @@ describe('AIProvider-luokat', () => {
       provider = new TestProvider();
     });
     
-    it('calculateQualityScore palauttaa 0 tyhjälle tekstille', () => {
+    it('calculateQualityScore returns 0 for an empty text', () => {
       const score = provider.testCalculateQualityScore('');
       expect(score).toBe(0);
     });
     
-    it('calculateQualityScore laskee pisteet oikein lyhyelle tekstille', () => {
-      const text = 'Lyhyt vastaus ilman koodia tai rakennetta.';
+    it('calculateQualityScore calculates scores correctly for a short text', () => {
+      const text = 'A short response without code or structure.';
       const score = provider.testCalculateQualityScore(text);
       
-      // Vain pituus vaikuttaa pisteisiin
+      // Only length affects the score
       const expectedLengthScore = text.length / 1000;
       const expectedStructureScore = Math.min(text.split('\n').length / 10, 1);
       
       expect(score).toBeCloseTo(expectedLengthScore + expectedStructureScore, 2);
     });
     
-    it('calculateQualityScore laskee pisteet oikein tekstille jossa on rakennetta', () => {
-      const text = 'Vastaus jossa on\nuusia rivejä\nmutta ei koodia.';
+    it('calculateQualityScore calculates scores correctly for a text with structure', () => {
+      const text = 'A response with\nmultiple lines\nbut no code.';
       const score = provider.testCalculateQualityScore(text);
       
-      // Pituus + rakenne
+      // Length + structure
       const expectedLengthScore = text.length / 1000;
       const expectedStructureScore = Math.min(text.split('\n').length / 10, 1);
       
       expect(score).toBeCloseTo(expectedLengthScore + expectedStructureScore, 2);
     });
     
-    it('calculateQualityScore laskee pisteet oikein koodille', () => {
-      const text = 'Vastaus jossa on koodia:\n```\nconst x = 1;\nconsole.log(x);\n```';
+    it('calculateQualityScore calculates scores correctly for code', () => {
+      const text = 'A response with code:\n```\nconst x = 1;\nconsole.log(x);\n```';
       const score = provider.testCalculateQualityScore(text);
       
-      // Pituus + rakenne + koodi
+      // Length + structure + code
       const expectedLengthScore = Math.min(text.length / 1000, 0.5);
       const expectedStructureScore = Math.min(text.split('\n').length / 10, 1);
       const expectedCodeScore = text.includes('```') ? 1 : 0;
@@ -728,14 +728,14 @@ describe('AIProvider-luokat', () => {
       expect(score).toBeCloseTo(expectedLengthScore + expectedStructureScore + expectedCodeScore, 2);
     });
     
-    it('calculateQualityScore asettaa pituuspisteiden maksimin oikein', () => {
-      // Luodaan erittäin pitkä teksti
+    it('calculateQualityScore sets the maximum length score correctly', () => {
+      // Create a very long text
       const text = 'a'.repeat(2000);
       const score = provider.testCalculateQualityScore(text);
       
-      // Pituuspisteet rajoitetaan 0.5:een + rakenne (yksi rivi)
-      const expectedLengthScore = 0.5; // Rajoitettu maksimi
-      const expectedStructureScore = Math.min(1 / 10, 1); // Yksi rivi
+      // Length score is capped at 0.5 + structure (one line)
+      const expectedLengthScore = 0.5; // Capped maximum
+      const expectedStructureScore = Math.min(1 / 10, 1); // One line
       
       expect(score).toBeCloseTo(expectedLengthScore + expectedStructureScore, 2);
     });
@@ -848,7 +848,7 @@ describe('AIProvider-luokat', () => {
         try {
           throw new Error('Test error from spy');
         } catch (error) {
-          // Käytetään this-viittausta function-syntaksin avulla
+          // Use this reference to execute the original catch block implementation
           return this.handleAvailabilityError(error);
         }
       });

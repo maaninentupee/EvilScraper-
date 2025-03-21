@@ -1,14 +1,14 @@
 import axios from 'axios';
 import * as path from 'path';
 
-// Pidetään aikakatkaisu kohtuullisena
-jest.setTimeout(10000); // 10 sekuntia
+// Keep timeout reasonable
+jest.setTimeout(10000); // 10 seconds
 
 describe('Windsurf Application E2E Tests', () => {
   const API_BASE_URL = 'http://localhost:3001';
   let serverRunning = false;
   
-  // Tarkistetaan, että palvelin on käynnissä ennen testien ajamista
+  // Check that the server is running before executing tests
   beforeAll(async () => {
     try {
       await axios.get(`${API_BASE_URL}/`);
@@ -21,7 +21,7 @@ describe('Windsurf Application E2E Tests', () => {
     }
   });
 
-  // Testataan vain perusendpointit nopeuden vuoksi
+  // Test only basic endpoints for speed
   describe('Basic Endpoints', () => {
     it('GET / should return welcome message', async () => {
       if (!serverRunning) {
@@ -36,7 +36,7 @@ describe('Windsurf Application E2E Tests', () => {
     });
   });
 
-  // Ohitetaan hitaammat testit
+  // Skip slower tests
   describe.skip('Scraper Functionality', () => {
     it('POST /scraper should scrape content from a URL', async () => {
       if (!serverRunning) {
@@ -52,7 +52,7 @@ describe('Windsurf Application E2E Tests', () => {
     });
   });
 
-  // Ohitetaan hitaammat testit
+  // Skip slower tests
   describe.skip('Evil Bot Decision Functionality', () => {
     it('POST /evil-bot/decide should evaluate content and return decision', async () => {
       if (!serverRunning) {

@@ -9,8 +9,8 @@ export class AnthropicProvider extends BaseProvider {
   private readonly apiUrl = 'https://api.anthropic.com/v1/messages';
   private readonly batchApiUrl = 'https://api.anthropic.com/v1/messages/batches';
   private readonly apiKey: string;
-  private readonly batchPollingIntervalMs = 2000; // 2 sekuntia
-  private readonly batchMaxPollingAttempts = 30; // 1 minuutti maksimissaan
+  private readonly batchPollingIntervalMs = 2000; // 2 seconds
+  private readonly batchMaxPollingAttempts = 30; // 1 minute maximum
 
   constructor() {
     super();
@@ -67,7 +67,7 @@ export class AnthropicProvider extends BaseProvider {
     } catch (error) {
       this.logger.error(`Error generating completion with Anthropic: ${error.message}`);
       
-      // Määritetään virhetyyppi vastauksen perusteella
+      // Determine error type based on response
       let errorType = 'unexpected_error';
       if (error.response) {
         if (error.response.status === 429) {
@@ -94,9 +94,9 @@ export class AnthropicProvider extends BaseProvider {
   }
 
   /**
-   * Generoi vastaukset eräajona useille pyynnöille käyttäen Anthropic Batch API:a
-   * @param requests Pyyntöjen lista
-   * @returns Vastausten lista
+   * Generate responses in batches for multiple requests using the Anthropic Batch API
+   * @param requests List of requests
+   * @returns List of responses
    */
   async generateBatchCompletions(requests: BatchCompletionRequest[]): Promise<CompletionResult[]> {
     if (!this.apiKey) {
@@ -114,7 +114,7 @@ export class AnthropicProvider extends BaseProvider {
     try {
       this.logger.log(`Generating batch completions with Anthropic for ${requests.length} requests`);
       
-      // Muodostetaan batch-pyynnöt
+      // Create batch requests
       const batchRequests = requests.map((request, index) => ({
         custom_id: `request-${index}`,
         params: {
@@ -128,7 +128,7 @@ export class AnthropicProvider extends BaseProvider {
         }
       }));
 
-      // Lähetetään batch-pyyntö
+      // Submit batch request
       const batchResponse = await axios.post(
         this.batchApiUrl,
         {
@@ -146,10 +146,10 @@ export class AnthropicProvider extends BaseProvider {
       const batchId = batchResponse.data.id;
       this.logger.log(`Batch created with ID: ${batchId}`);
 
-      // Pollaa batch-tuloksia kunnes kaikki pyynnöt on käsitelty
+      // Poll for batch results
       const batchResults = await this.pollBatchResults(batchId);
       
-      // Yhdistä tulokset alkuperäisiin pyyntöihin
+      // Combine results with original requests
       return requests.map((request, index) => {
         const customId = `request-${index}`;
         const result = batchResults.find(r => r.custom_id === customId);
@@ -182,7 +182,7 @@ export class AnthropicProvider extends BaseProvider {
     } catch (error) {
       this.logger.error(`Error generating batch completions with Anthropic: ${error.message}`);
       
-      // Jos batch-pyyntö epäonnistuu kokonaan, palauta virhe kaikille pyynnöille
+      // If batch request fails entirely, return error for all requests
       return requests.map(request => ({
         text: '',
         provider: this.getName(),
@@ -196,14 +196,14 @@ export class AnthropicProvider extends BaseProvider {
   }
 
   /**
-   * Pollaa batch-tuloksia kunnes kaikki pyynnöt on käsitelty
-   * @param batchId Batch-tunniste
-   * @returns Batch-tulokset
+   * Poll for batch results until all requests are processed
+   * @param batchId Batch ID
+   * @returns Batch results
    */
   private async pollBatchResults(batchId: string): Promise<any[]> {
     for (let attempt = 0; attempt < this.batchMaxPollingAttempts; attempt++) {
       try {
-        // Tarkista batch-tila
+        // Check batch status
         const statusResponse = await axios.get(
           `${this.batchApiUrl}/${batchId}`,
           {
@@ -216,7 +216,7 @@ export class AnthropicProvider extends BaseProvider {
         
         const status = statusResponse.data;
         
-        // Jos batch on valmis, hae tulokset
+        // If batch is complete, retrieve results
         if (status.processing_status === 'completed' && status.results_url) {
           const resultsResponse = await axios.get(
             `${this.batchApiUrl}/${batchId}/results`,
@@ -231,20 +231,20 @@ export class AnthropicProvider extends BaseProvider {
           return resultsResponse.data.results;
         }
         
-        // Jos batch on vielä käsittelyssä, odota ennen seuraavaa pollausta
+        // If batch is still processing, wait before next poll
         if (status.processing_status === 'in_progress') {
           await new Promise(resolve => setTimeout(resolve, this.batchPollingIntervalMs));
           continue;
         }
         
-        // Jos batch on epäonnistunut tai peruutettu, palauta tyhjä lista
+        // If batch has failed or been cancelled, return empty list
         if (['errored', 'canceled', 'expired'].includes(status.processing_status)) {
           this.logger.error(`Batch processing failed with status: ${status.processing_status}`);
           return [];
         }
       } catch (error) {
         this.logger.error(`Error polling batch results: ${error.message}`);
-        // Jatka pollausta virheestä huolimatta
+        // Continue polling despite error
       }
     }
     
@@ -253,9 +253,9 @@ export class AnthropicProvider extends BaseProvider {
   }
 
   /**
-   * Muuntaa Anthropic batch API:n virhetyypin sisäiseksi virhetyypiksi
-   * @param error Anthropic batch API:n virhe
-   * @returns Sisäinen virhetyyppi
+   * Map Anthropic batch API error type to internal error type
+   * @param error Anthropic batch API error
+   * @returns Internal error type
    */
   private mapBatchErrorType(error: any): string {
     if (!error) return 'unexpected_error';

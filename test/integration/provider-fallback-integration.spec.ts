@@ -145,7 +145,7 @@ describe('Provider Fallback Integration Tests', () => {
       
       // Verify result is an error object
       expect(result).toHaveProperty('error', true);
-      expect(result.message).toContain('Kaikki AI-palvelut epäonnistuivat');
+      expect(result.message).toContain('All AI services failed');
     });
 
     it('should use test input to simulate specific provider failures', async () => {
@@ -173,7 +173,7 @@ describe('Provider Fallback Integration Tests', () => {
       
       // Verify result is an error object
       expect(result).toHaveProperty('error', true);
-      expect(result.message).toBe('Kaikki AI-palvelut epäonnistuivat (simuloitu virhe testisyötteestä).');
+      expect(result.message).toBe('All AI services failed (simulated error from test input).');
     });
   });
 

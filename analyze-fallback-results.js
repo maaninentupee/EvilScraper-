@@ -1,9 +1,9 @@
 /**
  * analyze-fallback-results.js
  * 
- * Työkalu AI-mallien fallback-testien tulosten analysointiin ja visualisointiin.
- * Tämä skripti lukee k6-testien tuottamat JSON-tulostiedostot ja luo niistä
- * yhteenvedon, joka auttaa ymmärtämään fallback-mekanismin toimintaa.
+ * Tool for analyzing and visualizing the results of AI model fallback tests.
+ * This script reads JSON result files produced by k6 tests and creates a summary
+ * that helps understand the operation of the fallback mechanism.
  */
 
 const fs = require('fs');
@@ -11,7 +11,7 @@ const path = require('path');
 const readline = require('readline');
 const { exec } = require('child_process');
 
-// Värit konsolitulosteisiin
+// Colors for console output
 const colors = {
   reset: '\x1b[0m',
   bright: '\x1b[1m',
@@ -24,68 +24,68 @@ const colors = {
 };
 
 /**
- * Lukee k6:n tuottaman JSON-tulostiedoston
- * @param {string} filePath - Polku tulostiedostoon
- * @returns {Promise<Object>} - Lupaus, joka resolvoituu jäsennettyyn JSON-objektiin
+ * Reads a JSON result file produced by k6
+ * @param {string} filePath - Path to the result file
+ * @returns {Promise<Object>} - Promise that resolves to the parsed JSON object
  */
 async function readK6ResultsFile(filePath) {
   try {
-    // Tarkistetaan tiedoston koko
+    // Check the file size
     const stats = fs.statSync(filePath);
     const fileSizeMB = stats.size / (1024 * 1024);
-    console.log(`Tiedoston koko: ${fileSizeMB.toFixed(2)} MB`);
+    console.log(`File size: ${fileSizeMB.toFixed(2)} MB`);
     
     if (fileSizeMB > 10) {
-      console.log(`${colors.yellow}Tiedosto on suuri (${fileSizeMB.toFixed(2)} MB), käytetään virtaavaa käsittelyä${colors.reset}`);
+      console.log(`${colors.yellow}File is large (${fileSizeMB.toFixed(2)} MB), using streaming processing${colors.reset}`);
       return await processLargeJsonFile(filePath);
     }
     
-    // Pienemmille tiedostoille käytetään suoraa lukua
+    // For smaller files, use direct reading
     const data = fs.readFileSync(filePath, 'utf8');
     
     try {
       return JSON.parse(data);
     } catch (jsonError) {
-      console.log(`${colors.yellow}JSON-jäsennysvirhe, yritetään korjata tiedostoa${colors.reset}`);
+      console.log(`${colors.yellow}JSON parsing error, attempting to fix the file${colors.reset}`);
       
-      // Yritetään korjata JSON-tiedosto
+      // Try to fix the JSON file
       const fixedData = fixJsonData(data);
       return JSON.parse(fixedData);
     }
   } catch (error) {
-    console.error(`${colors.red}Virhe luettaessa tiedostoa ${filePath}:${colors.reset}`, error.message);
+    console.error(`${colors.red}Error reading file ${filePath}:${colors.reset}`, error.message);
     
-    // Yritetään lukea tiedosto jq:n avulla, jos se on saatavilla
+    // Try to read the file using jq, if available
     try {
       return await readWithJq(filePath);
     } catch (jqError) {
-      console.error(`${colors.red}Myös jq-yritys epäonnistui:${colors.reset}`, jqError.message);
+      console.error(`${colors.red}jq attempt also failed:${colors.reset}`, jqError.message);
       return null;
     }
   }
 }
 
 /**
- * Korjaa virheellisen JSON-datan
- * @param {string} data - Virheellinen JSON-data
- * @returns {string} - Korjattu JSON-data
+ * Fixes invalid JSON data
+ * @param {string} data - Invalid JSON data
+ * @returns {string} - Fixed JSON data
  */
 function fixJsonData(data) {
-  // Poistetaan mahdolliset BOM-merkit
+  // Remove possible BOM characters
   let fixedData = data.replace(/^\uFEFF/, '');
   
-  // Poistetaan mahdolliset ylimääräiset rivinvaihdot JSON-objektien välillä
+  // Remove possible extra line breaks between JSON objects
   fixedData = fixedData.replace(/\}\s*\n\s*\{/g, '},{');
   
-  // Yritetään korjata yleisiä JSON-virheitä
+  // Try to fix common JSON errors
   fixedData = fixedData.replace(/,\s*\}/g, '}');
   fixedData = fixedData.replace(/,\s*\]/g, ']');
   
-  // Tarkistetaan, onko kyseessä JSON-rivit (JSONL) -muoto
+  // Check if this is a JSON Lines (JSONL) format
   if (fixedData.trim().startsWith('{') && !fixedData.trim().startsWith('[{')) {
     const lines = fixedData.split('\n').filter(line => line.trim().length > 0);
     if (lines.length > 1 && lines.every(line => line.trim().startsWith('{'))) {
-      // Kyseessä on JSONL, muutetaan se JSON-arrayksi
+      // This is JSONL, convert it to a JSON array
       fixedData = '[' + lines.join(',') + ']';
     }
   }
@@ -94,13 +94,13 @@ function fixJsonData(data) {
 }
 
 /**
- * Käsittelee suuren JSON-tiedoston virtaavasti
- * @param {string} filePath - Polku tulostiedostoon
- * @returns {Promise<Object>} - Lupaus, joka resolvoituu käsiteltyyn dataobjektiin
+ * Processes a large JSON file using streaming
+ * @param {string} filePath - Path to the result file
+ * @returns {Promise<Object>} - Promise that resolves to the processed data object
  */
 async function processLargeJsonFile(filePath) {
   return new Promise((resolve, reject) => {
-    // Luodaan yksinkertaistettu tulosobjekti
+    // Create a simplified result object
     const result = {
       metrics: {},
       timestamp: new Date().toISOString(),
@@ -109,7 +109,7 @@ async function processLargeJsonFile(filePath) {
       duration_ms: 0
     };
     
-    // Etsitään tärkeimmät metriikat
+    // Look for the most important metrics
     const metricRegexes = {
       error_rate: /error_rate.*?rate":\s*([\d.]+)/,
       fallback_success_rate: /fallback_success_rate.*?rate":\s*([\d.]+)/,
@@ -121,21 +121,21 @@ async function processLargeJsonFile(filePath) {
       client_errors: /client_errors.*?count":\s*([\d.]+)/
     };
     
-    // Mallikohtaiset metriikat
+    // Model-specific metrics
     const models = ['openai', 'anthropic', 'ollama'];
     models.forEach(model => {
       metricRegexes[`${model}_success_rate`] = new RegExp(`${model}_success_rate.*?rate":\\s*([\\d.]+).*?passes":\\s*([\\d.]+)`, 's');
       metricRegexes[`${model}_processing_time`] = new RegExp(`${model}_processing_time.*?avg":\\s*([\\d.]+)`, 's');
     });
     
-    // Luetaan tiedosto kokonaisuudessaan muistiin
+    // Read the entire file into memory
     fs.readFile(filePath, 'utf8', (err, data) => {
       if (err) {
         reject(err);
         return;
       }
       
-      // Etsitään perustiedot
+      // Find basic information
       const vusMatch = data.match(/vus_max":\s*(\d+)/);
       if (vusMatch) result.vus_max = parseInt(vusMatch[1]);
       
@@ -145,7 +145,7 @@ async function processLargeJsonFile(filePath) {
       const durationMatch = data.match(/duration":\s*"([^"]+)"/);
       if (durationMatch) {
         const durationStr = durationMatch[1];
-        // Muunnetaan kesto millisekunneiksi
+        // Convert duration to milliseconds
         const timeRegex = /(\d+)([hms])/g;
         let match;
         let ms = 0;
@@ -159,7 +159,7 @@ async function processLargeJsonFile(filePath) {
         result.duration_ms = ms;
       }
       
-      // Etsitään metriikat
+      // Find metrics
       for (const [metricName, regex] of Object.entries(metricRegexes)) {
         const match = data.match(regex);
         if (match) {
@@ -208,190 +208,204 @@ async function processLargeJsonFile(filePath) {
 }
 
 /**
- * Lukee JSON-tiedoston jq:n avulla
- * @param {string} filePath - Polku tulostiedostoon
- * @returns {Promise<Object>} - Lupaus, joka resolvoituu jäsennettyyn JSON-objektiin
+ * Reads a JSON file using jq
+ * @param {string} filePath - Path to the result file
+ * @returns {Promise<Object>} - Promise that resolves to the parsed JSON object
  */
-function readWithJq(filePath) {
+async function readWithJq(filePath) {
   return new Promise((resolve, reject) => {
-    exec(`jq . "${filePath}"`, { maxBuffer: 100 * 1024 * 1024 }, (error, stdout, stderr) => {
+    exec(`jq . "${filePath}"`, { maxBuffer: 50 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error) {
-        reject(new Error(`jq virhe: ${error.message}`));
+        console.error(`${colors.red}jq execution error:${colors.reset}`, error);
+        reject(error);
         return;
       }
       
+      if (stderr) {
+        console.error(`${colors.yellow}jq stderr:${colors.reset}`, stderr);
+      }
+      
       try {
-        const result = JSON.parse(stdout);
-        resolve(result);
+        const data = JSON.parse(stdout);
+        resolve(data);
       } catch (jsonError) {
-        reject(new Error(`jq tuloste ei ole validia JSON:ia: ${jsonError.message}`));
+        reject(jsonError);
       }
     });
   });
 }
 
 /**
- * Luo ASCII-pylväskaavion
- * @param {number} value - Arvo välillä 0-100
- * @param {number} width - Kaavion leveys merkkeinä
- * @param {string} color - Värikoodi
- * @returns {string} - ASCII-pylväskaavio
+ * Creates an ASCII bar chart
+ * @param {number} value - Value between 0-100
+ * @param {number} width - Chart width in characters
+ * @param {string} color - Color code
+ * @returns {string} - ASCII bar chart
  */
 function createBar(value, width = 40, color = colors.green) {
-  const barWidth = Math.floor((value / 100) * width);
-  const bar = '█'.repeat(barWidth) + ' '.repeat(width - barWidth);
-  return `${color}${bar}${colors.reset} ${value.toFixed(2)}%`;
+  const normalizedValue = Math.min(100, Math.max(0, value));
+  const filledWidth = Math.round((normalizedValue / 100) * width);
+  const emptyWidth = width - filledWidth;
+  
+  const filled = '█'.repeat(filledWidth);
+  const empty = '░'.repeat(emptyWidth);
+  
+  return `${color}${filled}${colors.reset}${empty} ${normalizedValue.toFixed(1)}%`;
 }
 
 /**
- * Analysoi fallback-testien tulokset
- * @param {string} filePath - Polku tulostiedostoon
+ * Analyzes fallback test results
+ * @param {string} filePath - Path to the result file
  */
 async function analyzeFallbackResults(filePath) {
-  console.log(`\n${colors.bright}${colors.cyan}=== AI Fallback -testitulosten analyysi ===${colors.reset}\n`);
+  console.log(`${colors.bright}Analyzing fallback test results from: ${filePath}${colors.reset}`);
   
-  const results = await readK6ResultsFile(filePath);
-  if (!results) {
-    console.log(`${colors.red}Tulostiedostoa ei löytynyt tai se on virheellinen.${colors.reset}`);
-    return;
-  }
-  
-  // Yleiskatsaus
-  console.log(`${colors.bright}Testin ajankohta:${colors.reset} ${new Date(results.timestamp).toLocaleString()}`);
-  console.log(`${colors.bright}Testin kesto:${colors.reset} ${results.duration_ms / 1000} sekuntia`);
-  console.log(`${colors.bright}Virtuaalisia käyttäjiä (VU):${colors.reset} ${results.vus_max}`);
-  console.log(`${colors.bright}Iteraatioita:${colors.reset} ${results.iterations}\n`);
-  
-  // Virheprosentti
-  const errorRate = results.metrics.error_rate ? results.metrics.error_rate.values.rate * 100 : 0;
-  const errorColor = errorRate > 30 ? colors.red : errorRate > 10 ? colors.yellow : colors.green;
-  console.log(`${colors.bright}Virheprosentti:${colors.reset}`);
-  console.log(`  ${createBar(errorRate, 40, errorColor)}`);
-  
-  // Fallback-onnistumisprosentti
-  const fallbackSuccessRate = results.metrics.fallback_success_rate ? 
-    results.metrics.fallback_success_rate.values.rate * 100 : 0;
-  const fallbackColor = fallbackSuccessRate < 50 ? colors.red : 
-    fallbackSuccessRate < 70 ? colors.yellow : colors.green;
-  console.log(`\n${colors.bright}Fallback-onnistumisprosentti:${colors.reset}`);
-  console.log(`  ${createBar(fallbackSuccessRate, 40, fallbackColor)}`);
-  
-  // Vasteajat
-  const responseTime = results.metrics.response_time ? results.metrics.response_time.values : null;
-  if (responseTime) {
-    console.log(`\n${colors.bright}Vasteajat:${colors.reset}`);
-    console.log(`  Keskiarvo: ${(responseTime.avg / 1000).toFixed(2)} s`);
-    console.log(`  Mediaani: ${(responseTime.med / 1000).toFixed(2)} s`);
-    console.log(`  P95: ${(responseTime['p(95)'] / 1000).toFixed(2)} s`);
-    console.log(`  Min: ${(responseTime.min / 1000).toFixed(2)} s`);
-    console.log(`  Max: ${(responseTime.max / 1000).toFixed(2)} s`);
-  }
-  
-  // Onnistuneet ja epäonnistuneet pyynnöt
-  const successful = results.metrics.successful_requests ? 
-    results.metrics.successful_requests.values.count : 0;
-  const failed = results.metrics.failed_requests ? 
-    results.metrics.failed_requests.values.count : 0;
-  const total = successful + failed;
-  
-  console.log(`\n${colors.bright}Pyynnöt:${colors.reset}`);
-  console.log(`  Onnistuneet: ${successful} (${((successful / total) * 100).toFixed(2)}%)`);
-  console.log(`  Epäonnistuneet: ${failed} (${((failed / total) * 100).toFixed(2)}%)`);
-  console.log(`  Yhteensä: ${total}`);
-  
-  // Virhetyypit
-  const timeoutErrors = results.metrics.timeout_errors ? 
-    results.metrics.timeout_errors.values.count : 0;
-  const serverErrors = results.metrics.server_errors ? 
-    results.metrics.server_errors.values.count : 0;
-  const clientErrors = results.metrics.client_errors ? 
-    results.metrics.client_errors.values.count : 0;
-  
-  if (failed > 0) {
-    console.log(`\n${colors.bright}Virhetyypit:${colors.reset}`);
-    console.log(`  Timeout-virheet: ${timeoutErrors} (${((timeoutErrors / failed) * 100).toFixed(2)}%)`);
-    console.log(`  Palvelinvirheet: ${serverErrors} (${((serverErrors / failed) * 100).toFixed(2)}%)`);
-    console.log(`  Asiakasvirheet: ${clientErrors} (${((clientErrors / failed) * 100).toFixed(2)}%)`);
-    console.log(`  Muut virheet: ${failed - timeoutErrors - serverErrors - clientErrors} (${(((failed - timeoutErrors - serverErrors - clientErrors) / failed) * 100).toFixed(2)}%)`);
-  }
-  
-  // Mallikohtaiset metriikat
-  const models = ['openai', 'anthropic', 'ollama'];
-  const modelData = {};
-  
-  models.forEach(model => {
-    const successRate = results.metrics[`${model}_success_rate`] ? 
-      results.metrics[`${model}_success_rate`].values.rate * 100 : 0;
-    const count = results.metrics[`${model}_success_rate`] ? 
-      results.metrics[`${model}_success_rate`].values.passes : 0;
-    const time = results.metrics[`${model}_processing_time`] ? 
-      results.metrics[`${model}_processing_time`].values.avg : 0;
+  try {
+    const data = await readK6ResultsFile(filePath);
     
-    modelData[model] = { successRate, count, time };
-  });
-  
-  console.log(`\n${colors.bright}Mallikohtaiset metriikat:${colors.reset}`);
-  models.forEach(model => {
-    const data = modelData[model];
-    if (data.count > 0) {
-      const rateColor = data.successRate < 50 ? colors.red : 
-        data.successRate < 70 ? colors.yellow : colors.green;
-      
-      console.log(`\n  ${colors.bright}${model.toUpperCase()}:${colors.reset}`);
-      console.log(`    Onnistumisprosentti: ${createBar(data.successRate, 30, rateColor)}`);
-      console.log(`    Pyyntöjen määrä: ${data.count}`);
-      console.log(`    Keskimääräinen vasteaika: ${(data.time / 1000).toFixed(2)} s`);
+    if (!data) {
+      console.error(`${colors.red}Failed to read or parse the results file.${colors.reset}`);
+      return;
     }
-  });
-  
-  // Johtopäätökset
-  console.log(`\n${colors.bright}${colors.cyan}=== Johtopäätökset ===${colors.reset}\n`);
-  
-  if (fallbackSuccessRate >= 70) {
-    console.log(`${colors.green}✓ Fallback-mekanismi toimii hyvin (${fallbackSuccessRate.toFixed(2)}% onnistumisprosentti)${colors.reset}`);
-  } else if (fallbackSuccessRate >= 50) {
-    console.log(`${colors.yellow}⚠ Fallback-mekanismi toimii kohtalaisesti (${fallbackSuccessRate.toFixed(2)}% onnistumisprosentti), mutta parannettavaa on${colors.reset}`);
-  } else {
-    console.log(`${colors.red}✗ Fallback-mekanismi ei toimi luotettavasti (${fallbackSuccessRate.toFixed(2)}% onnistumisprosentti)${colors.reset}`);
+    
+    // Extract metrics
+    const metrics = data.metrics || {};
+    
+    // Basic test information
+    console.log(`\n${colors.bright}Test Information:${colors.reset}`);
+    console.log(`  Duration: ${formatDuration(data.duration_ms || 0)}`);
+    console.log(`  Max VUs: ${data.vus_max || 'N/A'}`);
+    console.log(`  Iterations: ${data.iterations || 'N/A'}`);
+    console.log(`  Timestamp: ${data.timestamp || 'N/A'}`);
+    
+    // Success rates
+    console.log(`\n${colors.bright}Success Rates:${colors.reset}`);
+    
+    // Overall success rate
+    const successRate = 100 - getMetricValue(metrics, 'error_rate', 'rate', 0) * 100;
+    console.log(`  Overall Success Rate: ${createBar(successRate)}`);
+    
+    // Fallback success rate
+    const fallbackSuccessRate = getMetricValue(metrics, 'fallback_success_rate', 'rate', 0) * 100;
+    console.log(`  Fallback Success Rate: ${createBar(fallbackSuccessRate, 40, colors.cyan)}`);
+    
+    // Model-specific success rates
+    const models = ['openai', 'anthropic', 'ollama'];
+    console.log(`\n${colors.bright}Model Success Rates:${colors.reset}`);
+    
+    models.forEach(model => {
+      const modelSuccessRate = getMetricValue(metrics, `${model}_success_rate`, 'rate', 0) * 100;
+      const modelPasses = getMetricValue(metrics, `${model}_success_rate`, 'passes', 0);
+      const modelColor = model === 'openai' ? colors.green : (model === 'anthropic' ? colors.magenta : colors.blue);
+      
+      console.log(`  ${model.charAt(0).toUpperCase() + model.slice(1)}: ${createBar(modelSuccessRate, 40, modelColor)} (${modelPasses} passes)`);
+    });
+    
+    // Response times
+    console.log(`\n${colors.bright}Response Times:${colors.reset}`);
+    
+    const avgResponseTime = getMetricValue(metrics, 'response_time', 'avg', 0);
+    const minResponseTime = getMetricValue(metrics, 'response_time', 'min', 0);
+    const medResponseTime = getMetricValue(metrics, 'response_time', 'med', 0);
+    const maxResponseTime = getMetricValue(metrics, 'response_time', 'max', 0);
+    const p95ResponseTime = getMetricValue(metrics, 'response_time', 'p(95)', 0);
+    
+    console.log(`  Average: ${formatTime(avgResponseTime)}`);
+    console.log(`  Median: ${formatTime(medResponseTime)}`);
+    console.log(`  Min: ${formatTime(minResponseTime)}`);
+    console.log(`  Max: ${formatTime(maxResponseTime)}`);
+    console.log(`  p(95): ${formatTime(p95ResponseTime)}`);
+    
+    // Model-specific processing times
+    console.log(`\n${colors.bright}Model Processing Times (Average):${colors.reset}`);
+    
+    models.forEach(model => {
+      const processingTime = getMetricValue(metrics, `${model}_processing_time`, 'avg', 0);
+      const modelColor = model === 'openai' ? colors.green : (model === 'anthropic' ? colors.magenta : colors.blue);
+      
+      console.log(`  ${model.charAt(0).toUpperCase() + model.slice(1)}: ${modelColor}${formatTime(processingTime)}${colors.reset}`);
+    });
+    
+    // Error counts
+    console.log(`\n${colors.bright}Error Counts:${colors.reset}`);
+    
+    const successfulRequests = getMetricValue(metrics, 'successful_requests', 'count', 0);
+    const failedRequests = getMetricValue(metrics, 'failed_requests', 'count', 0);
+    const timeoutErrors = getMetricValue(metrics, 'timeout_errors', 'count', 0);
+    const serverErrors = getMetricValue(metrics, 'server_errors', 'count', 0);
+    const clientErrors = getMetricValue(metrics, 'client_errors', 'count', 0);
+    
+    const totalRequests = successfulRequests + failedRequests;
+    
+    console.log(`  Successful Requests: ${successfulRequests} (${((successfulRequests / totalRequests) * 100).toFixed(1)}%)`);
+    console.log(`  Failed Requests: ${failedRequests} (${((failedRequests / totalRequests) * 100).toFixed(1)}%)`);
+    console.log(`  Timeout Errors: ${timeoutErrors}`);
+    console.log(`  Server Errors: ${serverErrors}`);
+    console.log(`  Client Errors: ${clientErrors}`);
+    
+    console.log(`\n${colors.bright}Analysis Complete${colors.reset}`);
+  } catch (error) {
+    console.error(`${colors.red}Error analyzing results:${colors.reset}`, error);
   }
-  
-  if (errorRate > 30) {
-    console.log(`${colors.red}✗ Virheprosentti on korkea (${errorRate.toFixed(2)}%)${colors.reset}`);
-  } else if (errorRate > 10) {
-    console.log(`${colors.yellow}⚠ Virheprosentti on kohtuullinen (${errorRate.toFixed(2)}%)${colors.reset}`);
-  } else {
-    console.log(`${colors.green}✓ Virheprosentti on alhainen (${errorRate.toFixed(2)}%)${colors.reset}`);
-  }
-  
-  // Suositukset
-  console.log(`\n${colors.bright}${colors.cyan}=== Suositukset ===${colors.reset}\n`);
-  
-  if (fallbackSuccessRate < 70) {
-    console.log(`${colors.yellow}1. Paranna fallback-mekanismia tunnistamaan virhetilanteet paremmin${colors.reset}`);
-  }
-  
-  if (timeoutErrors > 0 && timeoutErrors / failed > 0.3) {
-    console.log(`${colors.yellow}2. Tarkista timeout-asetukset ja harkitse niiden kasvattamista${colors.reset}`);
-  }
-  
-  if (serverErrors > 0 && serverErrors / failed > 0.3) {
-    console.log(`${colors.yellow}3. Tutki palvelinvirheitä ja korjaa taustalla olevat ongelmat${colors.reset}`);
-  }
-  
-  const worstModel = Object.entries(modelData)
-    .filter(([_, data]) => data.count > 0)
-    .sort(([_, a], [__, b]) => a.successRate - b.successRate)[0];
-  
-  if (worstModel && worstModel[1].successRate < 60) {
-    console.log(`${colors.yellow}4. Tarkista ${worstModel[0]}-mallin asetukset, sillä sen onnistumisprosentti on alhainen${colors.reset}`);
-  }
-  
-  console.log('\n');
 }
 
-// Käsitellään komentoriviparametrit
+/**
+ * Gets a metric value from the metrics object
+ * @param {Object} metrics - Metrics object
+ * @param {string} metricName - Metric name
+ * @param {string} valueName - Value name within the metric
+ * @param {number} defaultValue - Default value if metric is not found
+ * @returns {number} - Metric value
+ */
+function getMetricValue(metrics, metricName, valueName, defaultValue) {
+  if (!metrics || !metrics[metricName] || !metrics[metricName].values || metrics[metricName].values[valueName] === undefined) {
+    return defaultValue;
+  }
+  return metrics[metricName].values[valueName];
+}
+
+/**
+ * Formats time in milliseconds to a human-readable string
+ * @param {number} ms - Time in milliseconds
+ * @returns {string} - Formatted time string
+ */
+function formatTime(ms) {
+  if (ms < 1000) {
+    return `${ms.toFixed(2)}ms`;
+  } else if (ms < 60000) {
+    return `${(ms / 1000).toFixed(2)}s`;
+  } else {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = ((ms % 60000) / 1000).toFixed(2);
+    return `${minutes}m ${seconds}s`;
+  }
+}
+
+/**
+ * Formats duration in milliseconds to a human-readable string
+ * @param {number} ms - Duration in milliseconds
+ * @returns {string} - Formatted duration string
+ */
+function formatDuration(ms) {
+  if (ms < 1000) {
+    return `${ms}ms`;
+  } else if (ms < 60000) {
+    return `${(ms / 1000).toFixed(1)}s`;
+  } else if (ms < 3600000) {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}m ${seconds}s`;
+  } else {
+    const hours = Math.floor(ms / 3600000);
+    const minutes = Math.floor((ms % 3600000) / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
+}
+
+// Process command line arguments
 const args = process.argv.slice(2);
 const filePath = args[0] || 'fallback-test-results.json';
 
-// Suorita analyysi
+// Run the analysis
 analyzeFallbackResults(filePath);

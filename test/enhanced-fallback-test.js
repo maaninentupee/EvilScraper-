@@ -1,10 +1,10 @@
 /**
- * Testi AIGatewayEnhancer-luokan toiminnalle
+ * Test for AIGatewayEnhancer class functionality
  * 
- * Tämä skripti testaa AIGatewayEnhancer-luokan toimintaa erilaisissa tilanteissa,
- * kuten palveluntarjoajien virhetilanteissa ja fallback-mekanismin toiminnassa.
+ * This script tests the functionality of the AIGatewayEnhancer class in various situations,
+ * such as service provider error scenarios and fallback mechanism operation.
  * 
- * Käyttö: node test/enhanced-fallback-test.js
+ * Usage: node test/enhanced-fallback-test.js
  */
 
 const { NestFactory } = require('@nestjs/core');
@@ -12,22 +12,22 @@ const { AppModule } = require('../dist/app.module');
 const fs = require('fs');
 const path = require('path');
 
-// Testiasetukset
+// Test settings
 const TEST_ITERATIONS = 10;
 const PROVIDERS = ['openai', 'anthropic', 'ollama'];
 const ERROR_TYPES = ['timeout', 'rate_limit', 'invalid_request', 'all'];
 const STRATEGIES = ['COST_OPTIMIZED', 'PRIORITY', 'PERFORMANCE', 'LOAD_BALANCED'];
 
-// Testipromptit
+// Test prompts
 const TEST_PROMPTS = [
-  'Kerro minulle Suomen historiasta',
-  'Miten tekoäly toimii?',
-  'Kirjoita runo keväästä',
-  'Selitä kvanttimekaniikan perusteet',
-  'Mikä on ilmastonmuutos?'
+  'Tell me about the history of Finland',
+  'How does artificial intelligence work?',
+  'Write a poem about spring',
+  'Explain the basics of quantum mechanics',
+  'What is climate change?'
 ];
 
-// Testitulokset
+// Test results
 const results = {
   total: 0,
   success: 0,
@@ -40,7 +40,7 @@ const results = {
   totalResponseTime: 0
 };
 
-// Alusta tulokset
+// Initialize results
 PROVIDERS.forEach(provider => {
   results.byProvider[provider] = {
     total: 0,
@@ -68,38 +68,38 @@ STRATEGIES.forEach(strategy => {
   };
 });
 
-// Suorita testit
+// Run tests
 async function runTests() {
-  console.log('Käynnistetään AIGatewayEnhancer-testit...');
+  console.log('Starting AIGatewayEnhancer tests...');
   
   try {
-    // Käynnistä NestJS-sovellus
+    // Start NestJS application
     const app = await NestFactory.createApplicationContext(AppModule);
   
-    // Haetaan tarvittavat palvelut
+    // Get required services
     const { AIGatewayEnhancer } = require('../dist/services/AIGatewayEnhancer');
     const { ProviderHealthMonitor } = require('../dist/services/ProviderHealthMonitor');
     
     const aiGatewayEnhancer = app.get(AIGatewayEnhancer);
     const providerHealthMonitor = app.get(ProviderHealthMonitor);
   
-    console.log('Palvelut alustettu, aloitetaan testit');
+    console.log('Services initialized, starting tests');
   
-    // Nollataan terveystiedot ennen testejä
+    // Reset health data before tests
     providerHealthMonitor.resetStats();
   
-    // Suoritetaan testit eri asetuksilla
+    // Run tests with different settings
     for (const strategy of STRATEGIES) {
       for (const errorType of ERROR_TYPES) {
         for (let i = 0; i < TEST_ITERATIONS; i++) {
           const prompt = TEST_PROMPTS[Math.floor(Math.random() * TEST_PROMPTS.length)];
           
           try {
-            console.log(`Suoritetaan testi: strategia=${strategy}, virhetyyppi=${errorType}, iteraatio=${i+1}`);
+            console.log(`Running test: strategy=${strategy}, errorType=${errorType}, iteration=${i+1}`);
             
             const startTime = Date.now();
             
-            // Suorita testi
+            // Run test
             const result = await aiGatewayEnhancer.processWithSmartFallback('text-generation', prompt, {
               strategy: strategy,
               testMode: true,
@@ -109,7 +109,7 @@ async function runTests() {
             const endTime = Date.now();
             const responseTime = endTime - startTime;
             
-            // Päivitä tulokset
+            // Update results
             results.total++;
             results.byStrategy[strategy].total++;
             results.byErrorType[errorType].total++;
@@ -140,10 +140,10 @@ async function runTests() {
             
             results.totalResponseTime += responseTime;
             
-            console.log(`Testi valmis: onnistui=${result.success}, käytti fallbackia=${result.usedFallback || false}, palveluntarjoaja=${result.provider || 'ei tiedossa'}, vastausaika=${responseTime}ms`);
+            console.log(`Test complete: success=${result.success}, used fallback=${result.usedFallback || false}, provider=${result.provider || 'unknown'}, response time=${responseTime}ms`);
             
           } catch (error) {
-            console.error(`Virhe testin suorituksessa: ${error.message}`);
+            console.error(`Error during test execution: ${error.message}`);
             results.total++;
             results.failed++;
             results.byStrategy[strategy].total++;
@@ -155,13 +155,13 @@ async function runTests() {
       }
     }
     
-    // Laske keskimääräinen vastausaika
+    // Calculate average response time
     results.averageResponseTime = results.totalResponseTime / results.total;
     
-    // Tallenna tulokset
+    // Save results
     const resultsPath = path.join(__dirname, 'results', 'enhanced-fallback-results.json');
     
-    // Varmista, että hakemisto on olemassa
+    // Ensure directory exists
     const resultsDir = path.dirname(resultsPath);
     if (!fs.existsSync(resultsDir)) {
       fs.mkdirSync(resultsDir, { recursive: true });
@@ -169,17 +169,17 @@ async function runTests() {
     
     fs.writeFileSync(resultsPath, JSON.stringify(results, null, 2));
     
-    console.log('Testit suoritettu onnistuneesti!');
-    console.log(`Tulokset tallennettu: ${resultsPath}`);
-    console.log(`Yhteenveto: yhteensä=${results.total}, onnistuneet=${results.success}, fallback=${results.fallback}, epäonnistuneet=${results.failed}, keskimääräinen vastausaika=${results.averageResponseTime.toFixed(2)}ms`);
+    console.log('Tests completed successfully!');
+    console.log(`Results saved to: ${resultsPath}`);
+    console.log(`Summary: total=${results.total}, successful=${results.success}, fallback=${results.fallback}, failed=${results.failed}, average response time=${results.averageResponseTime.toFixed(2)}ms`);
     
-    // Sulje sovellus
+    // Close application
     await app.close();
     
   } catch (error) {
-    console.error(`Virhe testien suorituksessa: ${error}`);
+    console.error(`Error running tests: ${error}`);
   }
 }
 
-// Käynnistä testit
+// Start tests
 runTests();

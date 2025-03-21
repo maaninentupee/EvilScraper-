@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Tämä skripti luo grafiikan vasteajoista CSV-tiedoston perusteella
-# Käyttö: ./create-response-time-chart.sh [csv-tiedosto]
+# This script creates a response time chart based on a CSV file
+# Usage: ./create-response-time-chart.sh [csv-file]
 
 CSV_FILE=$1
 OUTPUT_DIR="./results/charts"
@@ -9,32 +9,32 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 PNG_OUTPUT="${OUTPUT_DIR}/response_time_chart_${TIMESTAMP}.png"
 HTML_OUTPUT="${OUTPUT_DIR}/response_time_chart_${TIMESTAMP}.html"
 
-# Varmistetaan, että tulostenhakemisto on olemassa
+# Ensure that the output directory exists
 mkdir -p $OUTPUT_DIR
 
 if [ -z "$CSV_FILE" ]; then
-  echo "Virhe: CSV-tiedostoa ei määritelty."
-  echo "Käyttö: ./create-response-time-chart.sh [csv-tiedosto]"
+  echo "Error: CSV file not specified."
+  echo "Usage: ./create-response-time-chart.sh [csv-file]"
   exit 1
 fi
 
 if [ ! -f "$CSV_FILE" ]; then
-  echo "Virhe: CSV-tiedostoa $CSV_FILE ei löydy."
+  echo "Error: CSV file $CSV_FILE not found."
   exit 1
 fi
 
-echo "Luodaan grafiikka tiedostosta: $CSV_FILE"
-echo "Grafiikka tallennetaan tiedostoon: $PNG_OUTPUT"
+echo "Creating chart from file: $CSV_FILE"
+echo "Chart will be saved to file: $PNG_OUTPUT"
 
-# Tarkistetaan, onko gnuplot asennettu
+# Check if gnuplot is installed
 if ! command -v gnuplot &> /dev/null; then
-  echo "Varoitus: gnuplot ei ole asennettu. Luodaan HTML-grafiikka vaihtoehtoisesti."
+  echo "Warning: gnuplot is not installed. Creating HTML chart as an alternative."
   
-  # Luodaan yksinkertainen HTML-grafiikka Chart.js:llä
+  # Create a simple HTML chart using Chart.js
   echo "<!DOCTYPE html>
 <html>
 <head>
-  <title>Kuormitustestin tulokset</title>
+  <title>Load Test Results</title>
   <script src=\"https://cdn.jsdelivr.net/npm/chart.js\"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
@@ -44,32 +44,32 @@ if ! command -v gnuplot &> /dev/null; then
 </head>
 <body>
   <div class=\"container\">
-    <h1>Kuormitustestin tulokset</h1>
-    <p>Testitulokset: $(basename $CSV_FILE)</p>
-    <p>Luotu: $(date)</p>
+    <h1>Load Test Results</h1>
+    <p>Test results: $(basename $CSV_FILE)</p>
+    <p>Generated: $(date)</p>
     
-    <h2>HTTP-pyyntöjen kesto</h2>
+    <h2>HTTP Request Duration</h2>
     <div class=\"chart-container\">
       <canvas id=\"httpDurationChart\"></canvas>
     </div>
     
-    <h2>AI-käsittelyaika</h2>
+    <h2>AI Processing Time</h2>
     <div class=\"chart-container\">
       <canvas id=\"aiProcessingChart\"></canvas>
     </div>
     
-    <h2>Virheprosentti</h2>
+    <h2>Error Rate</h2>
     <div class=\"chart-container\">
       <canvas id=\"errorRateChart\"></canvas>
     </div>
   </div>
 
   <script>
-    // Ladataan CSV-tiedosto
+    // Load CSV file
     fetch('$(basename $CSV_FILE)')
       .then(response => response.text())
       .then(csvData => {
-        // Parsitaan CSV-data
+        // Parse CSV data
         const lines = csvData.split('\\n');
         const headers = lines[0].split(',');
         const data = [];
@@ -84,18 +84,18 @@ if ! command -v gnuplot &> /dev/null; then
           });
         }
         
-        // Järjestetään data aikajärjestykseen
+        // Sort data by timestamp
         data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
         
-        // Erotellaan eri metriikat
+        // Separate different metrics
         const httpDuration = data.filter(item => item.metric.includes('http_req_duration'));
         const aiProcessing = data.filter(item => item.metric.includes('ai_processing_time'));
         const errorRate = data.filter(item => item.metric.includes('error_rate'));
         
-        // Luodaan kuvaajat
-        createChart('httpDurationChart', httpDuration, 'HTTP-pyyntöjen kesto (ms)', 'blue');
-        createChart('aiProcessingChart', aiProcessing, 'AI-käsittelyaika (ms)', 'green');
-        createChart('errorRateChart', errorRate, 'Virheprosentti (%)', 'red');
+        // Create charts
+        createChart('httpDurationChart', httpDuration, 'HTTP Request Duration (ms)', 'blue');
+        createChart('aiProcessingChart', aiProcessing, 'AI Processing Time (ms)', 'green');
+        createChart('errorRateChart', errorRate, 'Error Rate (%)', 'red');
       });
     
     function createChart(canvasId, data, label, color) {
@@ -134,51 +134,51 @@ if ! command -v gnuplot &> /dev/null; then
 </body>
 </html>" > $HTML_OUTPUT
   
-  echo "HTML-grafiikka luotu: $HTML_OUTPUT"
+  echo "HTML chart created: $HTML_OUTPUT"
   exit 0
 fi
 
-# Luodaan gnuplot-skripti
+# Create gnuplot script
 GNUPLOT_SCRIPT=$(mktemp)
 
 echo "set terminal png size 1200,800
 set output '$PNG_OUTPUT'
-set title 'Kuormitustestin tulokset'
-set xlabel 'Aika'
-set ylabel 'Arvo'
+set title 'Load Test Results'
+set xlabel 'Time'
+set ylabel 'Value'
 set grid
 set key outside right top
 set datafile separator ','
 
-# Muotoillaan aikaleima
+# Format timestamp
 set xdata time
 set timefmt '%Y-%m-%dT%H:%M:%S'
 set format x '%H:%M:%S'
 
-# Piirretään HTTP-pyyntöjen kesto
-plot '$CSV_FILE' using 1:3 with lines title 'HTTP-pyyntöjen kesto (ms)' lc rgb 'blue' smooth bezier,\\
+# Plot HTTP request duration
+plot '$CSV_FILE' using 1:3 with lines title 'HTTP Request Duration (ms)' lc rgb 'blue' smooth bezier,\\
      '$CSV_FILE' using 1:3 with points title '' lc rgb 'blue' pt 7 ps 0.5
 
-# Piirretään AI-käsittelyaika, jos saatavilla
+# Plot AI processing time, if available
 if (system('grep ai_processing_time $CSV_FILE > /dev/null') == 0) {
   set output '${PNG_OUTPUT%.png}_ai.png'
-  plot '$CSV_FILE' using 1:(\$2 eq 'ai_processing_time' ? \$3 : 1/0) with lines title 'AI-käsittelyaika (ms)' lc rgb 'green' smooth bezier,\\
+  plot '$CSV_FILE' using 1:(\$2 eq 'ai_processing_time' ? \$3 : 1/0) with lines title 'AI Processing Time (ms)' lc rgb 'green' smooth bezier,\\
        '$CSV_FILE' using 1:(\$2 eq 'ai_processing_time' ? \$3 : 1/0) with points title '' lc rgb 'green' pt 7 ps 0.5
 }
 
-# Piirretään virheprosentti
+# Plot error rate
 set output '${PNG_OUTPUT%.png}_error.png'
-plot '$CSV_FILE' using 1:(\$2 eq 'error_rate' ? \$3*100 : 1/0) with lines title 'Virheprosentti (%)' lc rgb 'red' smooth bezier,\\
+plot '$CSV_FILE' using 1:(\$2 eq 'error_rate' ? \$3*100 : 1/0) with lines title 'Error Rate (%)' lc rgb 'red' smooth bezier,\\
      '$CSV_FILE' using 1:(\$2 eq 'error_rate' ? \$3*100 : 1/0) with points title '' lc rgb 'red' pt 7 ps 0.5" > $GNUPLOT_SCRIPT
 
-# Suoritetaan gnuplot
+# Run gnuplot
 gnuplot $GNUPLOT_SCRIPT
 
-# Siivotaan väliaikaistiedostot
+# Clean up temporary files
 rm $GNUPLOT_SCRIPT
 
-echo "Grafiikka luotu onnistuneesti!"
-echo "Tiedostot:"
+echo "Chart created successfully!"
+echo "Files:"
 echo "- ${PNG_OUTPUT}"
 echo "- ${PNG_OUTPUT%.png}_ai.png"
 echo "- ${PNG_OUTPUT%.png}_error.png"

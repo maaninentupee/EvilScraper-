@@ -2,13 +2,13 @@ import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Pidetään aikakatkaisu kohtuullisena
-jest.setTimeout(10000); // 10 sekuntia
+// Keep timeout reasonable
+jest.setTimeout(10000); // 10 seconds
 
 describe('Load Testing E2E Tests', () => {
   const API_BASE_URL = 'http://localhost:3001';
   
-  // Tarkistetaan, että palvelin on käynnissä ennen testien ajamista
+  // Check that the server is running before running tests
   beforeAll(async () => {
     try {
       await axios.get(`${API_BASE_URL}/`);
@@ -19,7 +19,7 @@ describe('Load Testing E2E Tests', () => {
     }
   });
 
-  // Ohitetaan hitaat kuormitustestit
+  // Skip slow load tests
   describe.skip('Basic Load Testing', () => {
     it('Should handle multiple concurrent requests to root endpoint', async () => {
       try {
@@ -30,7 +30,7 @@ describe('Load Testing E2E Tests', () => {
         
         const responses = await Promise.all(requests);
         
-        // Tarkistetaan, että kaikki pyynnöt onnistuivat
+        // Check that all requests were successful
         responses.forEach(response => {
           expect(response.status).toBe(200);
           expect(response.data).toHaveProperty('message');
@@ -43,9 +43,9 @@ describe('Load Testing E2E Tests', () => {
     });
   });
 
-  // Ohitetaan hitaat AI-testit
+  // Skip slow AI tests
   describe.skip('AI Load Test Endpoint', () => {
-    // Testataan load-test endpointin toiminta
+    // Test the load-test endpoint functionality
     it('POST /ai/load-test/local should handle a small load test', async () => {
       try {
         const providers = await axios.get(`${API_BASE_URL}/ai/providers`);
@@ -56,7 +56,7 @@ describe('Load Testing E2E Tests', () => {
           return;
         }
         
-        // Pieni kuormitustesti 2 iteraatiolla ja lyhyellä promptilla
+        // Small load test with 2 iterations and a short prompt
         const response = await axios.post(`${API_BASE_URL}/ai/load-test/local`, {
           prompt: 'Hello, how are you?',
           iterations: 2
@@ -71,10 +71,10 @@ describe('Load Testing E2E Tests', () => {
     });
   });
 
-  // Testataan vain, että skriptit ovat olemassa
+  // Test only that scripts exist
   describe('Load Test Scripts', () => {
     it('Should verify that load test scripts exist', () => {
-      // Tarkistetaan, että kuormitustestiskriptit ovat olemassa
+      // Check that load test scripts exist
       const scriptFiles = [
         path.resolve(process.cwd(), 'load-test.sh'),
         path.resolve(process.cwd(), 'load-test.js'),
@@ -89,7 +89,7 @@ describe('Load Testing E2E Tests', () => {
     });
     
     it('Should verify that load test documentation exists', () => {
-      // Tarkistetaan, että kuormitustestidokumentaatio on olemassa
+      // Check that load test documentation exists
       const docFiles = [
         path.resolve(process.cwd(), 'LOAD_TESTING.md'),
         path.resolve(process.cwd(), 'README-LOAD-TESTING.md')

@@ -4,7 +4,7 @@ import { AnthropicProvider } from '../providers/AnthropicProvider';
 import { OpenAIProvider } from '../providers/OpenAIProvider';
 
 /**
- * Palveluntarjoajan ominaisuudet
+ * Service provider capabilities
  */
 export interface ProviderCapabilities {
     name: string;
@@ -17,31 +17,31 @@ export interface ProviderCapabilities {
 }
 
 /**
- * Luokka, joka tunnistaa palveluntarjoajien ominaisuudet
+ * Class that detects service provider capabilities
  */
 @Injectable()
 export class ProviderCapabilityDetector {
     private readonly logger = new Logger(ProviderCapabilityDetector.name);
     
-    // Palveluntarjoajien ominaisuudet
+    // Service provider capabilities
     private providerCapabilities: Map<string, ProviderCapabilities> = new Map();
     
     constructor() {}
     
     /**
-     * Tunnistaa palveluntarjoajan ominaisuudet
-     * @param provider Palveluntarjoaja
-     * @returns Palveluntarjoajan ominaisuudet
+     * Detects service provider capabilities
+     * @param provider Service provider
+     * @returns Service provider capabilities
      */
     public detectCapabilities(provider: BaseProvider): ProviderCapabilities {
         const name = this.getProviderName(provider);
         
-        // Jos ominaisuudet on jo tunnistettu, palautetaan ne
+        // If capabilities have already been detected, return them
         if (this.providerCapabilities.has(name)) {
             return this.providerCapabilities.get(name);
         }
         
-        // Tunnistetaan ominaisuudet palveluntarjoajan tyypin perusteella
+        // Detect capabilities based on provider type
         let capabilities: ProviderCapabilities;
         
         if (provider instanceof AnthropicProvider) {
@@ -52,20 +52,20 @@ export class ProviderCapabilityDetector {
                 supportsSystemPrompt: true,
                 maxContextLength: 100000,
                 maxBatchSize: 20,
-                recommendedBatchSize: 5
+                recommendedBatchSize: 10
             };
         } else if (provider instanceof OpenAIProvider) {
             capabilities = {
                 name,
-                supportsBatch: false,  // OpenAI ei tue batch-käsittelyä suoraan
+                supportsBatch: true,
                 supportsStreaming: true,
                 supportsSystemPrompt: true,
                 maxContextLength: 16000,
-                maxBatchSize: 1,
-                recommendedBatchSize: 1
+                maxBatchSize: 50,
+                recommendedBatchSize: 20
             };
         } else {
-            // Oletusominaisuudet muille palveluntarjoajille
+            // Default capabilities for other providers
             capabilities = {
                 name,
                 supportsBatch: false,
@@ -77,51 +77,89 @@ export class ProviderCapabilityDetector {
             };
         }
         
-        // Tallennetaan ominaisuudet
+        // Store capabilities for future use
         this.providerCapabilities.set(name, capabilities);
-        
-        this.logger.log(`Palveluntarjoajan ${name} ominaisuudet tunnistettu: ` +
-            `batch: ${capabilities.supportsBatch}, ` +
-            `streaming: ${capabilities.supportsStreaming}, ` +
-            `system prompt: ${capabilities.supportsSystemPrompt}`);
+        this.logger.debug(`Detected capabilities for provider ${name}: ${JSON.stringify(capabilities)}`);
         
         return capabilities;
     }
     
     /**
-     * Palauttaa palveluntarjoajan nimen
-     * @param provider Palveluntarjoaja
-     * @returns Palveluntarjoajan nimi
+     * Gets the name of the service provider
+     * @param provider Service provider
+     * @returns Service provider name
      */
     private getProviderName(provider: BaseProvider): string {
-        if (provider instanceof AnthropicProvider) {
-            return 'anthropic';
-        } else if (provider instanceof OpenAIProvider) {
-            return 'openai';
-        } else {
-            // Yritetään tunnistaa nimi luokan nimen perusteella
-            const className = provider.constructor.name;
-            
-            if (className.includes('Provider')) {
-                return className.replace('Provider', '').toLowerCase();
-            }
-            
+        try {
+            return provider.getName();
+        } catch (error) {
+            this.logger.error(`Failed to get provider name: ${error.message}`);
             return 'unknown';
         }
     }
     
     /**
-     * Palauttaa palveluntarjoajan ominaisuudet nimen perusteella
-     * @param name Palveluntarjoajan nimi
-     * @returns Palveluntarjoajan ominaisuudet tai undefined jos ei löydy
+     * Checks if the provider supports batch processing
+     * @param provider Service provider
+     * @returns True if the provider supports batch processing
+     */
+    public supportsBatch(provider: BaseProvider): boolean {
+        const capabilities = this.detectCapabilities(provider);
+        return capabilities.supportsBatch;
+    }
+    
+    /**
+     * Checks if the provider supports streaming
+     * @param provider Service provider
+     * @returns True if the provider supports streaming
+     */
+    public supportsStreaming(provider: BaseProvider): boolean {
+        const capabilities = this.detectCapabilities(provider);
+        return capabilities.supportsStreaming;
+    }
+    
+    /**
+     * Gets the maximum batch size for the provider
+     * @param provider Service provider
+     * @returns Maximum batch size
+     */
+    public getMaxBatchSize(provider: BaseProvider): number {
+        const capabilities = this.detectCapabilities(provider);
+        return capabilities.maxBatchSize;
+    }
+    
+    /**
+     * Gets the recommended batch size for the provider
+     * @param provider Service provider
+     * @returns Recommended batch size
+     */
+    public getRecommendedBatchSize(provider: BaseProvider): number {
+        const capabilities = this.detectCapabilities(provider);
+        return capabilities.recommendedBatchSize;
+    }
+    
+    /**
+     * Gets the maximum context length for the provider
+     * @param provider Service provider
+     * @returns Maximum context length
+     */
+    public getMaxContextLength(provider: BaseProvider): number {
+        const capabilities = this.detectCapabilities(provider);
+        return capabilities.maxContextLength;
+    }
+    
+    /**
+     * Gets the service provider capabilities by name
+     * @param name Service provider name
+     * @returns Service provider capabilities or undefined if not found
      */
     public getCapabilitiesByName(name: string): ProviderCapabilities | undefined {
         return this.providerCapabilities.get(name);
     }
     
     /**
-     * Palauttaa kaikki palveluntarjoajat, jotka tukevat batch-käsittelyä
-     * @returns Lista palveluntarjoajien nimistä
+     * Gets all service providers that support batch processing
+     * @returns List of service provider names
      */
     public getBatchSupportingProviders(): string[] {
         const result: string[] = [];
@@ -133,25 +171,5 @@ export class ProviderCapabilityDetector {
         }
         
         return result;
-    }
-    
-    /**
-     * Tarkistaa, tukeeko palveluntarjoaja batch-käsittelyä
-     * @param name Palveluntarjoajan nimi
-     * @returns true, jos palveluntarjoaja tukee batch-käsittelyä
-     */
-    public supportsBatch(name: string): boolean {
-        const capabilities = this.providerCapabilities.get(name);
-        return capabilities ? capabilities.supportsBatch : false;
-    }
-    
-    /**
-     * Palauttaa suositellun batch-koon palveluntarjoajalle
-     * @param name Palveluntarjoajan nimi
-     * @returns Suositeltu batch-koko
-     */
-    public getRecommendedBatchSize(name: string): number {
-        const capabilities = this.providerCapabilities.get(name);
-        return capabilities ? capabilities.recommendedBatchSize : 1;
     }
 }

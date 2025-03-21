@@ -1,0 +1,10 @@
+Finnish Content Report
+==================================================
+
+This report shows files containing Finnish text that needs translation.
+
+Scanning dist directory for Finnish content...
+
+
+==================================================
+Summary: Found 0 Finnish occurrences in 0 files in the dist directory.

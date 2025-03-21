@@ -5,34 +5,34 @@ import { ProviderHealthMonitor, ProviderHealth } from './ProviderHealthMonitor';
 import { ErrorClassifier } from './utils/ErrorClassifier';
 
 /**
- * Valinnat AIGatewayEnhancer-luokan käyttöön
+ * Options for the AIGatewayEnhancer class
  */
 export interface EnhancedProcessingOptions {
-    // Valintastrategia
+    // Selection strategy
     strategy?: SelectionStrategy;
     
-    // Haluttu palveluntarjoaja
+    // Preferred service provider
     preferredProvider?: string;
     
-    // Käytetäänkö välimuistia
+    // Whether to use cache
     cacheResults?: boolean;
     
-    // Testitila
+    // Test mode
     testMode?: boolean;
     
-    // Simuloitava virhetyyppi testitilassa
+    // Error type to simulate in test mode
     testError?: string;
 }
 
 /**
- * Paranneltu AIGateway-luokka, joka tarjoaa älykkään fallback-mekanismin
- * ja muita parannuksia AI-pyyntöjen käsittelyyn
+ * Enhanced AIGateway class that provides smart fallback mechanism
+ * and other improvements for AI request processing
  */
 @Injectable()
 export class AIGatewayEnhancer {
     private readonly logger = new Logger(AIGatewayEnhancer.name);
     
-    // Uudelleenyritysasetukset
+    // Retry settings
     private readonly MAX_RETRIES = 3;
     private readonly RETRY_DELAY_MS = 500;
     
@@ -44,11 +44,11 @@ export class AIGatewayEnhancer {
     ) {}
     
     /**
-     * Käsittelee AI-pyynnön älykkäällä fallback-mekanismilla
-     * @param taskType Tehtävän tyyppi
-     * @param input Käyttäjän syöte
-     * @param options Valinnat
-     * @returns AI-vastaus
+     * Processes an AI request with smart fallback mechanism
+     * @param taskType Task type
+     * @param input User input
+     * @param options Options
+     * @returns AI response
      */
     public async processWithSmartFallback(
         taskType: string,
@@ -64,17 +64,17 @@ export class AIGatewayEnhancer {
                 testError = null
             } = options;
             
-            // Testitilassa simuloidaan virheitä
+            // Simulate errors in test mode
             if (testMode && testError) {
-                this.logger.log(`Testitila: simuloidaan virhetyyppiä ${testError}`);
+                this.logger.log(`Test mode: simulating error type ${testError}`);
                 return this.simulateError(testError, taskType);
             }
             
-            // Tarkistetaan välimuistista, jos välimuistin käyttö on sallittu
+            // Check cache if caching is enabled
             if (cacheResults) {
                 const cachedResult = this.aiGateway.getCachedResult(taskType, input);
                 if (cachedResult) {
-                    this.logger.log(`Löydettiin välimuistista tulos pyynnölle "${input.substring(0, 30)}..."`);
+                    this.logger.log(`Found result in cache for request "${input.substring(0, 30)}..."`);
                     return {
                         ...cachedResult,
                         fromCache: true
@@ -82,18 +82,18 @@ export class AIGatewayEnhancer {
                 }
             }
             
-            // Valitaan palveluntarjoaja
+            // Select a service provider
             let providerName = preferredProvider;
             
             if (!providerName) {
-                // Käytetään valintastrategiaa parhaan palveluntarjoajan valitsemiseen
+                // Use the selection strategy to select the best provider
                 providerName = this.selectionStrategy.selectBestProvider(taskType, strategy);
                 
                 if (!providerName) {
-                    this.logger.error('Yhtään palveluntarjoajaa ei ole käytettävissä');
+                    this.logger.error('No service providers are available');
                     return {
                         success: false,
-                        error: 'Yhtään palveluntarjoajaa ei ole käytettävissä',
+                        error: 'No service providers are available',
                         errorType: ErrorClassifier.ERROR_TYPES.PROVIDER_UNAVAILABLE,
                         provider: 'none',
                         model: 'none'
@@ -101,28 +101,28 @@ export class AIGatewayEnhancer {
                 }
             }
             
-            // Haetaan mallin nimi
+            // Get the model name
             const modelName = this.aiGateway.getModelNameForProvider(providerName, taskType);
             
             if (!modelName) {
-                this.logger.error(`Mallia ei löydy palveluntarjoajalle ${providerName} ja tehtävätyypille ${taskType}`);
+                this.logger.error(`No model found for provider ${providerName} and task type ${taskType}`);
                 return {
                     success: false,
-                    error: `Mallia ei löydy palveluntarjoajalle ${providerName} ja tehtävätyypille ${taskType}`,
+                    error: `No model found for provider ${providerName} and task type ${taskType}`,
                     errorType: ErrorClassifier.ERROR_TYPES.MODEL_UNAVAILABLE,
                     provider: providerName,
                     model: 'none'
                 };
             }
             
-            // Käsitellään pyyntö
+            // Process the request
             const startTime = Date.now();
             const result = await this.aiGateway.processAIRequest(taskType, input, modelName);
             const processingTime = Date.now() - startTime;
             
-            // Jos pyyntö onnistui, palautetaan tulos
+            // If the request is successful, return the result
             if (result.success) {
-                // Tallennetaan tulos välimuistiin, jos välimuistin käyttö on sallittu
+                // Cache the result if caching is enabled
                 if (cacheResults) {
                     this.aiGateway.cacheResult(taskType, input, {
                         ...result,
@@ -136,25 +136,25 @@ export class AIGatewayEnhancer {
                 };
             }
             
-            // Jos pyyntö epäonnistui, yritetään fallback-mekanismia
-            this.logger.warn(`Palveluntarjoaja ${providerName} epäonnistui, yritetään fallback-mekanismia`);
+            // If the request fails, try the fallback mechanism
+            this.logger.warn(`Provider ${providerName} failed, trying fallback mechanism`);
             
-            // Tarkistetaan, kannattaako yrittää uudelleen
+            // Check if the error is retryable
             if (!this.errorClassifier.isRetryable(result.errorType)) {
-                this.logger.warn(`Virhetyyppi ${result.errorType} ei ole uudelleenyritettävä, palautetaan virhe`);
+                this.logger.warn(`Error type ${result.errorType} is not retryable, returning error`);
                 return result;
             }
             
-            // Yritetään fallback-mekanismia
+            // Try the fallback mechanism
             return await this.handleFallback(taskType, input, providerName, options);
             
         } catch (error) {
-            // Käsitellään odottamattomat virheet
-            this.logger.error(`Odottamaton virhe: ${error.message}`);
+            // Handle unexpected errors
+            this.logger.error(`Unexpected error: ${error.message}`);
             
             return {
                 success: false,
-                error: `Odottamaton virhe: ${error.message}`,
+                error: `Unexpected error: ${error.message}`,
                 errorType: ErrorClassifier.ERROR_TYPES.UNKNOWN,
                 provider: 'none',
                 model: 'none'
@@ -163,11 +163,11 @@ export class AIGatewayEnhancer {
     }
     
     /**
-     * Käsittelee useita AI-pyyntöjä rinnakkain älykkäällä fallback-mekanismilla
-     * @param taskType Tehtävän tyyppi
-     * @param inputs Käyttäjän syötteet
-     * @param options Valinnat
-     * @returns AI-vastaukset
+     * Processes multiple AI requests in parallel with smart fallback mechanism
+     * @param taskType Task type
+     * @param inputs User inputs
+     * @param options Options
+     * @returns AI responses
      */
     public async processBatchWithSmartFallback(
         taskType: string,
@@ -176,7 +176,7 @@ export class AIGatewayEnhancer {
     ): Promise<AIResponse[]> {
         const results: AIResponse[] = [];
         
-        // Käsitellään jokainen syöte rinnakkain
+        // Process each input in parallel
         const promises = inputs.map(async (input, index) => {
             try {
                 const result = await this.processWithSmartFallback(taskType, input, options);
@@ -186,7 +186,7 @@ export class AIGatewayEnhancer {
                     index,
                     result: {
                         success: false,
-                        error: `Virhe käsiteltäessä syötettä ${index}: ${error.message}`,
+                        error: `Error processing input ${index}: ${error.message}`,
                         errorType: ErrorClassifier.ERROR_TYPES.UNKNOWN,
                         provider: 'none',
                         model: 'none'
@@ -195,23 +195,23 @@ export class AIGatewayEnhancer {
             }
         });
         
-        // Odotetaan, että kaikki pyynnöt on käsitelty
+        // Wait for all requests to complete
         const processedResults = await Promise.all(promises);
         
-        // Järjestetään tulokset alkuperäiseen järjestykseen
+        // Sort the results in the original order
         processedResults.sort((a, b) => a.index - b.index);
         
-        // Palautetaan tulokset
+        // Return the results
         return processedResults.map(item => item.result);
     }
     
     /**
-     * Käsittelee fallback-mekanismin
-     * @param taskType Tehtävän tyyppi
-     * @param input Käyttäjän syöte
-     * @param excludeProvider Poissuljettu palveluntarjoaja
-     * @param options Valinnat
-     * @returns AI-vastaus
+     * Handles the fallback mechanism
+     * @param taskType Task type
+     * @param input User input
+     * @param excludeProvider Excluded provider
+     * @param options Options
+     * @returns AI response
      */
     private async handleFallback(
         taskType: string,
@@ -224,16 +224,16 @@ export class AIGatewayEnhancer {
             cacheResults = true
         } = options;
         
-        // Yritetään uudelleen eri palveluntarjoajilla
+        // Try again with different providers
         for (let retryCount = 0; retryCount < this.MAX_RETRIES; retryCount++) {
-            // Odotetaan ennen uudelleenyritystä
+            // Wait before retrying
             if (retryCount > 0) {
                 await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY_MS));
             }
             
-            this.logger.log(`Yritetään fallback-mekanismia, yritys ${retryCount + 1}/${this.MAX_RETRIES}`);
+            this.logger.log(`Trying fallback mechanism, attempt ${retryCount + 1}/${this.MAX_RETRIES}`);
             
-            // Valitaan seuraava palveluntarjoaja
+            // Select the next provider
             const providerName = this.selectionStrategy.selectNextProvider(
                 taskType,
                 excludeProvider,
@@ -241,28 +241,28 @@ export class AIGatewayEnhancer {
             );
             
             if (!providerName) {
-                this.logger.error(`Ei löydy vaihtoehtoisia palveluntarjoajia uudelleenyritykselle ${retryCount + 1}`);
+                this.logger.error(`No alternative providers found for retry ${retryCount + 1}`);
                 continue;
             }
             
-            this.logger.log(`Valittu vaihtoehtoinen palveluntarjoaja: ${providerName}`);
+            this.logger.log(`Selected alternative provider: ${providerName}`);
             
             try {
-                // Haetaan mallin nimi
+                // Get the model name
                 const modelName = this.aiGateway.getModelNameForProvider(providerName, taskType);
                 
                 if (!modelName) {
-                    this.logger.warn(`Mallia ei löydy palveluntarjoajalle ${providerName} ja tehtävätyypille ${taskType}`);
+                    this.logger.warn(`No model found for provider ${providerName} and task type ${taskType}`);
                     continue;
                 }
                 
-                // Käsitellään pyyntö
+                // Process the request
                 const startTime = Date.now();
                 const result = await this.aiGateway.processAIRequest(taskType, input, modelName);
                 const processingTime = Date.now() - startTime;
                 
                 if (result.success) {
-                    // Tallennetaan tulos välimuistiin, jos välimuistin käyttö on sallittu
+                    // Cache the result if caching is enabled
                     if (cacheResults) {
                         this.aiGateway.cacheResult(taskType, input, {
                             ...result,
@@ -278,70 +278,70 @@ export class AIGatewayEnhancer {
                     };
                 }
                 
-                // Jos pyyntö epäonnistui, yritetään seuraavaa palveluntarjoajaa
-                this.logger.warn(`Palveluntarjoaja ${providerName} epäonnistui, yritetään seuraavaa`);
+                // If the request fails, try the next provider
+                this.logger.warn(`Provider ${providerName} failed, trying next provider`);
                 
             } catch (error) {
-                // Käsitellään virhe
-                this.logger.warn(`Virhe palveluntarjoajalla ${providerName}: ${error.message}`);
+                // Handle errors
+                this.logger.warn(`Error on provider ${providerName}: ${error.message}`);
             }
         }
         
-        // Jos kaikki yritykset epäonnistuivat, palautetaan virhe
-        this.logger.error(`Kaikki ${this.MAX_RETRIES} uudelleenyritystä epäonnistuivat`);
+        // If all retries fail, return an error
+        this.logger.error(`All ${this.MAX_RETRIES} retries failed`);
         
         return {
             success: false,
-            error: `Kaikki AI-palvelut epäonnistuivat tehtävätyypille ${taskType}`,
+            error: `All AI services failed for task type ${taskType}`,
             errorType: ErrorClassifier.ERROR_TYPES.ALL_PROVIDERS_FAILED,
             provider: 'none',
             model: 'none',
-            message: `Kaikki AI-palvelut epäonnistuivat tehtävätyypille ${taskType}`,
+            message: `All AI services failed for task type ${taskType}`,
             wasFailover: true
         };
     }
     
     /**
-     * Simuloi virheitä testitilassa
-     * @param errorType Virhetyyppi
-     * @param taskType Tehtävän tyyppi
-     * @returns AI-vastaus
+     * Simulates errors in test mode
+     * @param errorType Error type
+     * @param taskType Task type
+     * @returns AI response
      */
     private simulateError(errorType: string, taskType: string): AIResponse {
         const errorMessage = ErrorClassifier.getUserFriendlyErrorMessage(errorType);
         
         return {
             success: false,
-            error: `Simuloitu virhe: ${errorMessage}`,
+            error: `Simulated error: ${errorMessage}`,
             errorType,
             provider: 'test',
             model: 'test',
-            message: `Simuloitu virhe tehtävätyypille ${taskType}`
+            message: `Simulated error for task type ${taskType}`
         };
     }
     
     /**
-     * Palauttaa kaikki käytettävissä olevat palveluntarjoajat
-     * @returns Palveluntarjoajien nimet
+     * Returns all available service providers
+     * @returns Service provider names
      */
     public getAvailableProviders(): string[] {
         return this.aiGateway.getAvailableProviders();
     }
     
     /**
-     * Palauttaa kaikki käytettävissä olevat mallit
-     * @returns Mallien nimet
+     * Returns all available models
+     * @returns Model names
      */
     public getAvailableModels(): Record<string, string[]> {
         return this.aiGateway.getAvailableModels();
     }
     
     /**
-     * Palauttaa palveluntarjoajien terveystiedot
-     * @returns Palveluntarjoajien terveystiedot
+     * Returns the health information of service providers
+     * @returns Service provider health information
      */
     public getProvidersHealth(): Record<string, ProviderHealth> {
-        // Muunnetaan Map-objekti tavalliseksi objektiksi
+        // Convert the Map object to a plain object
         const healthMap = this.healthMonitor.getAllProviderHealth();
         const result: Record<string, ProviderHealth> = {};
         
@@ -353,30 +353,30 @@ export class AIGatewayEnhancer {
     }
     
     /**
-     * Palauttaa palveluntarjoajat pisteytettynä
-     * @param taskType Tehtävän tyyppi
-     * @returns Palveluntarjoajat pisteytettynä
+     * Returns the service providers sorted by score
+     * @param taskType Task type
+     * @returns Service providers sorted by score
      */
     public getProvidersByScore(taskType: string): { provider: string; score: number }[] {
-        // Määritellään pisteytys tehtävätyypin mukaan
+        // Define the scoring function based on task type
         const scoreFunction = (health: ProviderHealth): number => {
-            // Peruspisteet saatavuuden mukaan
+            // Base score based on availability
             let score = health.available ? 100 : 0;
             
-            // Lisäpisteet onnistumisprosentin mukaan
+            // Add score based on success rate
             score += health.successRate * 50;
             
-            // Vähennetään pisteitä vasteajan mukaan (max 20 pistettä)
+            // Subtract score based on latency (max 20 points)
             const latencyPenalty = Math.min(20, health.averageLatency / 50);
             score -= latencyPenalty;
             
             return score;
         };
         
-        // Haetaan palveluntarjoajat pisteytettynä
+        // Get the service providers sorted by score
         const providers = this.healthMonitor.getProvidersByScore(scoreFunction);
         
-        // Muunnetaan palveluntarjoajat haluttuun muotoon
+        // Convert the providers to the desired format
         return providers.map(health => ({
             provider: health.name,
             score: scoreFunction(health)

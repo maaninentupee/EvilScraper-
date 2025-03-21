@@ -4,7 +4,7 @@ import { ModelSelector } from '../../src/services/ModelSelector';
 import { AIGateway } from '../../src/services/AIGateway';
 import { AppModule } from '../../src/app.module';
 
-// Luodaan mocked providers, joita voimme käyttää varsinaisessa testauksessa
+// Create mocked providers for testing
 class MockModelSelector {
   getModel(taskType: string) {
     const models = {
@@ -46,46 +46,46 @@ class MockModelSelector {
   }
 }
 
-// Integraatiotesti käyttäen oikeita ja mockattuja komponentteja
-describe('Integraatiotestit: ModelSelector ja AIGateway', () => {
-  describe('ModelSelector yksikkötestit', () => {
+// Integration tests using real and mocked components
+describe('Integration tests: ModelSelector and AIGateway', () => {
+  describe('ModelSelector unit tests', () => {
     let modelSelector: MockModelSelector;
     
     beforeEach(() => {
       modelSelector = new MockModelSelector();
     });
     
-    test('getModel palauttaa oikean mallin tehtävätyypin perusteella', () => {
+    test('getModel returns the correct model based on task type', () => {
       expect(modelSelector.getModel('seo')).toBe('mistral-7b-instruct-q8_0.gguf');
       expect(modelSelector.getModel('code')).toBe('codellama-7b-q8_0.gguf');
       expect(modelSelector.getModel('decision')).toBe('falcon-7b-q4_0.gguf');
       expect(modelSelector.getModel('unknown')).toBe('mistral-7b-instruct-q8_0.gguf');
     });
     
-    test('mapTaskTypeToCapability kartoittaa tehtävätyypit kyvykkyyksiksi', () => {
+    test('mapTaskTypeToCapability maps task types to capabilities', () => {
       expect(modelSelector.mapTaskTypeToCapability('seo')).toBe('summarization');
       expect(modelSelector.mapTaskTypeToCapability('code')).toBe('code-generation'); 
       expect(modelSelector.mapTaskTypeToCapability('decision')).toBe('decision-making');
       expect(modelSelector.mapTaskTypeToCapability('unknown')).toBe('text-generation');
     });
     
-    test('getProviderForModel tunnistaa eri mallien palveluntarjoajat', () => {
+    test('getProviderForModel identifies providers for different models', () => {
       expect(modelSelector.getProviderForModel('gpt-4-turbo')).toBe('openai');
       expect(modelSelector.getProviderForModel('claude-3-opus')).toBe('anthropic');
     });
     
-    test('isModelCapableOf tunnistaa mallien kyvykkyydet', () => {
+    test('isModelCapableOf identifies model capabilities', () => {
       expect(modelSelector.isModelCapableOf('gpt-4-turbo', 'text-generation')).toBe(true);
       expect(modelSelector.isModelCapableOf('gpt-4-turbo', 'unknown-capability')).toBe(false);
     });
   });
   
-  describe('Aidon ModelSelector-toteutuksen testit', () => {
+  describe('Aidon ModelSelector implementation tests', () => {
     let app: INestApplication;
     let modelSelector: ModelSelector;
     
     beforeAll(async () => {
-      // Luodaan testimoduuli käyttäen oikeaa ModelSelector-toteutusta
+      // Create a test module using the real ModelSelector implementation
       const moduleRef = await Test.createTestingModule({
         imports: [AppModule],
       }).compile();
@@ -100,20 +100,20 @@ describe('Integraatiotestit: ModelSelector ja AIGateway', () => {
       await app.close();
     });
     
-    test('mapTaskTypeToCapability-toteutus toimii oikein', () => {
+    test('mapTaskTypeToCapability implementation works correctly', () => {
       expect(modelSelector.mapTaskTypeToCapability('seo')).toBe('summarization');
       expect(modelSelector.mapTaskTypeToCapability('code')).toBe('code-generation');
       expect(modelSelector.mapTaskTypeToCapability('decision')).toBe('decision-making');
       expect(modelSelector.mapTaskTypeToCapability('unknown')).toBe('text-generation');
     });
     
-    test('isOpenAIModel tunnistaa OpenAI-mallit oikein', () => {
+    test('isOpenAIModel identifies OpenAI models correctly', () => {
       expect(modelSelector.isOpenAIModel('gpt-4-turbo')).toBe(true);
       expect(modelSelector.isOpenAIModel('gpt-3.5-turbo')).toBe(true);
       expect(modelSelector.isOpenAIModel('claude-3-opus-20240229')).toBe(false);
     });
     
-    test('isAnthropicModel tunnistaa Anthropic-mallit oikein', () => {
+    test('isAnthropicModel identifies Anthropic models correctly', () => {
       expect(modelSelector.isAnthropicModel('claude-3-opus-20240229')).toBe(true);
       expect(modelSelector.isAnthropicModel('claude-2.1')).toBe(true);
       expect(modelSelector.isAnthropicModel('gpt-4-turbo')).toBe(false);

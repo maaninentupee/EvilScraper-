@@ -2,24 +2,24 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { OpenAIProvider } from '../../../../src/services/providers/OpenAIProvider';
 import { environment } from '../../../../src/config/environment';
 
-// Tämä testi testaa OpenAIProvider-luokan käyttäytymistä virhetilanteissa
+// This test tests the behavior of the OpenAIProvider class in error situations
 describe('OpenAIProvider - Error Handling', () => {
   let provider: OpenAIProvider;
   let originalApiKey: string;
 
   beforeAll(() => {
-    // Tallenna alkuperäinen API-avain
+    // Save the original API key
     originalApiKey = environment.openaiApiKey;
   });
 
   afterAll(() => {
-    // Palauta alkuperäinen API-avain
+    // Restore the original API key
     (environment as any).openaiApiKey = originalApiKey;
   });
 
   describe('with invalid API key', () => {
     beforeEach(async () => {
-      // Aseta virheellinen API-avain
+      // Set an invalid API key
       (environment as any).openaiApiKey = 'invalid_key_sk_test_12345';
 
       const module: TestingModule = await Test.createTestingModule({
@@ -30,18 +30,18 @@ describe('OpenAIProvider - Error Handling', () => {
     });
 
     it('should report as available but fail gracefully when generating completion', async () => {
-      // Tarkista, että provider raportoi olevansa käytettävissä
-      // (isAvailable palauttaa false vain jos API-avain puuttuu kokonaan)
+      // Check that the provider reports itself as available
+      // (isAvailable returns false only if the API key is completely missing)
       const isAvailable = await provider.isAvailable();
       expect(isAvailable).toBe(false);
 
-      // Testaa, että generateCompletion käsittelee virheen oikein
+      // Test that generateCompletion handles the error correctly
       const result = await provider.generateCompletion({
         prompt: 'Test prompt',
         modelName: 'gpt-3.5-turbo',
       });
 
-      // Tarkista, että vastaus on oikeanlainen virhetilanteessa
+      // Check that the response is appropriate for an error situation
       expect(result.success).toBe(false);
       expect(result.text).toBe('');
       expect(result.error).toBeDefined();
@@ -51,7 +51,7 @@ describe('OpenAIProvider - Error Handling', () => {
 
   describe('with missing API key', () => {
     beforeEach(async () => {
-      // Poista API-avain kokonaan
+      // Remove the API key completely
       (environment as any).openaiApiKey = '';
 
       const module: TestingModule = await Test.createTestingModule({

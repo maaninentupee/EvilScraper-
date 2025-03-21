@@ -1,123 +1,123 @@
-# Windsurf-projektin kuormitustestaus
+# Windsurf Project Load Testing
 
-## Yleiskatsaus
+## Overview
 
-Tämä dokumentti tarjoaa yhteenvedon Windsurf-projektin kuormitustestauksesta. Kuormitustestauksen tarkoituksena on simuloida, kuinka hyvin järjestelmä kestää suuren määrän pyyntöjä ja tunnistaa mahdolliset pullonkaulat.
+This document provides a summary of load testing for the Windsurf project. The purpose of load testing is to simulate how well the system can handle a large number of requests and identify potential bottlenecks.
 
-## Kuormitustestaustyökalut
+## Load Testing Tools
 
-Projektissa on käytössä useita kuormitustestaustyökaluja:
+Several load testing tools are used in the project:
 
-1. **Apache Benchmark (ab)** - Yksinkertainen komentorivityökalu HTTP-kuormitustestaukseen
-2. **k6** - Monipuolinen JavaScript-pohjainen kuormitustestaustyökalu
-3. **Autocannon** - Node.js-pohjainen HTTP/HTTPS kuormitustestaustyökalu
+1. **Apache Benchmark (ab)** - A simple command-line tool for HTTP load testing
+2. **k6** - A versatile JavaScript-based load testing tool
+3. **Autocannon** - A Node.js-based HTTP/HTTPS load testing tool
 
-## Testattavat endpointit
+## Endpoints to Test
 
-Kuormitustestauksessa keskitytään seuraaviin endpointeihin:
+Load testing focuses on the following endpoints:
 
-1. **/** - Peruspäätepisteen vasteaika
-2. **/scraper** - Verkkosivujen jäsennyspäätepisteen suorituskyky
-3. **/evil-bot/decide** - Tekoälyn päätöksentekoprosessin suorituskyky
-4. **/ai/load-test/:provider** - Tekoälypalveluiden kuormitustestaus
+1. **/** - Response time of the basic endpoint
+2. **/scraper** - Performance of the web page parsing endpoint
+3. **/evil-bot/decide** - Performance of the AI decision-making process
+4. **/ai/load-test/:provider** - Load testing of AI services
 
-## Kuormitustestien suorittaminen
+## Running Load Tests
 
-### Palvelimen käynnistäminen testausta varten
+### Starting the Server for Testing
 
 ```bash
-# Käynnistä palvelin testausta varten
+# Start the server for testing
 ./start-server-for-testing.sh
 ```
 
 ### Apache Benchmark (ab)
 
 ```bash
-# Peruskomento: 1000 pyyntöä, 50 rinnakkaista yhteyttä
+# Basic command: 1000 requests, 50 concurrent connections
 ab -n 1000 -c 50 http://localhost:3000/scraper
 
-# Testaa evil-bot-palvelua POST-pyynnöllä
+# Test the evil-bot service with a POST request
 ab -n 100 -c 10 -p post_data.json -T application/json http://localhost:3000/evil-bot/decide
 ```
 
 ### k6
 
 ```bash
-# Suorita testi
+# Run the test
 k6 run load-test.js
 
-# Suorita testi vain Ollama-providerille
+# Run the test only for the Ollama provider
 k6 run -e PROVIDER=ollama load-test.js
 ```
 
 ### Autocannon
 
 ```bash
-# Suorita testi oletusasetuksilla
+# Run the test with default settings
 node autocannon-load-test.js
 
-# Muokkaa parametreja
+# Modify parameters
 node autocannon-load-test.js --connections 100 --duration 30
 ```
 
-## Tulosten analysointi
+## Analyzing Results
 
-Kuormitustestien tulokset tallennetaan `load-test-results` -hakemistoon. Voit visualisoida tulokset suorittamalla:
+Load test results are saved in the `load-test-results` directory. You can visualize the results by running:
 
 ```bash
 node visualize-load-test-results.js
 ```
 
-Tämä luo `load-test-report.html` -tiedoston, joka sisältää visuaalisen raportin kuormitustestien tuloksista.
+This creates a `load-test-report.html` file that contains a visual report of the load test results.
 
-## Yksikkö- ja integraatiotestit
+## Unit and Integration Tests
 
-Projektissa on myös yksikkö- ja integraatiotestit kuormitustestauksen endpointeille:
+The project also has unit and integration tests for load testing endpoints:
 
 ```bash
-# Suorita yksikkötestit
+# Run unit tests
 npm test -- test/unit/controllers/ai-controller-load-test.spec.ts
 
-# Suorita integraatiotestit
+# Run integration tests
 npm test -- test/integration/load-test-integration.spec.ts
 ```
 
-## Kuormitustestauksen parametrit
+## Load Testing Parameters
 
 ### Apache Benchmark (ab)
 
-- `-n` - Pyyntöjen kokonaismäärä
-- `-c` - Rinnakkaisten yhteyksien määrä
-- `-p` - Tiedosto, joka sisältää POST-datan
-- `-T` - Content-Type-otsake
+- `-n` - Total number of requests
+- `-c` - Number of concurrent connections
+- `-p` - File containing POST data
+- `-T` - Content-Type header
 
 ### k6
 
-- `vus` - Virtuaalikäyttäjien määrä
-- `duration` - Testin kesto
-- `stages` - Kuorman vaiheet (nousu, tasainen, lasku)
+- `vus` - Number of virtual users
+- `duration` - Test duration
+- `stages` - Load phases (ramp-up, steady, ramp-down)
 
 ### Autocannon
 
-- `--connections, -c` - Rinnakkaisten yhteyksien määrä
-- `--duration, -d` - Testin kesto sekunteina
-- `--pipelining, -p` - Pipelined-pyyntöjen määrä
-- `--timeout, -t` - Timeout sekunteina
+- `--connections, -c` - Number of concurrent connections
+- `--duration, -d` - Test duration in seconds
+- `--pipelining, -p` - Number of pipelined requests
+- `--timeout, -t` - Timeout in seconds
 
-## Vinkkejä kuormitustestaukseen
+## Tips for Load Testing
 
-1. **Aloita pienellä kuormalla** ja kasvata sitä asteittain
-2. **Testaa eri endpointeja** erikseen ja yhdessä
-3. **Monitoroi järjestelmän resursseja** (CPU, muisti, verkko) testauksen aikana
-4. **Testaa säännöllisesti** osana CI/CD-putkea
-5. **Vertaa tuloksia** aiempiin testeihin kehityksen edetessä
+1. **Start with a small load** and increase it gradually
+2. **Test different endpoints** separately and together
+3. **Monitor system resources** (CPU, memory, network) during testing
+4. **Test regularly** as part of the CI/CD pipeline
+5. **Compare results** with previous tests as development progresses
 
-## Tunnettuja rajoituksia
+## Known Limitations
 
-- AI-mallit voivat olla hitaita, joten aseta riittävän pitkä timeout
-- Paikalliset AI-palvelut (Ollama, LM Studio) voivat olla rajoitettuja laitteiston suorituskyvyn mukaan
-- OpenAI ja Anthropic -palveluilla on API-rajoituksia, jotka voivat vaikuttaa kuormitustesteihin
+- AI models can be slow, so set a sufficiently long timeout
+- Local AI services (Ollama, LM Studio) may be limited by hardware performance
+- OpenAI and Anthropic services have API limitations that can affect load tests
 
-## Lisätietoja
+## Additional Information
 
-Katso yksityiskohtaisemmat ohjeet tiedostosta [LOAD_TESTING.md](./LOAD_TESTING.md).
+See more detailed instructions in [LOAD_TESTING.md](./LOAD_TESTING.md).

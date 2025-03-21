@@ -40,13 +40,13 @@ describe('EvilBotController', () => {
     it('should return a successful decision', async () => {
       // Arrange
       const decisionRequest = {
-        situation: 'Käyttäjä on etsinyt tietoa mobiililaajakaistaliittymistä',
-        options: ['Näytä pop-up tarjous', 'Lähetä chatbotti']
+        situation: 'User has been searching for information about mobile broadband subscriptions',
+        options: ['Show pop-up offer', 'Send chatbot']
       };
       
       const mockDecision: Decision = {
-        action: 'Lähetä chatbotti',
-        reason: 'Chatbotti on interaktiivisempi',
+        action: 'Send chatbot',
+        reason: 'Chatbot is more interactive',
         confidence: 0.85
       };
       
@@ -62,21 +62,21 @@ describe('EvilBotController', () => {
         decisionRequest.options
       );
       expect(mockLogger.logs.log).toContain(
-        `Evil Bot tekee päätöstä tilanteessa: ${decisionRequest.situation.substring(0, 50)}...`
+        `Evil Bot makes a decision in the situation: ${decisionRequest.situation.substring(0, 50)}...`
       );
     });
 
     it('should handle AI error response', async () => {
       // Arrange
       const decisionRequest = {
-        situation: 'Käyttäjä on etsinyt tietoa mobiililaajakaistaliittymistä',
-        options: ['Näytä pop-up tarjous', 'Lähetä chatbotti']
+        situation: 'User has been searching for information about mobile broadband subscriptions',
+        options: ['Show pop-up offer', 'Send chatbot']
       };
       
       (mockEvilBotService.makeDecision as jest.Mock).mockResolvedValueOnce({
         error: true,
-        message: 'AI-palvelu ei ole käytettävissä',
-        details: 'Kaikki palvelut epäonnistuivat'
+        message: 'AI service is not available',
+        details: 'All services failed'
       });
       
       // Act & Assert
@@ -86,21 +86,21 @@ describe('EvilBotController', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
-        expect(error.getResponse()).toHaveProperty('error', 'AI-palvelu ei ole käytettävissä');
+        expect(error.getResponse()).toHaveProperty('error', 'AI service is not available');
       }
       
       expect(mockEvilBotService.makeDecision).toHaveBeenCalledWith(
         decisionRequest.situation, 
         decisionRequest.options
       );
-      expect(mockLogger.logs.error).toContain('AI-palvelun virhe: AI-palvelu ei ole käytettävissä');
+      expect(mockLogger.logs.error).toContain('AI service error: AI service is not available');
     });
 
     it('should handle invalid response format', async () => {
       // Arrange
       const decisionRequest = {
-        situation: 'Käyttäjä on etsinyt tietoa mobiililaajakaistaliittymistä',
-        options: ['Näytä pop-up tarjous', 'Lähetä chatbotti']
+        situation: 'User has been searching for information about mobile broadband subscriptions',
+        options: ['Show pop-up offer', 'Send chatbot']
       };
       
       const invalidResponse = {
@@ -117,21 +117,21 @@ describe('EvilBotController', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
-        expect(error.getResponse()).toHaveProperty('error', 'Odottamaton vastausmuoto AI-palvelulta');
+        expect(error.getResponse()).toHaveProperty('error', 'Unexpected response format from AI service');
       }
       
       expect(mockEvilBotService.makeDecision).toHaveBeenCalledWith(
         decisionRequest.situation, 
         decisionRequest.options
       );
-      expect(mockLogger.logs.error).toContain('Odottamaton vastausmuoto AI-palvelulta');
+      expect(mockLogger.logs.error).toContain('Unexpected response format from AI service');
     });
 
     it('should handle service exceptions', async () => {
       // Arrange
       const decisionRequest = {
-        situation: 'Käyttäjä on etsinyt tietoa mobiililaajakaistaliittymistä',
-        options: ['Näytä pop-up tarjous', 'Lähetä chatbotti']
+        situation: 'User has been searching for information about mobile broadband subscriptions',
+        options: ['Show pop-up offer', 'Send chatbot']
       };
       
       const serviceError = new Error('Service failure');
@@ -148,7 +148,7 @@ describe('EvilBotController', () => {
     it('should reject requests with missing situation', async () => {
       // Arrange
       const invalidRequest = {
-        options: ['Vaihtoehto 1', 'Vaihtoehto 2']
+        options: ['Option 1', 'Option 2']
       };
       
       // Act & Assert
@@ -158,17 +158,17 @@ describe('EvilBotController', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.BAD_REQUEST);
-        expect(error.getResponse().error).toContain('tilanne puuttuu');
+        expect(error.getResponse().error).toContain('situation is missing');
       }
       
-      expect(mockLogger.logs.error).toContain('Virheellinen pyyntö: tilanne puuttuu tai on tyhjä');
+      expect(mockLogger.logs.error).toContain('Invalid request: situation is missing or empty');
     });
     
     it('should reject requests with empty situation', async () => {
       // Arrange
       const invalidRequest = {
         situation: '  ',
-        options: ['Vaihtoehto 1', 'Vaihtoehto 2']
+        options: ['Option 1', 'Option 2']
       };
       
       // Act & Assert
@@ -178,14 +178,14 @@ describe('EvilBotController', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.BAD_REQUEST);
-        expect(error.getResponse().error).toContain('tilanne puuttuu tai on tyhjä');
+        expect(error.getResponse().error).toContain('situation is missing or empty');
       }
     });
     
     it('should reject requests with empty options array', async () => {
       // Arrange
       const invalidRequest = {
-        situation: 'Käyttäjä on etsinyt tietoa mobiililaajakaistaliittymistä',
+        situation: 'User has been searching for information about mobile broadband subscriptions',
         options: []
       };
       
@@ -196,15 +196,15 @@ describe('EvilBotController', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.BAD_REQUEST);
-        expect(error.getResponse().error).toContain('vaihtoehdot puuttuvat tai lista on tyhjä');
+        expect(error.getResponse().error).toContain('options are missing or the list is empty');
       }
     });
     
     it('should reject requests with invalid option values', async () => {
       // Arrange
       const invalidRequest = {
-        situation: 'Käyttäjä on etsinyt tietoa mobiililaajakaistaliittymistä',
-        options: ['Vaihtoehto 1', '', null]
+        situation: 'User has been searching for information about mobile broadband subscriptions',
+        options: ['Option 1', '', null]
       };
       
       // Act & Assert
@@ -214,7 +214,7 @@ describe('EvilBotController', () => {
       } catch (error) {
         expect(error).toBeInstanceOf(HttpException);
         expect(error.getStatus()).toBe(HttpStatus.BAD_REQUEST);
-        expect(error.getResponse().error).toContain('kaikki vaihtoehdot eivät ole kelvollisia merkkijonoja');
+        expect(error.getResponse().error).toContain('not all options are valid strings');
       }
     });
   });

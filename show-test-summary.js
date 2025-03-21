@@ -1,13 +1,13 @@
 /**
- * Yksinkertainen skripti model-comparison-test.js -testin tulosten näyttämiseen
+ * Simple script for displaying model-comparison-test.js test results
  * 
- * Käyttö: node show-test-summary.js
+ * Usage: node show-test-summary.js
  */
 
 const fs = require('fs');
 const path = require('path');
 
-// ANSI-värikoodit konsolitulosteita varten
+// ANSI color codes for console output
 const colors = {
   reset: '\x1b[0m',
   bright: '\x1b[1m',
@@ -23,7 +23,7 @@ const colors = {
   red: '\x1b[31m'
 };
 
-// Etsi viimeisin model-comparison-results.json tiedosto
+// Find the latest model-comparison-results.json file
 function findLatestResultFile() {
   const files = fs.readdirSync('.');
   const resultFiles = files.filter(file => 
@@ -32,12 +32,12 @@ function findLatestResultFile() {
   );
   
   if (resultFiles.length === 0) {
-    console.error(`${colors.red}Virhe: Tulostiedostoa ei löytynyt.${colors.reset}`);
-    console.log(`Aja testi ensin komennolla: ${colors.cyan}k6 run model-comparison-test.js${colors.reset}`);
+    console.error(`${colors.red}Error: Result file not found.${colors.reset}`);
+    console.log(`Run the test first with command: ${colors.cyan}k6 run model-comparison-test.js${colors.reset}`);
     return null;
   }
   
-  // Järjestä tiedostot muokkauspäivämäärän mukaan (uusin ensin)
+  // Sort files by modification date (newest first)
   resultFiles.sort((a, b) => {
     return fs.statSync(b).mtime.getTime() - fs.statSync(a).mtime.getTime();
   });
@@ -45,15 +45,15 @@ function findLatestResultFile() {
   return resultFiles[0];
 }
 
-// Analysoi k6:n tuottama tulostiedosto
+// Analyze the results file produced by k6
 function analyzeResults(filePath) {
-  console.log(`${colors.bright}${colors.blue}Analysoidaan tiedostoa: ${filePath}${colors.reset}\n`);
+  console.log(`${colors.bright}${colors.blue}Analyzing file: ${filePath}${colors.reset}\n`);
   
-  // Lue tiedosto
+  // Read the file
   const content = fs.readFileSync(filePath, 'utf8');
   const lines = content.split('\n');
   
-  // Alusta laskurit
+  // Initialize counters
   const metrics = {
     openai: { count: 0, success: 0, totalTime: 0, times: [] },
     anthropic: { count: 0, success: 0, totalTime: 0, times: [] },
@@ -61,14 +61,14 @@ function analyzeResults(filePath) {
     total: { count: 0, success: 0, failed: 0, totalTime: 0, times: [] }
   };
   
-  // Etsi metriikkatiedot
+  // Find metric data
   for (const line of lines) {
     try {
       if (!line.trim()) continue;
       
       const data = JSON.parse(line);
       
-      // Kerää HTTP-pyyntöjen tiedot
+      // Collect HTTP request data
       if (data.metric === 'http_reqs' && data.type === 'Point') {
         metrics.total.count++;
         
@@ -82,7 +82,7 @@ function analyzeResults(filePath) {
           metrics.total.failed++;
         }
         
-        // Tunnista palveluntarjoaja URL:n perusteella
+        // Identify service provider based on URL
         if (url.includes('/openai')) {
           metrics.openai.count++;
           if (isSuccess) metrics.openai.success++;
@@ -95,7 +95,7 @@ function analyzeResults(filePath) {
         }
       }
       
-      // Kerää vasteaikatiedot
+      // Collect response time data
       if (data.metric === 'http_req_duration' && data.type === 'Point') {
         const duration = data.data.value || 0;
         metrics.total.totalTime += duration;
@@ -115,7 +115,7 @@ function analyzeResults(filePath) {
         }
       }
       
-      // Kerää mallikohtaiset käsittelyajat
+      // Collect model-specific processing times
       if (data.metric === 'openai_processing_time' && data.type === 'Point') {
         metrics.openai.totalTime += data.data.value || 0;
       }
@@ -128,12 +128,12 @@ function analyzeResults(filePath) {
         metrics.ollama.totalTime += data.data.value || 0;
       }
     } catch (e) {
-      // Ohita virheelliset rivit
+      // Skip invalid lines
       continue;
     }
   }
   
-  // Laske keskiarvot ja muut tilastot
+  // Calculate averages and other statistics
   const calculateAvg = (arr) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
   const calculateP95 = (arr) => {
     if (arr.length === 0) return 0;
@@ -160,23 +160,23 @@ function analyzeResults(filePath) {
   return metrics;
 }
 
-// Tulosta yhteenveto
+// Print summary
 function printSummary(metrics) {
-  console.log(`${colors.bright}${colors.magenta}AI-MALLIEN VERTAILUN TULOKSET${colors.reset}\n`);
+  console.log(`${colors.bright}${colors.magenta}AI MODEL COMPARISON RESULTS${colors.reset}\n`);
   
-  console.log(`${colors.bright}Yleiset metriikat:${colors.reset}`);
-  console.log(`- Kokonaispyyntöjen määrä: ${metrics.total.count}`);
-  console.log(`- Onnistuneet pyynnöt: ${metrics.total.success} (${metrics.total.successRate.toFixed(2)}%)`);
-  console.log(`- Epäonnistuneet pyynnöt: ${metrics.total.failed} (${(100 - metrics.total.successRate).toFixed(2)}%)`);
-  console.log(`- Keskimääräinen vasteaika: ${metrics.total.avgTime.toFixed(2)} ms`);
-  console.log(`- 95% vasteaika: ${metrics.total.p95Time.toFixed(2)} ms\n`);
+  console.log(`${colors.bright}General metrics:${colors.reset}`);
+  console.log(`- Total number of requests: ${metrics.total.count}`);
+  console.log(`- Successful requests: ${metrics.total.success} (${metrics.total.successRate.toFixed(2)}%)`);
+  console.log(`- Failed requests: ${metrics.total.failed} (${(100 - metrics.total.successRate).toFixed(2)}%)`);
+  console.log(`- Average response time: ${metrics.total.avgTime.toFixed(2)} ms`);
+  console.log(`- 95% response time: ${metrics.total.p95Time.toFixed(2)} ms\n`);
   
-  console.log(`${colors.bright}${colors.cyan}MALLIEN SUORITUSKYKY${colors.reset}\n`);
+  console.log(`${colors.bright}${colors.cyan}MODEL PERFORMANCE${colors.reset}\n`);
   
-  // Taulukko mallien vertailuun
+  // Table for model comparison
   console.log(`${colors.bright}┌─────────────────────────────┬────────────────────┬─────────────────┬─────────────────┐${colors.reset}`);
-  console.log(`${colors.bright}│ Malli                       │ Keskimääräinen     │ Onnistumis-     │ Pyyntöjen       │${colors.reset}`);
-  console.log(`${colors.bright}│                             │ vasteaika          │ prosentti       │ määrä           │${colors.reset}`);
+  console.log(`${colors.bright}│ Model                       │ Average            │ Success         │ Number of       │${colors.reset}`);
+  console.log(`${colors.bright}│                             │ response time      │ rate            │ requests        │${colors.reset}`);
   console.log(`${colors.bright}├─────────────────────────────┼────────────────────┼─────────────────┼─────────────────┤${colors.reset}`);
   
   console.log(`│ OpenAI (gpt-3.5-turbo)      │ ${padRight(metrics.openai.avgTime.toFixed(2) + ' ms', 18)} │ ${padRight(metrics.openai.successRate.toFixed(2) + '%', 15)} │ ${padRight(metrics.openai.count.toString(), 15)} │`);
@@ -185,7 +185,7 @@ function printSummary(metrics) {
   
   console.log(`${colors.bright}└─────────────────────────────┴────────────────────┴─────────────────┴─────────────────┘${colors.reset}`);
   
-  // Määritä luotettavin malli
+  // Determine the most reliable model
   let mostReliableModel = 'OpenAI (gpt-3.5-turbo)';
   let highestSuccessRate = metrics.openai.successRate;
   
@@ -199,7 +199,7 @@ function printSummary(metrics) {
     highestSuccessRate = metrics.ollama.successRate;
   }
   
-  // Määritä nopein malli
+  // Determine the fastest model
   let fastestModel = 'OpenAI (gpt-3.5-turbo)';
   let lowestAvgTime = metrics.openai.avgTime;
   
@@ -213,14 +213,14 @@ function printSummary(metrics) {
     lowestAvgTime = metrics.ollama.avgTime;
   }
   
-  console.log(`\n${colors.bright}Luotettavin malli: ${colors.green}${mostReliableModel}${colors.reset}${colors.bright} (${highestSuccessRate.toFixed(2)}%)${colors.reset}`);
-  console.log(`${colors.bright}Nopein malli: ${colors.green}${fastestModel}${colors.reset}${colors.bright} (${lowestAvgTime.toFixed(2)} ms)${colors.reset}\n`);
+  console.log(`\n${colors.bright}Most reliable model: ${colors.green}${mostReliableModel}${colors.reset}${colors.bright} (${highestSuccessRate.toFixed(2)}%)${colors.reset}`);
+  console.log(`${colors.bright}Fastest model: ${colors.green}${fastestModel}${colors.reset}${colors.bright} (${lowestAvgTime.toFixed(2)} ms)${colors.reset}\n`);
   
-  console.log(`${colors.bright}${colors.yellow}SUOSITUKSET FALLBACK-MEKANISMILLE${colors.reset}\n`);
+  console.log(`${colors.bright}${colors.yellow}RECOMMENDATIONS FOR FALLBACK MECHANISM${colors.reset}\n`);
   
-  console.log(`${colors.bright}Suositeltu prioriteettijärjestys:${colors.reset}`);
+  console.log(`${colors.bright}Recommended priority order:${colors.reset}`);
   
-  // Määritä suositeltu prioriteettijärjestys (painotus: 70% luotettavuus, 30% nopeus)
+  // Determine recommended priority order (weighting: 70% reliability, 30% speed)
   const modelScores = [
     { 
       name: 'OpenAI (gpt-3.5-turbo)', 
@@ -236,33 +236,33 @@ function printSummary(metrics) {
     }
   ];
   
-  // Järjestä mallit pisteiden mukaan
+  // Sort models by score
   modelScores.sort((a, b) => b.score - a.score);
   
-  // Tulosta suositeltu prioriteettijärjestys
+  // Print recommended priority order
   modelScores.forEach((model, index) => {
     console.log(`${index + 1}. ${model.name}`);
   });
   
-  console.log(`\n${colors.bright}Suositukset fallback-mekanismin parantamiseksi:${colors.reset}`);
-  console.log(`1. Käytä AIGateway-luokan processAIRequestWithFallback-metodia, joka vaihtaa automaattisesti toiseen malliin virhetilanteissa.`);
-  console.log(`2. Aseta mallit prioriteettijärjestykseen yllä olevan suosituksen mukaisesti.`);
-  console.log(`3. Lisää virheidenkäsittelyyn eri virhetyyppien tunnistus (timeout, rate_limit_exceeded, service_unavailable).`);
-  console.log(`4. Toteuta viiveen lisääminen ennen uudelleenyritystä, erityisesti rate_limit_exceeded-virheille.`);
-  console.log(`5. Lisää metriikkojen kerääminen eri mallien suorituskyvystä ja virhetilanteista.`);
+  console.log(`\n${colors.bright}Recommendations for improving the fallback mechanism:${colors.reset}`);
+  console.log(`1. Use the AIGateway class's processAIRequestWithFallback method, which automatically switches to another model in error situations.`);
+  console.log(`2. Set models in priority order according to the recommendation above.`);
+  console.log(`3. Add different error type detection to error handling (timeout, rate_limit_exceeded, service_unavailable).`);
+  console.log(`4. Implement adding a delay before retrying, especially for rate_limit_exceeded errors.`);
+  console.log(`5. Add metrics collection for different models' performance and error situations.`);
   
-  console.log(`\n${colors.bright}Huomioitavaa:${colors.reset}`);
-  console.log(`- Fallback-mekanismin tulisi palauttaa strukturoitu virheobjekti virheiden heittämisen sijaan.`);
-  console.log(`- Varmista, että järjestelmä pystyy toipumaan tilanteesta, jossa kaikki palveluntarjoajat epäonnistuvat.`);
-  console.log(`- Harkitse jonojärjestelmän käyttöönottoa korkean kuormituksen aikana.`);
+  console.log(`\n${colors.bright}Notes:${colors.reset}`);
+  console.log(`- The fallback mechanism should return a structured error object instead of throwing errors.`);
+  console.log(`- Ensure that the system can recover from a situation where all service providers fail.`);
+  console.log(`- Consider implementing a queue system during high load.`);
 }
 
-// Apufunktio tekstin tasaamiseen
+// Helper function for text alignment
 function padRight(text, length) {
   return text + ' '.repeat(Math.max(0, length - text.length));
 }
 
-// Pääohjelma
+// Main program
 const resultFile = findLatestResultFile();
 if (resultFile) {
   const metrics = analyzeResults(resultFile);

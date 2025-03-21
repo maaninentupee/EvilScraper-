@@ -1,32 +1,32 @@
 #!/bin/bash
 
-# Skripti API-avaimen virhetilanteen testaamiseen
-# Tämä skripti asettaa virheellisen OpenAI API-avaimen ja ajaa testit
+# Script for testing API key failure scenarios
+# This script sets an invalid OpenAI API key and runs tests
 
-# Tallenna alkuperäinen API-avain, jos sellainen on
+# Save the original API key if it exists
 if [ -n "$OPENAI_API_KEY" ]; then
   ORIGINAL_OPENAI_API_KEY=$OPENAI_API_KEY
-  echo "Tallennettu alkuperäinen OpenAI API-avain"
+  echo "Saved original OpenAI API key"
 fi
 
-# Aseta virheellinen API-avain
-echo "Asetetaan virheellinen OpenAI API-avain..."
+# Set an invalid API key
+echo "Setting invalid OpenAI API key..."
 export OPENAI_API_KEY="invalid_key_sk_test_12345"
 
-# Varmista, että avain on asetettu
-echo "Käytetään API-avainta: $OPENAI_API_KEY"
+# Ensure the key is set
+echo "Using API key: $OPENAI_API_KEY"
 
-# Aja testit
-echo "Ajetaan testit virheellisellä API-avaimella..."
+# Run tests
+echo "Running tests with invalid API key..."
 npm run test
 
-# Palauta alkuperäinen API-avain, jos sellainen oli
+# Restore the original API key if it existed
 if [ -n "$ORIGINAL_OPENAI_API_KEY" ]; then
-  echo "Palautetaan alkuperäinen OpenAI API-avain..."
+  echo "Restoring original OpenAI API key..."
   export OPENAI_API_KEY=$ORIGINAL_OPENAI_API_KEY
 else
-  echo "Poistetaan virheellinen OpenAI API-avain..."
+  echo "Removing invalid OpenAI API key..."
   unset OPENAI_API_KEY
 fi
 
-echo "Testi valmis!"
+echo "Test complete!"

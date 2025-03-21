@@ -42,7 +42,7 @@ describe('AI Service - Integration Tests', () => {
   let ollamaProvider: OllamaProvider;
   let lmstudioProvider: LMStudioProvider;
   
-  // Tallenna alkuperäiset ympäristömuuttujat
+  // Save original environment variables
   const originalEnv = { ...process.env };
 
   beforeAll(async () => {
@@ -64,7 +64,7 @@ describe('AI Service - Integration Tests', () => {
   });
 
   afterAll(async () => {
-    // Palauta alkuperäiset ympäristömuuttujat
+    // Restore original environment variables
     process.env = { ...originalEnv };
     await app.close();
   });
@@ -75,15 +75,15 @@ describe('AI Service - Integration Tests', () => {
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'warn').mockImplementation(() => {});
     
-    // Palauta alkuperäiset ympäristömuuttujat ennen jokaista testiä
+    // Restore original environment variables before each test
     process.env = { ...originalEnv };
   });
 
-  describe('AI-palveluiden yhteensopivuus', () => {
+  describe('AI service compatibility', () => {
     it('should process AI request using Ollama', async () => {
       // Mock Ollama to succeed
       const ollamaSpy = jest.spyOn(ollamaProvider, 'generateCompletion').mockResolvedValue({
-        text: 'Ollama vastaus',
+        text: 'Ollama response',
         provider: 'ollama',
         model: 'mistral',
         success: true
@@ -93,7 +93,7 @@ describe('AI Service - Integration Tests', () => {
       
       const response = await aiGateway.processAIRequest('seo', 'Analyze this page');
       
-      expect(response.result).toBeDefined();
+      expect(response.text).toBeDefined();
       expect(response.provider).toBe('ollama');
       expect(ollamaSpy).toHaveBeenCalled();
     });
@@ -105,7 +105,7 @@ describe('AI Service - Integration Tests', () => {
       
       // Mock OpenAI to succeed
       const openaiSpy = jest.spyOn(openaiProvider, 'generateCompletion').mockResolvedValue({
-        text: 'OpenAI vastaus',
+        text: 'OpenAI response',
         provider: 'openai',
         model: 'gpt-4-turbo',
         success: true
@@ -114,7 +114,7 @@ describe('AI Service - Integration Tests', () => {
       
       const response = await aiGateway.processAIRequestWithFallback('seo', 'Analyze this page');
       
-      expect(response.result).toBeDefined();
+      expect(response.text).toBeDefined();
       expect(response.provider).toBe('openai');
       expect(ollamaSpy).toHaveBeenCalled();
       expect(openaiSpy).toHaveBeenCalled();
@@ -131,7 +131,7 @@ describe('AI Service - Integration Tests', () => {
       
       // Mock Anthropic to succeed
       const anthropicSpy = jest.spyOn(anthropicProvider, 'generateCompletion').mockResolvedValue({
-        text: 'Anthropic vastaus',
+        text: 'Anthropic response',
         provider: 'anthropic',
         model: 'claude-3-opus',
         success: true
@@ -140,7 +140,7 @@ describe('AI Service - Integration Tests', () => {
       
       const response = await aiGateway.processAIRequestWithFallback('seo', 'Analyze this page');
       
-      expect(response.result).toBeDefined();
+      expect(response.text).toBeDefined();
       expect(response.provider).toBe('anthropic');
       expect(anthropicSpy).toHaveBeenCalled();
     });
@@ -160,7 +160,7 @@ describe('AI Service - Integration Tests', () => {
       
       // Mock LM Studio to succeed
       const lmstudioSpy = jest.spyOn(lmstudioProvider, 'generateCompletion').mockResolvedValue({
-        text: 'LM Studio vastaus',
+        text: 'LM Studio response',
         provider: 'lmstudio',
         model: 'mistral-7b-instruct-v0.2',
         success: true
@@ -169,15 +169,15 @@ describe('AI Service - Integration Tests', () => {
       
       const response = await aiGateway.processAIRequestWithFallback('seo', 'Analyze this page');
       
-      expect(response.result).toBeDefined();
+      expect(response.text).toBeDefined();
       expect(response.provider).toBe('lmstudio');
       expect(lmstudioSpy).toHaveBeenCalled();
     });
   });
 
-  describe('API-avainten hallinta', () => {
+  describe('API key management', () => {
     it('should handle missing OpenAI API key gracefully', async () => {
-      // Poista OpenAI API-avain
+      // Remove OpenAI API key
       delete process.env.OPENAI_API_KEY;
       
       // Mock Ollama to fail
@@ -189,7 +189,7 @@ describe('AI Service - Integration Tests', () => {
       
       // Mock Anthropic to succeed
       const anthropicSpy = jest.spyOn(anthropicProvider, 'generateCompletion').mockResolvedValue({
-        text: 'Anthropic vastaus',
+        text: 'Anthropic response',
         provider: 'anthropic',
         model: 'claude-3-opus',
         success: true
@@ -198,13 +198,13 @@ describe('AI Service - Integration Tests', () => {
       
       const response = await aiGateway.processAIRequestWithFallback('seo', 'Analyze this page');
       
-      // Varmista, että OpenAI ohitettiin ja käytettiin Anthropicia
+      // Ensure that OpenAI was skipped and Anthropic was used
       expect(response.provider).toBe('anthropic');
       expect(anthropicSpy).toHaveBeenCalled();
     });
 
     it('should handle missing Anthropic API key gracefully', async () => {
-      // Poista Anthropic API-avain
+      // Remove Anthropic API key
       delete process.env.ANTHROPIC_API_KEY;
       
       // Mock Ollama to fail
@@ -221,7 +221,7 @@ describe('AI Service - Integration Tests', () => {
       
       // Mock LM Studio to succeed
       const lmstudioSpy = jest.spyOn(lmstudioProvider, 'generateCompletion').mockResolvedValue({
-        text: 'LM Studio vastaus',
+        text: 'LM Studio response',
         provider: 'lmstudio',
         model: 'mistral-7b-instruct-v0.2',
         success: true
@@ -230,45 +230,45 @@ describe('AI Service - Integration Tests', () => {
       
       const response = await aiGateway.processAIRequestWithFallback('seo', 'Analyze this page');
       
-      // Varmista, että Anthropic ohitettiin ja käytettiin LM Studiota
+      // Ensure that Anthropic was skipped and LM Studio was used
       expect(response.provider).toBe('lmstudio');
       expect(lmstudioSpy).toHaveBeenCalled();
     });
 
     it('should fail gracefully when API key is missing', async () => {
-      // Aseta tyhjä OpenAI API-avain
+      // Set empty OpenAI API key
       const originalKey = process.env.OPENAI_API_KEY;
       process.env.OPENAI_API_KEY = '';
       
-      // Mockaa OpenAI model selector palauttamaan OpenAI-malli
+      // Mock OpenAI model selector to return OpenAI model
       jest.spyOn(modelSelector, 'getModel').mockReturnValue('gpt-4-turbo');
       jest.spyOn(modelSelector, 'isOpenAIModel').mockReturnValue(true);
       
-      // Mockaa OpenAI provider heittämään API key -virhe
+      // Mock OpenAI provider to throw API key error
       jest.spyOn(openaiProvider, 'generateCompletion').mockRejectedValue(new Error('OpenAI API key missing or invalid'));
       jest.spyOn(openaiProvider, 'isAvailable').mockResolvedValue(true);
       
-      // Testaa että virhe heitetään oikein
+      // Test that error is thrown correctly
       await expect(aiGateway.processAIRequest('seo', 'Analyze this page', 'gpt-4-turbo'))
         .rejects.toThrow(/API key missing/);
       
-      // Palauta alkuperäinen API-avain
+      // Restore original API key
       process.env.OPENAI_API_KEY = originalKey;
     });
     
     it('should fallback when provider is unavailable due to missing API key', async () => {
-      // Aseta tyhjä OpenAI API-avain ja varmista että isAvailable palauttaa false
+      // Set empty OpenAI API key and ensure isAvailable returns false
       const originalKey = process.env.OPENAI_API_KEY;
       process.env.OPENAI_API_KEY = '';
       jest.spyOn(openaiProvider, 'isAvailable').mockResolvedValue(false);
       
-      // Mockaa Ollama epäonnistumaan
+      // Mock Ollama to fail
       jest.spyOn(ollamaProvider, 'generateCompletion').mockRejectedValue(new Error('Ollama error'));
       jest.spyOn(ollamaProvider, 'isAvailable').mockResolvedValue(true);
       
-      // Mockaa Anthropic onnistumaan
+      // Mock Anthropic to succeed
       const anthropicSpy = jest.spyOn(anthropicProvider, 'generateCompletion').mockResolvedValue({
-        text: 'Anthropic vastaus fallback-tilanteessa',
+        text: 'Anthropic response in fallback situation',
         provider: 'anthropic',
         model: 'claude-3-opus',
         success: true
@@ -277,76 +277,76 @@ describe('AI Service - Integration Tests', () => {
       
       const response = await aiGateway.processAIRequestWithFallback('seo', 'Analyze this page');
       
-      // Varmista että käytettiin Anthropicia OpenAI:n sijaan
+      // Ensure that Anthropic was used instead of OpenAI
       expect(response.provider).toBe('anthropic');
       expect(anthropicSpy).toHaveBeenCalled();
       
-      // Palauta alkuperäinen API-avain
+      // Restore original API key
       process.env.OPENAI_API_KEY = originalKey;
     });
   });
 
-  describe('Eri tehtävätyyppien testaus', () => {
+  describe('Testing different task types', () => {
     it('should handle SEO analysis task correctly', async () => {
       // Mock AIGateway to return a specific response
       const aiGatewaySpy = jest.spyOn(aiGateway, 'processAIRequest').mockResolvedValue({
-        result: 'SEO analyysi: Sivun otsikko on hyvä, mutta meta-kuvaus puuttuu.',
+        text: 'SEO analysis: The page title is good, but meta description is missing.',
         provider: 'ollama',
         model: 'mistral',
-        latency: 150,
+        success: true,
         wasFailover: false
       });
       
       const response = await aiService.analyzeSEO({
-        title: 'Testisivu',
-        description: 'Tämä on testisivu',
-        content: 'Sivun sisältö tässä'
+        title: 'Test page',
+        description: 'This is a test page',
+        content: 'Page content here'
       });
       
-      expect(response.result).toContain('SEO analyysi');
+      expect(response.text).toContain('SEO analysis');
       expect(aiGatewaySpy).toHaveBeenCalled();
     });
 
     it('should handle code generation task correctly', async () => {
       // Mock AIGateway to return a specific response
       const aiGatewaySpy = jest.spyOn(aiGateway, 'processAIRequest').mockResolvedValue({
-        result: 'function fibonacci(n) {\n  if (n <= 1) return n;\n  return fibonacci(n-1) + fibonacci(n-2);\n}',
+        text: 'function fibonacci(n) {\n  if (n <= 1) return n;\n  return fibonacci(n-1) + fibonacci(n-2);\n}',
         provider: 'ollama',
         model: 'codellama-13b-instruct',
-        latency: 150,
+        success: true,
         wasFailover: false
       });
       
       const response = await aiService.generateCode({
-        description: 'Luo fibonacci-funktio',
+        description: 'Create a fibonacci function',
         language: 'javascript'
       });
       
-      expect(response.result).toContain('function fibonacci');
+      expect(response.text).toContain('function fibonacci');
       expect(aiGatewaySpy).toHaveBeenCalled();
     });
 
     it('should handle decision making task correctly', async () => {
       // Mock AIGateway to return a specific response
       const aiGatewaySpy = jest.spyOn(aiGateway, 'processAIRequest').mockResolvedValue({
-        result: 'Käyttäjä haluaa tietää säätilan. Vastaa säätietoihin liittyvään kyselyyn.',
+        text: 'User wants to know the weather. Respond to the weather-related query.',
         provider: 'ollama',
         model: 'wizardlm-7b',
-        latency: 150,
+        success: true,
         wasFailover: false
       });
       
       const response = await aiService.makeDecision({
-        situation: 'Millainen sää on tänään?',
-        options: ['Vastaa säätietoihin', 'Kysy tarkennusta']
+        situation: 'What is the weather today?',
+        options: ['Respond with weather information', 'Ask for clarification']
       });
       
-      expect(response.result).toContain('säätietoihin');
+      expect(response.text).toContain('weather');
       expect(aiGatewaySpy).toHaveBeenCalled();
     });
   });
 
-  describe('Virheenkäsittely todellisissa tilanteissa', () => {
+  describe('Error handling in real situations', () => {
     it('should handle timeout errors gracefully', async () => {
       // Mock Ollama to fail with timeout
       jest.spyOn(ollamaProvider, 'generateCompletion').mockRejectedValue({
@@ -358,7 +358,7 @@ describe('AI Service - Integration Tests', () => {
       
       // Mock OpenAI to succeed
       const openaiSpy = jest.spyOn(openaiProvider, 'generateCompletion').mockResolvedValue({
-        text: 'OpenAI vastaus',
+        text: 'OpenAI response',
         provider: 'openai',
         model: 'gpt-4-turbo',
         success: true
@@ -382,7 +382,7 @@ describe('AI Service - Integration Tests', () => {
       
       // Mock OpenAI to succeed
       const openaiSpy = jest.spyOn(openaiProvider, 'generateCompletion').mockResolvedValue({
-        text: 'OpenAI vastaus',
+        text: 'OpenAI response',
         provider: 'openai',
         model: 'gpt-4-turbo',
         success: true
@@ -409,7 +409,7 @@ describe('AI Service - Integration Tests', () => {
       
       // Mock OpenAI to succeed
       const openaiSpy = jest.spyOn(openaiProvider, 'generateCompletion').mockResolvedValue({
-        text: 'OpenAI vastaus',
+        text: 'OpenAI response',
         provider: 'openai',
         model: 'gpt-4-turbo',
         success: true
@@ -431,7 +431,7 @@ describe('AI Service - Integration Tests', () => {
           model: 'gpt-4-turbo',
           success: false,
           error: 'Rate limit exceeded',
-          errorType: 'rate_limit' // Tämä on tärkeä, koska AIGateway tarkistaa tämän
+          errorType: 'rate_limit' // This is important because AIGateway checks this
         } as CompletionResult)
         .mockResolvedValueOnce({
           text: 'Retry success',
@@ -441,16 +441,16 @@ describe('AI Service - Integration Tests', () => {
         } as CompletionResult);
       jest.spyOn(openaiProvider, 'isAvailable').mockResolvedValue(true);
       
-      // Asetetaan OpenAI ensisijaiseksi palveluntarjoajaksi
+      // Set OpenAI as the primary service provider
       jest.spyOn(aiGateway as any, 'getInitialProvider').mockReturnValue(openaiProvider);
       jest.spyOn(aiGateway as any, 'getProviderName').mockReturnValue('openai');
       
       const response = await aiGateway.processAIRequestWithFallback('seo', 'Analyze this page');
       
-      expect(response.result).toBe('Retry success');
+      expect(response.text).toBe('Retry success');
       expect(response.provider).toBe('openai');
-      expect(response.wasRetry).toBe(true); // Varmista että kyseessä oli uudelleenyritys
-      expect(openaiSpy).toHaveBeenCalledTimes(2); // Varmista että kutsuttiin kahdesti
+      expect(response.wasRetry).toBe(true); // Ensure this was a retry
+      expect(openaiSpy).toHaveBeenCalledTimes(2); // Ensure it was called twice
     });
   });
 });

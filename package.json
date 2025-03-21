@@ -2,10 +2,11 @@
   "name": "windsurf-project",
   "version": "1.0.0",
   "description": "AI Service with local and API model fallback mechanism",
-  "main": "dist/src/main.js",
+  "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/src/main.js",
+    "build:clean": "rm -rf dist && tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
     "dev": "ts-node src/main.ts",
     "test": "jest",
     "test:e2e": "jest --config ./test/jest-e2e.json",

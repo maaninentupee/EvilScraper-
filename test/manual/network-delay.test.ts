@@ -1,10 +1,10 @@
 /**
- * Manuaalinen testi: Verkkoviiveiden ja -katkosten simulointi
+ * Manual test: Network delay and outage simulation
  * 
- * Tämä testi simuloi erilaisia verkko-ongelmia, kuten viivettä, tilapäisiä katkoksia
- * ja timeout-tilanteita, jotta voimme varmistaa järjestelmän käsittelevät ne oikein.
+ * This test simulates various network issues, such as delays, temporary outages
+ * and timeout situations, to ensure the system handles them correctly.
  * 
- * Suorita tämä testi manuaalisesti komennolla:
+ * Run this test manually with the command:
  * npx ts-node test/manual/network-delay.test.ts
  */
 
@@ -13,36 +13,36 @@ import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Ohita tämä manuaalinen testi Jest-suorituksessa
-// Jest-yhteensopiva testi, joka ohitetaan automaattisesti
-test.skip('Manuaalinen skripti verkkoviiveiden testaamiseksi', () => {
-  // Tyhjä testi ainoastaan Jest-yhteensopivuutta varten
+// Skip this manual test in Jest execution
+// Jest-compatible test that is automatically skipped
+test.skip('Manual script for testing network delays', () => {
+  // Empty test only for Jest compatibility
   expect(true).toBe(true);
 });
 
-// Estä pääohjelman suoritus Jest-ympäristössä
+// Prevent main execution in Jest environment
 if (process.env.JEST_WORKER_ID) {
-  // Jest-suorituksessa, älä suorita testiä
-  console.log('Skripti ohitetaan Jest-ympäristössä');
+  // In Jest execution, do not run the test
+  console.log('Script skipped in Jest environment');
 } else {
-  // Lokitiedoston sijainti
+  // Log file location
   const logFile = path.join(__dirname, 'network-delay.log');
 
-  // Testipalvelimen asetukset
+  // Test server settings
   const TEST_PORT = 4444;
   const TEST_HOST = 'localhost';
   const SERVER_ENDPOINT = `http://${TEST_HOST}:${TEST_PORT}`;
 
-  // Simuloidut viivearvot (millisekunteina)
+  // Simulated delay values (in milliseconds)
   const DELAYS = {
     short: 500,    // 500ms
     medium: 2000,  // 2s
     long: 8000,    // 8s
-    timeout: 15000 // 15s - todennäköisesti aiheuttaa timeoutin
+    timeout: 15000 // 15s - likely to cause a timeout
   };
 
   /**
-   * Kirjoittaa lokiin testin tuloksen
+   * Writes to the log with the test result
    */
   function log(message: string): void {
     const timestamp = new Date().toISOString();
@@ -53,24 +53,24 @@ if (process.env.JEST_WORKER_ID) {
   }
 
   /**
-   * Alustaa lokin
+   * Initializes the log
    */
   function initLog(): void {
     if (fs.existsSync(logFile)) {
       fs.unlinkSync(logFile);
     }
-    log('=== Verkkoviiveiden ja -katkosten testi ===');
+    log('=== Network delay and outage simulation test ===');
   }
 
   /**
-   * Odottaa annetun ajan millisekunteina
+   * Waits for the specified time in milliseconds
    */
   function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
-   * Simulaatiopalvelin, joka simuloi erilaisia verkko-ongelmia
+   * Simulation server that simulates various network issues
    */
   class NetworkSimulationServer {
     private server: http.Server;
@@ -80,7 +80,7 @@ if (process.env.JEST_WORKER_ID) {
     }
     
     /**
-     * Käsittelee HTTP-pyynnöt ja simuloi eri virhetilanteita
+     * Handles HTTP requests and simulates different error situations
      */
     private async handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
       let body = '';
@@ -91,64 +91,64 @@ if (process.env.JEST_WORKER_ID) {
       
       req.on('end', async () => {
         try {
-          // Parsitaan pyynnön polku simulaation määrittämiseksi
+          // Parses the request path to determine the simulation
           const url = new URL(req.url, `http://${req.headers.host}`);
           const simulationType = url.pathname.split('/').pop();
           
-          log(`Vastaanotettu pyyntö: ${req.method} ${req.url}`);
+          log(`Received request: ${req.method} ${req.url}`);
           
-          // Simuloidaan eri verkko-ongelmia perustuen polkuun
+          // Simulates different network issues based on the path
           switch (simulationType) {
             case 'short-delay':
-              log(`Simuloidaan lyhyttä viivettä: ${DELAYS.short}ms`);
+              log(`Simulating short delay: ${DELAYS.short}ms`);
               await sleep(DELAYS.short);
               this.sendSuccessResponse(res);
               break;
               
             case 'medium-delay':
-              log(`Simuloidaan keskipitkää viivettä: ${DELAYS.medium}ms`);
+              log(`Simulating medium delay: ${DELAYS.medium}ms`);
               await sleep(DELAYS.medium);
               this.sendSuccessResponse(res);
               break;
               
             case 'long-delay':
-              log(`Simuloidaan pitkää viivettä: ${DELAYS.long}ms`);
+              log(`Simulating long delay: ${DELAYS.long}ms`);
               await sleep(DELAYS.long);
               this.sendSuccessResponse(res);
               break;
               
             case 'timeout':
-              log(`Simuloidaan timeoutiä: ${DELAYS.timeout}ms`);
+              log(`Simulating timeout: ${DELAYS.timeout}ms`);
               await sleep(DELAYS.timeout);
               this.sendSuccessResponse(res);
               break;
               
             case 'connection-reset':
-              log('Simuloidaan yhteyden katkaisua (connection reset)');
-              // Suljetaan socket väkisin ilman vastausta
+              log('Simulating connection reset');
+              // Closes the socket without a response
               req.socket.destroy();
               break;
               
             case 'bad-response':
-              log('Simuloidaan viallista vastausta');
+              log('Simulating bad response');
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.write('{malformed json:');
               res.end();
               break;
               
             case 'server-error':
-              log('Simuloidaan palvelinvirhettä');
+              log('Simulating server error');
               res.writeHead(500, { 'Content-Type': 'application/json' });
               res.write(JSON.stringify({ error: 'Internal Server Error' }));
               res.end();
               break;
               
             default:
-              log('Lähetetään onnistunut vastaus');
+              log('Sending successful response');
               this.sendSuccessResponse(res);
           }
         } catch (error) {
-          log(`Virhe pyynnön käsittelyssä: ${error.message}`);
+          log(`Error handling request: ${error.message}`);
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.write(JSON.stringify({ error: 'Internal Server Error' }));
           res.end();
@@ -157,7 +157,7 @@ if (process.env.JEST_WORKER_ID) {
     }
     
     /**
-     * Lähettää onnistuneen vastauksen
+     * Sends a successful response
      */
     private sendSuccessResponse(res: http.ServerResponse): void {
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -170,24 +170,24 @@ if (process.env.JEST_WORKER_ID) {
     }
     
     /**
-     * Käynnistää simulaatiopalvelimen
+     * Starts the simulation server
      */
     public start(): Promise<void> {
       return new Promise((resolve) => {
         this.server.listen(TEST_PORT, TEST_HOST, () => {
-          log(`Simulaatiopalvelin käynnistetty osoitteessa ${SERVER_ENDPOINT}`);
+          log(`Simulation server started at ${SERVER_ENDPOINT}`);
           resolve();
         });
       });
     }
     
     /**
-     * Pysäyttää simulaatiopalvelimen
+     * Stops the simulation server
      */
     public stop(): Promise<void> {
       return new Promise((resolve) => {
         this.server.close(() => {
-          log('Simulaatiopalvelin pysäytetty');
+          log('Simulation server stopped');
           resolve();
         });
       });
@@ -195,42 +195,42 @@ if (process.env.JEST_WORKER_ID) {
   }
 
   /**
-   * Testaa annetun endpointin toimintaa timeout-arvolla
+   * Tests the specified endpoint with a timeout value
    */
   async function testEndpoint(endpoint: string, timeoutMs: number): Promise<void> {
     const url = `${SERVER_ENDPOINT}/${endpoint}`;
     
     try {
-      log(`Testaan endpointtia: ${url} (timeout: ${timeoutMs}ms)`);
+      log(`Testing endpoint: ${url} (timeout: ${timeoutMs}ms)`);
       
       const response = await axios.post(
         url,
         { test: 'data' },
         { 
           timeout: timeoutMs,
-          validateStatus: null // Hyväksytään kaikki vastaukset
+          validateStatus: null // Accepts all responses
         }
       );
       
-      log(`Vastaus saatu: ${response.status} ${JSON.stringify(response.data)}`);
+      log(`Response received: ${response.status} ${JSON.stringify(response.data)}`);
     } catch (error) {
-      // Tarkistetaan, onko kyseessä Axios-virhe ilman isAxiosError-metodia
+      // Checks if it's an Axios error without the isAxiosError method
       if (error && error.config && error.request) {
         if (error.code === 'ECONNABORTED') {
-          log(`OK: Timeout tapahtunut asianmukaisesti: ${error.message}`);
+          log(`OK: Timeout occurred as expected: ${error.message}`);
         } else if (error.code === 'ECONNRESET') {
-          log(`OK: Yhteys katkaistu asianmukaisesti: ${error.message}`);
+          log(`OK: Connection reset as expected: ${error.message}`);
         } else {
-          log(`OK: Muu Axios-virhe: ${error.message}`);
+          log(`OK: Other Axios error: ${error.message}`);
         }
       } else {
-        log(`Muu virhe: ${error.message}`);
+        log(`Other error: ${error.message}`);
       }
     }
   }
 
   /**
-   * Suorittaa testit
+   * Runs the tests
    */
   async function runTests(): Promise<void> {
     initLog();
@@ -238,37 +238,37 @@ if (process.env.JEST_WORKER_ID) {
     const server = new NetworkSimulationServer();
     
     try {
-      // Käynnistetään testipalvelin
+      // Starts the test server
       await server.start();
       
-      // Onnistunut peruspyyntö
+      // Successful basic request
       await testEndpoint('success', 5000);
       
-      // Testit erilaisille viiveille
+      // Tests for different delays
       await testEndpoint('short-delay', 5000);
       await testEndpoint('medium-delay', 5000);
       await testEndpoint('long-delay', 10000);
       
-      // TestiTimeout - client timeout pienempi kuin palvelimen viive
+      // Test with client timeout smaller than server delay
       await testEndpoint('long-delay', 3000);
       
-      // Testiä tarkoituksella aiheuttaa timeout
+      // Test that intentionally causes a timeout
       await testEndpoint('timeout', 10000);
       
-      // Muut virhetilanteet
+      // Other error situations
       await testEndpoint('connection-reset', 5000);
       await testEndpoint('bad-response', 5000);
       await testEndpoint('server-error', 5000);
       
-      log('\n=== Kaikki verkkotestit suoritettu ===');
+      log('\n=== All network tests completed ===');
     } catch (error) {
-      log(`\n=== Testivirhe: ${error.message} ===`);
+      log(`\n=== Test error: ${error.message} ===`);
     } finally {
-      // Pysäytetään testipalvelin
+      // Stops the test server
       await server.stop();
     }
   }
 
-  // Suorita testit
+  // Run the tests
   runTests();
 }

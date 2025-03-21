@@ -5,15 +5,15 @@ export interface CompletionRequest {
   stopSequences?: string[];
   modelName: string;
   systemPrompt?: string;
-  ignoreAvailabilityCheck?: boolean; // Jos true, pyyntö yritetään vaikka palvelu olisi merkitty ei-saatavilla olevaksi
-  retryCount?: number; // Uudelleenyritysten määrä
-  timeout?: number; // Pyyntökohtainen timeout millisekunteina
-  isLoadTest?: boolean; // Merkintä kuormitustestistä
+  ignoreAvailabilityCheck?: boolean; // If true, the request will be attempted even if the service is marked as unavailable
+  retryCount?: number; // Number of retries
+  timeout?: number; // Request-specific timeout in milliseconds
+  isLoadTest?: boolean; // Indicator for load testing
 }
 
-// Batch-pyyntöjen käsittelyä varten
+// For handling batch requests
 export interface BatchCompletionRequest extends CompletionRequest {
-  id?: string; // Valinnainen tunniste batch-pyyntöä varten
+  id?: string; // Optional identifier for batch request
 }
 
 export interface CompletionResult {
@@ -24,10 +24,10 @@ export interface CompletionResult {
   finishReason?: string;
   success: boolean;
   error?: string;
-  errorType?: string; // Virhetyyppi (esim. network_error, timeout, server_error)
+  errorType?: string; // Error type (e.g., network_error, timeout, server_error)
   qualityScore?: number;
-  latency?: number; // Vasteaika millisekunteina
-  wasRetry?: boolean; // Oliko tämä uudelleenyritys
+  latency?: number; // Response time in milliseconds
+  wasRetry?: boolean; // Whether this was a retry
 }
 
 export interface ServiceStatus {
@@ -45,11 +45,11 @@ export interface AIProvider {
   generateCompletion(request: CompletionRequest): Promise<CompletionResult>;
   isAvailable(): Promise<boolean>;
   getName(): string;
-  getServiceStatus?(): ServiceStatus; // Palvelun tilan tiedot
+  getServiceStatus?(): ServiceStatus; // Service status information
 }
 
 export abstract class BaseProvider implements AIProvider {
-  // Virhetyypit, joita voidaan käyttää virhetilanteiden luokitteluun
+  // Error types that can be used to classify error situations
   protected static readonly ERROR_TYPES = {
     NETWORK: 'network_error',
     CONNECTION: 'connection_error',
@@ -65,7 +65,7 @@ export abstract class BaseProvider implements AIProvider {
     UNKNOWN: 'unknown_error'
   };
 
-  // Virhetyypit, jotka kannattaa yrittää uudelleen
+  // Error types that should be retried
   protected static readonly RETRYABLE_ERROR_TYPES = [
     BaseProvider.ERROR_TYPES.NETWORK,
     BaseProvider.ERROR_TYPES.CONNECTION,
@@ -74,7 +74,7 @@ export abstract class BaseProvider implements AIProvider {
     BaseProvider.ERROR_TYPES.RATE_LIMIT
   ];
 
-  // Palvelun tilan seuranta
+  // Service status tracking
   protected serviceStatus: ServiceStatus = {
     isAvailable: true,
     lastError: null,
@@ -104,8 +104,8 @@ export abstract class BaseProvider implements AIProvider {
   abstract getName(): string;
 
   /**
-   * Palauttaa palvelun tilatiedot
-   * @returns Palvelun tilatiedot
+   * Returns service status information
+   * @returns Service status information
    */
   getServiceStatus(): ServiceStatus {
     return {
@@ -117,32 +117,32 @@ export abstract class BaseProvider implements AIProvider {
   }
 
   /**
-   * Päivittää palvelun tilan pyynnön tuloksen perusteella
-   * @param success Onnistuiko pyyntö
-   * @param error Mahdollinen virhe
-   * @param latency Vasteaika millisekunteina
+   * Updates service status based on request result
+   * @param success Whether the request was successful
+   * @param error Optional error
+   * @param latency Optional response time in milliseconds
    */
   protected updateServiceStatus(success: boolean, error?: any, latency?: number): void {
     if (success) {
-      // Nollataan virhelaskuri onnistuneen pyynnön jälkeen
+      // Reset error counter after successful request
       this.serviceStatus.consecutiveFailures = 0;
       this.serviceStatus.isAvailable = true;
       this.serviceStatus.lastError = null;
       this.serviceStatus.lastErrorTime = null;
       this.serviceStatus.successfulRequests++;
       
-      // Päivitetään keskimääräinen vasteaika
+      // Update average latency
       if (latency) {
         const totalLatency = (this.serviceStatus.averageLatency || 0) * (this.serviceStatus.successfulRequests - 1);
         this.serviceStatus.averageLatency = (totalLatency + latency) / this.serviceStatus.successfulRequests;
       }
     } else {
-      // Kasvatetaan virhelaskuria
+      // Increment error counter
       this.serviceStatus.consecutiveFailures++;
       this.serviceStatus.lastError = error?.message || 'Unknown error';
       this.serviceStatus.lastErrorTime = new Date();
       
-      // Jos virheitä on liian monta peräkkäin, merkitään palvelu ei-saatavilla olevaksi
+      // Mark as unavailable after 5 consecutive failures
       if (this.serviceStatus.consecutiveFailures >= 5) {
         this.serviceStatus.isAvailable = false;
       }
@@ -152,12 +152,12 @@ export abstract class BaseProvider implements AIProvider {
   }
 
   /**
-   * Tunnistaa virhetyypin annetusta virheestä
-   * @param error Virhe, jonka tyyppi halutaan tunnistaa
-   * @returns Virhetyyppi merkkijonona
+   * Identifies error type from given error
+   * @param error Error to identify
+   * @returns Error type as string
    */
   protected identifyErrorType(error: any): string {
-    // Tarkistetaan yleisiä virheviestejä
+    // Check for common error messages
     const errorMessage = error.message?.toLowerCase() || '';
     
     if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
@@ -186,9 +186,9 @@ export abstract class BaseProvider implements AIProvider {
   }
 
   /**
-   * Päättää pitäisikö pyyntö yrittää uudelleen virhetyypin perusteella
-   * @param errorType Virhetyyppi
-   * @returns true jos pyyntö pitäisi yrittää uudelleen
+   * Determines whether request should be retried based on error type
+   * @param errorType Error type
+   * @returns true if request should be retried
    */
   protected shouldRetry(errorType: string): boolean {
     return BaseProvider.RETRYABLE_ERROR_TYPES.includes(errorType);

@@ -5,7 +5,7 @@ import { ProviderHealth, ProviderHealthMonitor } from '../ProviderHealthMonitor'
 import { ProviderScoreUtils } from './ProviderScoreUtils';
 
 /**
- * Palveluntarjoajan valintastrategia
+ * Service provider selection strategy
  */
 export enum SelectionStrategy {
     COST_OPTIMIZED = 'COST_OPTIMIZED',
@@ -17,13 +17,13 @@ export enum SelectionStrategy {
 }
 
 /**
- * Luokka, joka vastaa palveluntarjoajien valinnasta eri strategioiden mukaan
+ * Class responsible for selecting service providers according to different strategies
  */
 @Injectable()
 export class ProviderSelectionStrategy {
     private readonly logger = new Logger(ProviderSelectionStrategy.name);
     
-    // Palveluntarjoajien prioriteetit eri tehtävätyypeille
+    // Service provider priorities for different task types
     private readonly providerPriorities: Record<string, Record<string, number>> = {
         'text-generation': {
             'anthropic': 90,
@@ -55,7 +55,7 @@ export class ProviderSelectionStrategy {
         }
     };
     
-    // Viimeksi käytetty palveluntarjoaja round-robin-strategiaa varten
+    // Last used provider index for round-robin strategy
     private lastUsedProviderIndex: number = -1;
     
     constructor(
@@ -65,20 +65,21 @@ export class ProviderSelectionStrategy {
     ) {}
     
     /**
-     * Palauttaa palveluntarjoajien prioriteetit tehtävätyypin perusteella
-     * @param taskType Tehtävätyyppi
-     * @returns Prioriteettikartta
+     * Returns the service provider priorities for a task type
+     * @param taskType Task type
+     * @returns Priority map
      */
     public getProviderPriority(taskType: string): Record<string, number> {
         return this.providerPriorities[taskType] || this.providerPriorities['default'];
     }
     
     /**
-     * Valitsee parhaan palveluntarjoajan tehtävätyypin ja strategian perusteella
-     * @param taskType Tehtävätyyppi
-     * @param strategy Valintastrategia
-     * @param retryCount Uudelleenyrityskertojen määrä
-     * @returns Palveluntarjoajan nimi
+     * Selects the best service provider based on task type and strategy
+     * @param taskType Task type
+     * @param strategy Selection strategy
+     * @param retryCount Number of retries
+     * @param excludeProvider Provider to exclude
+     * @returns Selected provider
      */
     public selectBestProvider(
         taskType: string, 
@@ -86,27 +87,27 @@ export class ProviderSelectionStrategy {
         retryCount: number = 0,
         excludeProvider: string = null
     ): string {
-        // Haetaan käytettävissä olevat palveluntarjoajat
+        // Get available providers
         const allProviders = Array.from(this.providerRegistry.getAllProviders().keys());
         const availableProviders = excludeProvider 
             ? allProviders.filter(p => p !== excludeProvider)
             : allProviders;
         
         if (availableProviders.length === 0) {
-            this.logger.warn('Yhtään palveluntarjoajaa ei ole käytettävissä');
+            this.logger.warn('No service providers are available');
             return null;
         }
         
-        // Haetaan prioriteettikartta tehtävätyypin perusteella
+        // Get priority map for task type
         const priorityMap = this.getProviderPriority(taskType);
         
-        // Järjestetään palveluntarjoajat strategian mukaan
+        // Rank providers based on strategy
         let rankedProviders: ProviderHealth[] = [];
         
         switch (strategy) {
             case SelectionStrategy.COST_OPTIMIZED:
-                // Käytetään kustannusoptimointia
-                // Kerätään palveluntarjoajat ja niiden terveystiedot
+                // Use cost optimization
+                // Collect providers and their health information
                 const providers: ProviderHealth[] = [];
                 
                 for (const name of availableProviders) {
@@ -115,7 +116,7 @@ export class ProviderSelectionStrategy {
                     if (health) {
                         providers.push(health);
                     } else {
-                        // Jos terveystietoja ei ole, luodaan oletusarvot
+                        // If health information is not available, use default values
                         providers.push({
                             name,
                             available: true,
@@ -130,7 +131,7 @@ export class ProviderSelectionStrategy {
                     }
                 }
                 
-                // Järjestetään palveluntarjoajat kustannusten mukaan
+                // Rank providers based on cost
                 rankedProviders = ProviderScoreUtils.rankProviders(
                     providers,
                     priorityMap,
@@ -139,8 +140,8 @@ export class ProviderSelectionStrategy {
                 break;
                 
             case SelectionStrategy.PERFORMANCE:
-                // Käytetään suorituskykyä
-                // Haetaan palveluntarjoajat ja järjestetään ne suorituskyvyn mukaan
+                // Use performance
+                // Get providers and rank them based on performance
                 const performanceProviders: ProviderHealth[] = [];
                 
                 for (const name of availableProviders) {
@@ -149,7 +150,7 @@ export class ProviderSelectionStrategy {
                     if (health) {
                         performanceProviders.push(health);
                     } else {
-                        // Jos terveystietoja ei ole, luodaan oletusarvot
+                        // If health information is not available, use default values
                         performanceProviders.push({
                             name,
                             available: true,
@@ -164,7 +165,7 @@ export class ProviderSelectionStrategy {
                     }
                 }
                 
-                // Järjestetään palveluntarjoajat suorituskyvyn mukaan
+                // Rank providers based on performance
                 rankedProviders = ProviderScoreUtils.rankProviders(
                     performanceProviders,
                     priorityMap,
@@ -173,8 +174,8 @@ export class ProviderSelectionStrategy {
                 break;
                 
             case SelectionStrategy.LOAD_BALANCED:
-                // Painotetaan vähiten käytettyjä palveluntarjoajia
-                // Haetaan palveluntarjoajat ja järjestetään ne kuormituksen mukaan
+                // Use load balancing
+                // Get providers and rank them based on load
                 const loadBalancedProviders: ProviderHealth[] = [];
                 
                 for (const name of availableProviders) {
@@ -183,7 +184,7 @@ export class ProviderSelectionStrategy {
                     if (health) {
                         loadBalancedProviders.push(health);
                     } else {
-                        // Jos terveystietoja ei ole, luodaan oletusarvot
+                        // If health information is not available, use default values
                         loadBalancedProviders.push({
                             name,
                             available: true,
@@ -198,33 +199,33 @@ export class ProviderSelectionStrategy {
                     }
                 }
                 
-                // Järjestetään palveluntarjoajat kuormituksen mukaan
+                // Rank providers based on load
                 rankedProviders = ProviderScoreUtils.rankProviders(
                     loadBalancedProviders,
                     priorityMap,
                     retryCount
                 );
                 
-                // Järjestetään uudelleen viimeaikaisten pyyntöjen mukaan
+                // Re-rank based on recent requests
                 rankedProviders.sort((a, b) => {
                     const requestsA = a.recentRequests || 0;
                     const requestsB = b.recentRequests || 0;
-                    return requestsA - requestsB; // Vähemmän pyyntöjä ensin
+                    return requestsA - requestsB; // Less requests first
                 });
                 break;
                 
             case SelectionStrategy.ROUND_ROBIN:
-                // Käytetään round-robin-strategiaa
+                // Use round-robin strategy
                 this.lastUsedProviderIndex = (this.lastUsedProviderIndex + 1) % availableProviders.length;
                 return availableProviders[this.lastUsedProviderIndex];
                 
             case SelectionStrategy.FALLBACK:
-                // Fallback-strategia valitsee seuraavan parhaan palveluntarjoajan
+                // Use fallback strategy
                 if (excludeProvider) {
-                    this.logger.log(`Käytetään fallback-strategiaa, poissuljetaan: ${excludeProvider}`);
+                    this.logger.log(`Using fallback strategy, excluding: ${excludeProvider}`);
                 }
                 
-                // Käytetään samaa logiikkaa kuin prioriteettistrategiassa
+                // Use same logic as priority strategy
                 const fallbackProviders: ProviderHealth[] = [];
                 
                 for (const name of availableProviders) {
@@ -233,7 +234,7 @@ export class ProviderSelectionStrategy {
                     if (health) {
                         fallbackProviders.push(health);
                     } else {
-                        // Jos terveystietoja ei ole, luodaan oletusarvot
+                        // If health information is not available, use default values
                         fallbackProviders.push({
                             name,
                             available: true,
@@ -248,7 +249,7 @@ export class ProviderSelectionStrategy {
                     }
                 }
                 
-                // Järjestetään palveluntarjoajat prioriteetin mukaan
+                // Rank providers based on priority
                 rankedProviders = ProviderScoreUtils.rankProviders(
                     fallbackProviders,
                     priorityMap,
@@ -258,8 +259,8 @@ export class ProviderSelectionStrategy {
                 
             case SelectionStrategy.PRIORITY:
             default:
-                // Käytetään prioriteettia
-                // Haetaan palveluntarjoajat ja järjestetään ne prioriteetin mukaan
+                // Use priority
+                // Get providers and rank them based on priority
                 const priorityProviders: ProviderHealth[] = [];
                 
                 for (const name of availableProviders) {
@@ -268,7 +269,7 @@ export class ProviderSelectionStrategy {
                     if (health) {
                         priorityProviders.push(health);
                     } else {
-                        // Jos terveystietoja ei ole, luodaan oletusarvot
+                        // If health information is not available, use default values
                         priorityProviders.push({
                             name,
                             available: true,
@@ -283,7 +284,7 @@ export class ProviderSelectionStrategy {
                     }
                 }
                 
-                // Järjestetään palveluntarjoajat prioriteetin mukaan
+                // Rank providers based on priority
                 rankedProviders = ProviderScoreUtils.rankProviders(
                     priorityProviders,
                     priorityMap,
@@ -292,35 +293,35 @@ export class ProviderSelectionStrategy {
                 break;
         }
         
-        // Valitaan paras palveluntarjoaja
+        // Select the best provider
         if (rankedProviders.length > 0) {
             const bestProvider = rankedProviders[0];
-            this.logger.log(`Valittu palveluntarjoaja: ${bestProvider.name} (strategia: ${strategy})`);
+            this.logger.log(`Selected provider: ${bestProvider.name} (strategy: ${strategy})`);
             return bestProvider.name;
         }
         
-        // Jos yhtään palveluntarjoajaa ei löydy, palautetaan ensimmäinen saatavilla oleva
-        this.logger.warn(`Yhtään sopivaa palveluntarjoajaa ei löytynyt, käytetään ensimmäistä saatavilla olevaa: ${availableProviders[0]}`);
+        // If no providers are found, return the first available one
+        this.logger.warn(`No suitable provider found, using the first available one: ${availableProviders[0]}`);
         return availableProviders[0];
     }
     
     /**
-     * Valitsee parhaan palveluntarjoajan eräkäsittelyä varten
-     * @param taskType Tehtävätyyppi
-     * @returns Palveluntarjoajan nimi
+     * Selects the best service provider for batch processing
+     * @param taskType Task type
+     * @returns Selected provider
      */
     public selectBestBatchProvider(taskType: string): string {
-        // Eräkäsittelyssä käytetään aina PERFORMANCE-strategiaa
+        // Batch processing always uses PERFORMANCE strategy
         return this.selectBestProvider(taskType, SelectionStrategy.PERFORMANCE);
     }
     
     /**
-     * Valitsee seuraavan palveluntarjoajan fallback-tilanteessa
-     * @param taskType Tehtävätyyppi
-     * @param currentProvider Nykyinen palveluntarjoaja
-     * @param errorType Virhetyyppi
-     * @param retryCount Uudelleenyrityskertojen määrä
-     * @returns Seuraava palveluntarjoaja
+     * Selects the next service provider for a task
+     * @param taskType Task type
+     * @param currentProvider Current provider
+     * @param errorType Error type
+     * @param retryCount Number of retries
+     * @returns Next provider
      */
     public selectNextProvider(
         taskType: string,
@@ -328,7 +329,7 @@ export class ProviderSelectionStrategy {
         errorType: string,
         retryCount: number = 0
     ): string {
-        // Käytetään FALLBACK-strategiaa ja poissuljetaan nykyinen palveluntarjoaja
+        // Use FALLBACK strategy and exclude the current provider
         return this.selectBestProvider(
             taskType,
             SelectionStrategy.FALLBACK,

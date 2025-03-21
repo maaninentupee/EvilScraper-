@@ -1,12 +1,12 @@
 /**
- * LM Studio ja Ollama API-testaustyökalu
+ * LM Studio and Ollama API testing tool
  * 
- * Käytetään paikallisten AI-palveluntarjoajien toiminnan testaamiseen ja vianetsintään
+ * Used for testing and troubleshooting local AI service providers
  */
 
 const axios = require('axios');
 
-// Konfiguraatio
+// Configuration
 const config = {
   lmstudio: {
     url: 'http://localhost:1234',
@@ -18,22 +18,22 @@ const config = {
     url: 'http://localhost:11434',
     models: '/api/tags',
     completions: '/api/generate',
-    timeout: 120000, // Pidempi timeout Ollamalle
-    timeoutOptions: [10000, 30000, 60000, 120000] // Useita timeout-vaihtoehtoja testausta varten
+    timeout: 120000, // Longer timeout for Ollama
+    timeoutOptions: [10000, 30000, 60000, 120000] // Multiple timeout options for testing
   }
 };
 
 /**
- * Testaa yhteys palveluun
+ * Test connection to service
  */
 async function testConnection(provider) {
   const { url, models, timeout } = config[provider];
   
-  console.log(`\n🧪 Testataan yhteyttä: ${provider.toUpperCase()} API (${url}${models})`);
+  console.log(`\n🧪 Testing connection: ${provider.toUpperCase()} API (${url}${models})`);
   try {
     const response = await axios.get(`${url}${models}`, { timeout });
-    console.log(`✅ Yhteys onnistui! Status: ${response.status}`);
-    console.log(`📋 Saatavilla olevat mallit:`);
+    console.log(`✅ Connection successful! Status: ${response.status}`);
+    console.log(`📋 Available models:`);
     
     if (provider === 'lmstudio') {
       const modelList = response.data?.data || [];
@@ -47,21 +47,21 @@ async function testConnection(provider) {
     
     return null;
   } catch (error) {
-    console.log(`❌ Yhteys epäonnistui: ${error.message}`);
+    console.log(`❌ Connection failed: ${error.message}`);
     if (error.code) {
-      console.log(`   Virhekoodi: ${error.code}`);
+      console.log(`   Error code: ${error.code}`);
     }
     return null;
   }
 }
 
 /**
- * Testaa tekstin generointi
+ * Test text generation
  */
 async function testCompletion(provider, modelName) {
   const { url, completions, timeout } = config[provider];
   
-  console.log(`\n🧪 Testataan tekstin generointia: ${provider.toUpperCase()}, malli: ${modelName}`);
+  console.log(`\n🧪 Testing text generation: ${provider.toUpperCase()}, model: ${modelName}`);
   
   try {
     const startTime = Date.now();
@@ -72,7 +72,7 @@ async function testCompletion(provider, modelName) {
         `${url}${completions}`, 
         {
           model: modelName,
-          prompt: "Kerro lyhyesti tekoälymalleista",
+          prompt: "Briefly explain AI models",
           max_tokens: 50,
           temperature: 0.7
         },
@@ -82,14 +82,14 @@ async function testCompletion(provider, modelName) {
       const text = response.data?.choices?.[0]?.text || '';
       const duration = Date.now() - startTime;
       
-      console.log(`✅ Generointi onnistui (${duration}ms)`);
-      console.log(`📝 Generoitu teksti:\n${text.substring(0, 200)}${text.length > 200 ? '...' : ''}`);
+      console.log(`✅ Generation successful (${duration}ms)`);
+      console.log(`📝 Generated text:\n${text.substring(0, 200)}${text.length > 200 ? '...' : ''}`);
     } else if (provider === 'ollama') {
       response = await axios.post(
         `${url}${completions}`, 
         {
           model: modelName,
-          prompt: "Kerro lyhyesti tekoälymalleista",
+          prompt: "Briefly explain AI models",
           stream: false
         },
         { timeout }
@@ -98,36 +98,36 @@ async function testCompletion(provider, modelName) {
       const text = response.data?.response || '';
       const duration = Date.now() - startTime;
       
-      console.log(`✅ Generointi onnistui (${duration}ms)`);
-      console.log(`📝 Generoitu teksti:\n${text.substring(0, 200)}${text.length > 200 ? '...' : ''}`);
+      console.log(`✅ Generation successful (${duration}ms)`);
+      console.log(`📝 Generated text:\n${text.substring(0, 200)}${text.length > 200 ? '...' : ''}`);
     }
     
     return true;
   } catch (error) {
-    console.log(`❌ Generointi epäonnistui: ${error.message}`);
+    console.log(`❌ Generation failed: ${error.message}`);
     if (error.code) {
-      console.log(`   Virhekoodi: ${error.code}`);
+      console.log(`   Error code: ${error.code}`);
     }
     if (error.response) {
-      console.log(`   API vastaus: ${error.response.status} ${error.response.statusText}`);
+      console.log(`   API response: ${error.response.status} ${error.response.statusText}`);
     }
     return false;
   }
 }
 
 /**
- * Testaa Ollama timeout-arvoja
+ * Test Ollama timeout values
  */
 async function testOllamaTimeouts(modelName) {
   if (!modelName) {
-    console.log(`\n⏭️ Ohitetaan Ollama timeout-testit, koska mallia ei löytynyt`);
+    console.log(`\n⏭️ Skipping Ollama timeout tests because no model was found`);
     return;
   }
   
-  console.log(`\n🧪 Testataan Ollama eri timeout-arvoilla:`);
+  console.log(`\n🧪 Testing Ollama with different timeout values:`);
   
   for (const timeout of config.ollama.timeoutOptions) {
-    console.log(`\n⏱️ Testataan timeout: ${timeout}ms`);
+    console.log(`\n⏱️ Testing timeout: ${timeout}ms`);
     
     try {
       const startTime = Date.now();
@@ -135,50 +135,50 @@ async function testOllamaTimeouts(modelName) {
         `${config.ollama.url}${config.ollama.completions}`, 
         {
           model: modelName,
-          prompt: "Kerro lyhyesti tekoälymalleista",
+          prompt: "Briefly explain AI models",
           stream: false
         },
         { timeout }
       );
       
       const duration = Date.now() - startTime;
-      console.log(`✅ Generointi onnistui (${duration}ms)`);
-      console.log(`📝 Vastauksen sanat: ${(response.data?.response || '').split(' ').length}`);
+      console.log(`✅ Generation successful (${duration}ms)`);
+      console.log(`📝 Words in response: ${(response.data?.response || '').split(' ').length}`);
       
-      // Jos saimme vastauksen, lopetetaan testaus
+      // If we got a response, stop testing
       break;
     } catch (error) {
-      console.log(`❌ Timeout ${timeout}ms epäonnistui: ${error.message}`);
+      console.log(`❌ Timeout ${timeout}ms failed: ${error.message}`);
       if (error.code) {
-        console.log(`   Virhekoodi: ${error.code}`);
+        console.log(`   Error code: ${error.code}`);
       }
     }
   }
 }
 
 /**
- * Suorita testit
+ * Run tests
  */
 async function runTests() {
-  console.log("🔍 AI-palveluntarjoajien diagnostiikkatyökalu");
+  console.log("🔍 AI service provider diagnostic tool");
   
-  // Testaa LM Studio
+  // Test LM Studio
   const lmStudioModelName = await testConnection('lmstudio');
   if (lmStudioModelName) {
     await testCompletion('lmstudio', lmStudioModelName);
   }
   
-  // Testaa Ollama
+  // Test Ollama
   const ollamaModelName = await testConnection('ollama');
   if (ollamaModelName) {
     await testCompletion('ollama', ollamaModelName);
     
-    // Testaa eri timeout-arvoja
+    // Test different timeout values
     await testOllamaTimeouts(ollamaModelName);
   }
   
-  console.log("\n🏁 Testit suoritettu!");
+  console.log("\n🏁 Tests completed!");
 }
 
-// Suorita testit
+// Run tests
 runTests().catch(console.error);

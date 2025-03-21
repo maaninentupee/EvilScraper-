@@ -14,22 +14,22 @@ export class OllamaProvider extends BaseProvider {
   private readonly logger = new Logger(OllamaProvider.name);
   private axiosInstance: any;
   private activeRequests = 0;
-  private readonly MAX_CONCURRENT_REQUESTS = 12; // Nostettu 10 -> 12 paremman suorituskyvyn saavuttamiseksi
+  private readonly MAX_CONCURRENT_REQUESTS = 12; // Increased from 10 -> 12 for better performance
   private requestQueue: QueueItem[] = [];
   private isProcessingQueue = false;
-  private readonly LOAD_TEST_TIMEOUT = 15000; // Pienennetty 20s -> 15s kuormitustesteille
-  private readonly NORMAL_TIMEOUT = 120000; // 120 sekunnin timeout tavallisille pyynnöille
-  private readonly MAX_RETRIES = 2; // Vähennetty 3 -> 2 kuormitustestien nopeuttamiseksi
-  private readonly RETRY_DELAY = 500; // Pienennetty 1000ms -> 500ms kuormitustestien nopeuttamiseksi
-  private readonly CONNECTION_ERROR_CODES = ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND']; // Verkkovirheet
-  private readonly LOAD_TEST_MAX_TOKENS = 30; // Pienennetty 50 -> 30 kuormitustesteille
-  private readonly FAST_MODELS = ['mistral', 'tinyllama', 'gemma:2b', 'phi']; // Nopeat mallit kuormitustesteille
-  private availableModels: string[] = []; // Välimuisti saatavilla oleville malleille
-  private lastModelCheckTime = 0; // Viimeisimmän mallitarkistuksen aika
+  private readonly LOAD_TEST_TIMEOUT = 15000; // Reduced from 20s -> 15s for load tests
+  private readonly NORMAL_TIMEOUT = 120000; // 120 second timeout for normal requests
+  private readonly MAX_RETRIES = 2; // Reduced from 3 -> 2 to speed up load tests
+  private readonly RETRY_DELAY = 500; // Reduced from 1000ms -> 500ms to speed up load tests
+  private readonly CONNECTION_ERROR_CODES = ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND']; // Network errors
+  private readonly LOAD_TEST_MAX_TOKENS = 30; // Reduced from 50 -> 30 for load tests
+  private readonly FAST_MODELS = ['mistral', 'tinyllama', 'gemma:2b', 'phi']; // Fast models for load tests
+  private availableModels: string[] = []; // Cache for available models
+  private lastModelCheckTime = 0; // Time of the last model check
 
   constructor() {
     super();
-    // Luodaan oma axios-instanssi paremmalla konfiguraatiolla
+    // Create a custom axios instance with better configuration
     this.axiosInstance = axios.create({
       baseURL: environment.ollamaApiEndpoint,
       timeout: this.NORMAL_TIMEOUT,
@@ -40,7 +40,7 @@ export class OllamaProvider extends BaseProvider {
   }
 
   async generateCompletion(request: CompletionRequest): Promise<CompletionResult> {
-    // Jos yhtäaikaisten pyyntöjen määrä on liian suuri, lisätään pyyntö jonoon
+    // If the number of concurrent requests is too high, add the request to the queue
     if (this.activeRequests >= this.MAX_CONCURRENT_REQUESTS) {
       return new Promise<CompletionResult>((resolve, reject) => {
         this.logger.log(`Queuing Ollama request, current queue length: ${this.requestQueue.length}`);
@@ -62,30 +62,30 @@ export class OllamaProvider extends BaseProvider {
     try {
       this.logger.log(`Generating completion with Ollama model: ${request.modelName} (active: ${this.activeRequests})`);
       
-      // Tarkistetaan onko palvelu saatavilla
+      // Check if the service is available
       if (!this.serviceStatus.isAvailable && !request.ignoreAvailabilityCheck) {
         throw new Error(`Ollama service is currently unavailable. Last error: ${this.serviceStatus.lastError}`);
       }
       
-      // Parannettu kuormitustestien tunnistaminen - tarkemmat kriteerit
+      // Improved load test detection - more specific criteria
       const isLoadTest = request.prompt.length < 100 || 
                         request.prompt.includes('TEST_LOAD') || 
                         (request.maxTokens && request.maxTokens <= 50);
       
-      // Asetetaan lyhyempi timeout kuormitustesteille
+      // Set a shorter timeout for load tests
       const timeout = isLoadTest ? this.LOAD_TEST_TIMEOUT : 
                      (request.timeout || this.NORMAL_TIMEOUT);
       
-      // Käytetään pienempää maxTokens-arvoa kuormitustesteissä
+      // Use a smaller maxTokens value for load tests
       const maxTokens = isLoadTest ? this.LOAD_TEST_MAX_TOKENS : 
                        (request.maxTokens || 512);
       
-      // Valitaan pienempi ja nopeampi malli kuormitustesteihin
+      // Select a smaller and faster model for load tests
       let modelName = request.modelName;
       if (isLoadTest) {
         const originalModel = modelName;
         
-        // Käytetään aina nopeinta saatavilla olevaa mallia kuormitustesteissä
+        // Always use the fastest available model for load tests
         for (const fastModel of this.FAST_MODELS) {
           if (this.isModelAvailable(fastModel)) {
             modelName = fastModel;
@@ -93,7 +93,7 @@ export class OllamaProvider extends BaseProvider {
           }
         }
         
-        // Jos ei löydy nopeaa mallia, käytetään mistral-mallia oletusarvoisesti
+        // If no fast model is found, use the mistral model by default
         if (modelName === originalModel && 
             (modelName.includes('llama') || 
              modelName.includes('13b') || 
@@ -110,17 +110,17 @@ export class OllamaProvider extends BaseProvider {
         model: modelName,
         prompt: request.prompt,
         system: request.systemPrompt || '',
-        stream: false,  // Varmistetaan, että vastaus ei ole stream-muodossa
+        stream: false,  // Ensure the response is not in stream format
         options: {
           temperature: request.temperature || 0.7,
           stop: request.stopSequences || []
         }
       }, { timeout });
 
-      // Tarkistetaan vastauksen rakenne ja logitetaan se debuggausta varten
+      // Check the response structure and log it for debugging
       this.logger.debug(`Ollama API response: ${JSON.stringify(response.data)}`);
 
-      // Päivitetään palvelun tila onnistuneen pyynnön jälkeen
+      // Update the service status after a successful request
       this.updateServiceStatus(true);
 
       if (response.data && response.data.response) {
@@ -142,23 +142,23 @@ export class OllamaProvider extends BaseProvider {
         throw new Error('Ollama API returned an unexpected response format');
       }
     } catch (error) {
-      // Tunnistetaan virhetyyppi
+      // Identify the error type
       const errorType = this.identifyErrorType(error);
       this.logger.error(`Error generating completion with Ollama model: ${error.message} (type: ${errorType})`);
       
-      // Päivitetään palvelun tila virheen jälkeen
+      // Update the service status after an error
       this.updateServiceStatus(false, error);
       
       if (error.response) {
         this.logger.error(`Ollama API error: ${JSON.stringify(error.response.data)}`);
       }
       
-      // Yritetään uudelleen verkkovirheiden yhteydessä
+      // Retry the request for network errors
       if (retryCount < this.MAX_RETRIES && this.shouldRetry(errorType)) {
         this.logger.log(`Retrying Ollama request (${retryCount + 1}/${this.MAX_RETRIES})...`);
-        this.activeRequests--; // Vähennetään aktiivisten pyyntöjen määrää ennen uudelleenyritystä
+        this.activeRequests--; // Decrement the active requests count before retrying
         
-        // Odotetaan hetki ennen uudelleenyritystä
+        // Wait for a short period before retrying
         await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY * (retryCount + 1)));
         
         return this.processCompletionRequest(request, retryCount + 1);
@@ -174,7 +174,7 @@ export class OllamaProvider extends BaseProvider {
         qualityScore: 0
       };
     } finally {
-      if (retryCount === 0) { // Vähennetään aktiivisten pyyntöjen määrää vain alkuperäisen pyynnön yhteydessä
+      if (retryCount === 0) { // Decrement the active requests count only for the original request
         this.activeRequests--;
         this.processNextQueuedRequest();
       }
@@ -182,17 +182,17 @@ export class OllamaProvider extends BaseProvider {
   }
   
   /**
-   * Tunnistaa virhetyypin annetusta virheestä
-   * @param error Virhe, jonka tyyppi halutaan tunnistaa
-   * @returns Virhetyyppi merkkijonona
+   * Identify the error type from the given error
+   * @param error The error to identify
+   * @returns The error type as a string
    */
   protected identifyErrorType(error: any): string {
-    // Tarkistetaan onko kyseessä Axios-virhe tarkistamalla tyypilliset Axios-virheominaisuudet
+    // Check if the error is an Axios error
     if (error && error.isAxiosError === true || (error && error.config && (error.response || error.request))) {
       const axiosError = error as AxiosError;
       
       if (!axiosError.response) {
-        // Verkkovirhe tai palvelin ei vastaa
+        // Network error or server not responding
         if (axiosError.code && this.CONNECTION_ERROR_CODES.includes(axiosError.code)) {
           return 'network_error';
         }
@@ -202,7 +202,7 @@ export class OllamaProvider extends BaseProvider {
         return 'connection_error';
       }
       
-      // HTTP-virhekoodi
+      // HTTP error code
       const status = axiosError.response.status;
       if (status >= 500) {
         return 'server_error';
@@ -217,8 +217,8 @@ export class OllamaProvider extends BaseProvider {
       }
     }
     
-    // Tarkistetaan yleisiä virheviestejä
-    // Varmistetaan, että error ei ole null tai undefined ennen message-ominaisuuden lukemista
+    // Check for common error messages
+    // Ensure the error is not null or undefined before accessing its message
     if (!error) {
       return 'unknown_error';
     }
@@ -236,19 +236,19 @@ export class OllamaProvider extends BaseProvider {
   }
   
   /**
-   * Päättää pitäisikö pyyntö yrittää uudelleen virhetyypin perusteella
-   * @param errorType Virhetyyppi
-   * @returns true jos pyyntö pitäisi yrittää uudelleen
+   * Determine if the request should be retried based on the error type
+   * @param errorType The error type
+   * @returns true if the request should be retried
    */
   protected shouldRetry(errorType: string): boolean {
-    // Kuormitustesteissä rajoitetaan uudelleenyrityksiä
+    // Limit retries for load tests
     if (this.activeRequests > this.MAX_CONCURRENT_REQUESTS / 2) {
-      // Jos järjestelmä on jo kuormittunut, uudelleenyritykset vain pahentavat tilannetta
-      // Sallitaan vain verkkovirheet, ei timeout-virheitä
+      // If the system is already overloaded, retries will only make things worse
+      // Only allow network errors, not timeouts
       return errorType === 'network_error' && this.serviceStatus.consecutiveFailures < 3;
     }
     
-    // Verkkovirheet ja palvelinvirheet kannattaa yrittää uudelleen
+    // Network errors and server errors should be retried
     const retryableErrors = [
       'network_error',
       'connection_error',
@@ -261,24 +261,24 @@ export class OllamaProvider extends BaseProvider {
   }
   
   /**
-   * Päivittää palvelun tilan pyynnön tuloksen perusteella
-   * @param success Onnistuiko pyyntö
-   * @param error Mahdollinen virhe
+   * Update the service status based on the request result
+   * @param success Whether the request was successful
+   * @param error The error that occurred, if any
    */
   protected updateServiceStatus(success: boolean, error?: any): void {
     if (success) {
-      // Nollataan virhelaskuri onnistuneen pyynnön jälkeen
+      // Reset the error counter after a successful request
       this.serviceStatus.consecutiveFailures = 0;
       this.serviceStatus.isAvailable = true;
       this.serviceStatus.lastError = null;
       this.serviceStatus.lastErrorTime = null;
     } else {
-      // Kasvatetaan virhelaskuria
+      // Increment the error counter
       this.serviceStatus.consecutiveFailures++;
       this.serviceStatus.lastError = error?.message || 'Unknown error';
       this.serviceStatus.lastErrorTime = new Date();
       
-      // Jos virheitä on liian monta peräkkäin, merkitään palvelu ei-saatavilla olevaksi
+      // If there are too many consecutive errors, mark the service as unavailable
       if (this.serviceStatus.consecutiveFailures >= 5) {
         this.serviceStatus.isAvailable = false;
         this.logger.warn(`Ollama service marked as unavailable after ${this.serviceStatus.consecutiveFailures} consecutive failures`);
@@ -287,14 +287,14 @@ export class OllamaProvider extends BaseProvider {
   }
 
   private async processNextQueuedRequest(): Promise<void> {
-    // Estetään päällekkäiset jonon käsittelyt
+    // Prevent concurrent queue processing
     if (this.isProcessingQueue) return;
     this.isProcessingQueue = true;
     
     try {
-      // Käsitellään useita jonossa olevia pyyntöjä kerralla, jos mahdollista
+      // Process multiple queued requests at once, if possible
       let processedCount = 0;
-      const maxBatchSize = 5; // Käsitellään maksimissaan 5 pyyntöä kerralla
+      const maxBatchSize = 5; // Process up to 5 requests at a time
       
       while (this.requestQueue.length > 0 && 
              this.activeRequests < this.MAX_CONCURRENT_REQUESTS && 
@@ -305,17 +305,17 @@ export class OllamaProvider extends BaseProvider {
           const { request, resolve, reject } = item;
           processedCount++;
           
-          // Parannettu kuormitustestien tunnistaminen
+          // Improved load test detection
           const isLoadTest = request.prompt.length < 100 || 
                             request.prompt.includes('TEST_LOAD') || 
                             (request.maxTokens && request.maxTokens <= 50);
           
           if (isLoadTest) {
-            // Optimoidaan kuormitustestipyyntöjä
+            // Optimize load test requests
             request.maxTokens = this.LOAD_TEST_MAX_TOKENS;
             request.timeout = this.LOAD_TEST_TIMEOUT;
             
-            // Valitaan nopeampi malli kuormitustesteille
+            // Select a faster model for load tests
             if (request.modelName && 
                 (request.modelName.includes('llama') || 
                  request.modelName.includes('13b'))) {
@@ -323,25 +323,25 @@ export class OllamaProvider extends BaseProvider {
             }
           }
           
-          // Käsitellään pyyntö asynkronisesti
+          // Process the request asynchronously
           this.processCompletionRequest(request)
             .then(resolve)
             .catch(reject)
             .finally(() => {
-              // Käsitellään seuraava erä pyyntöjä, kun tämä on valmis
+              // Process the next batch of requests when this one is done
               if (this.requestQueue.length > 0 && !this.isProcessingQueue) {
                 setTimeout(() => this.processNextQueuedRequest(), 5);
               }
             });
           
-          // Lisätään pieni viive pyyntöjen väliin, jotta ei ylikuormiteta palvelinta
+          // Add a small delay between requests to avoid overloading the server
           if (this.requestQueue.length > 0 && processedCount < maxBatchSize) {
-            await new Promise(resolve => setTimeout(resolve, 20)); // Pienennetty 50ms -> 20ms
+            await new Promise(resolve => setTimeout(resolve, 20)); // Reduced from 50ms -> 20ms
           }
         }
       }
       
-      // Logitetaan jonon tila vain jos jonossa on vielä pyyntöjä
+      // Log the queue status only if there are still requests in the queue
       if (this.requestQueue.length > 0) {
         this.logger.log(`Queue still has ${this.requestQueue.length} requests waiting, ${this.activeRequests} active requests`);
       }
@@ -350,9 +350,9 @@ export class OllamaProvider extends BaseProvider {
     } finally {
       this.isProcessingQueue = false;
       
-      // Tarkistetaan onko jonoon tullut uusia pyyntöjä tämän käsittelyn aikana
+      // Check if new requests have been added to the queue during processing
       if (this.requestQueue.length > 0 && this.activeRequests < this.MAX_CONCURRENT_REQUESTS) {
-        setTimeout(() => this.processNextQueuedRequest(), 5); // Pienennetty 10ms -> 5ms
+        setTimeout(() => this.processNextQueuedRequest(), 5); // Reduced from 10ms -> 5ms
       }
     }
   }
@@ -362,15 +362,15 @@ export class OllamaProvider extends BaseProvider {
   }
 
   /**
-   * Tarkistaa onko tietty malli saatavilla
-   * @param modelName Mallin nimi
-   * @returns true jos malli on saatavilla
+   * Check if a specific model is available
+   * @param modelName The model name
+   * @returns true if the model is available
    */
   public isModelAvailable(modelName: string): boolean {
-    // Jos mallilista on tyhjä, oletetaan että kaikki mallit ovat saatavilla
+    // If the model list is empty, assume all models are available
     if (this.availableModels.length === 0) return true;
     
-    // Tarkistetaan onko malli saatavilla
+    // Check if the model is available
     return this.availableModels.some(model => 
       model === modelName || 
       model.startsWith(`${modelName}:`) || 
@@ -381,40 +381,40 @@ export class OllamaProvider extends BaseProvider {
   public async isAvailable(): Promise<boolean> {
     if (!environment.useOllama) return false;
     
-    // Tarkistetaan onko mallilista jo haettu viimeisen 60 sekunnin aikana
+    // Check if the model list has been fetched within the last 60 seconds
     const now = Date.now();
     const shouldRefreshModels = now - this.lastModelCheckTime > 60000;
     
-    // Jos palvelu on merkitty ei-saatavilla olevaksi, tarkistetaan onko viimeisestä virheestä kulunut tarpeeksi aikaa
+    // If the service is marked as unavailable, check if enough time has passed since the last error
     if (!this.serviceStatus.isAvailable && this.serviceStatus.lastErrorTime) {
       const timeSinceLastError = now - new Date(this.serviceStatus.lastErrorTime).getTime();
-      const recoveryTime = 30000; // Pienennetty 60s -> 30s kuormitustestien nopeuttamiseksi
+      const recoveryTime = 30000; // Reduced from 60s -> 30s to speed up load tests
       
-      // Jos viimeisestä virheestä on kulunut vähemmän kuin recoveryTime, ei yritetä uudelleen
+      // If not enough time has passed since the last error, do not retry
       if (timeSinceLastError < recoveryTime) {
         this.logger.log(`Skipping Ollama availability check, last error was ${timeSinceLastError}ms ago`);
         return false;
       }
     }
     
-    // Jos mallilista on jo haettu ja palvelu on merkitty saatavilla olevaksi, palautetaan true
+    // If the model list has been fetched and the service is marked as available, return true
     if (this.availableModels.length > 0 && this.serviceStatus.isAvailable && !shouldRefreshModels) {
       return true;
     }
     
     try {
       this.logger.log(`Ollama isAvailable check, attempting to connect to ${environment.ollamaApiEndpoint}/api/tags`);
-      const response = await this.axiosInstance.get('/api/tags', { timeout: 3000 }); // Pienennetty 5000ms -> 3000ms
+      const response = await this.axiosInstance.get('/api/tags', { timeout: 3000 }); // Reduced from 5000ms -> 3000ms
       
-      // Tarkistetaan onko vastauksessa malleja
+      // Check if the response contains models
       if (response.data && Array.isArray(response.data.models) && response.data.models.length > 0) {
         this.logger.log(`Ollama available with ${response.data.models.length} models`);
         
-        // Päivitetään saatavilla olevien mallien lista
+        // Update the available models list
         this.availableModels = response.data.models.map(model => model.name || model);
         this.logger.log(`Available models: ${this.availableModels.join(', ')}`);
         
-        // Päivitetään palvelun tila
+        // Update the service status
         this.serviceStatus.isAvailable = true;
         this.serviceStatus.consecutiveFailures = 0;
         this.lastModelCheckTime = now;
@@ -428,7 +428,7 @@ export class OllamaProvider extends BaseProvider {
       const errorType = this.identifyErrorType(error);
       this.logger.error(`Ollama not available: ${error.message} (type: ${errorType})`);
       
-      // Päivitetään palvelun tila
+      // Update the service status
       this.serviceStatus.isAvailable = false;
       this.serviceStatus.lastError = error.message;
       this.serviceStatus.lastErrorTime = new Date();
@@ -438,8 +438,8 @@ export class OllamaProvider extends BaseProvider {
   }
   
   /**
-   * Palauttaa palvelun tilatiedot
-   * @returns Palvelun tilatiedot
+   * Get the service status
+   * @returns The service status
    */
   public getServiceStatus(): ServiceStatus {
     return {

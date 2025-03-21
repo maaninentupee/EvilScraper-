@@ -1,15 +1,15 @@
 /**
- * Työkalu model-comparison-test.js -testin tulosten analysointiin
+ * Tool for analyzing the results of model-comparison-test.js test
  * 
- * Käyttö:
- * 1. Aja testi: k6 run model-comparison-test.js --out json=results.json
- * 2. Analysoi tulokset: node analyze-model-comparison.js results.json
+ * Usage:
+ * 1. Run the test: k6 run model-comparison-test.js --out json=results.json
+ * 2. Analyze results: node analyze-model-comparison.js results.json
  */
 
 const fs = require('fs');
 const path = require('path');
 
-// ANSI-värikoodit konsolitulosteita varten
+// ANSI color codes for console output
 const colors = {
   reset: '\x1b[0m',
   bright: '\x1b[1m',
@@ -39,45 +39,45 @@ const colors = {
 };
 
 /**
- * Pääfunktio, joka analysoi k6:n tuottamat testitulokset
- * @param {string} filePath - Polku k6:n tuottamaan JSON-tiedostoon
+ * Main function that analyzes test results produced by k6
+ * @param {string} filePath - Path to the JSON file produced by k6
  */
 async function analyzeResults(filePath) {
   try {
-    // Tarkistetaan, onko tiedosto olemassa
+    // Check if the file exists
     if (!fs.existsSync(filePath)) {
-      console.error(`${colors.red}Virhe: Tiedostoa ${filePath} ei löydy.${colors.reset}`);
-      console.log(`Aja testi ensin komennolla: ${colors.cyan}k6 run model-comparison-test.js --out json=results.json${colors.reset}`);
+      console.error(`${colors.red}Error: File ${filePath} not found.${colors.reset}`);
+      console.log(`Run the test first with command: ${colors.cyan}k6 run model-comparison-test.js --out json=results.json${colors.reset}`);
       return;
     }
 
-    // Luetaan tiedosto
+    // Read the file
     const rawData = fs.readFileSync(filePath, 'utf8');
     
-    // Tarkistetaan, onko kyseessä JSON-tiedosto vai lokitiedosto
+    // Check if this is a JSON file or a log file
     let data = { metrics: {} };
     let isLogFile = false;
     
     if (filePath.endsWith('.json')) {
       try {
-        // Yritä jäsentää JSON-tiedosto
+        // Try to parse the JSON file
         data = JSON.parse(rawData);
       } catch (e) {
-        // Jos se ei onnistu, käsittele tiedosto kuten aiemmin
-        console.log(`${colors.yellow}Varoitus: JSON-tiedoston jäsentäminen epäonnistui: ${e.message}${colors.reset}`);
-        console.log(`${colors.yellow}Yritetään käsitellä tiedostoa lokitiedostona...${colors.reset}`);
+        // If parsing fails, process the file as before
+        console.log(`${colors.yellow}Warning: JSON file parsing failed: ${e.message}${colors.reset}`);
+        console.log(`${colors.yellow}Attempting to process the file as a log file...${colors.reset}`);
         isLogFile = true;
       }
     } else {
-      // Kyseessä on todennäköisesti lokitiedosto
+      // This is likely a log file
       isLogFile = true;
     }
     
     if (isLogFile) {
-      // Laske keskiarvot
+      // Calculate averages
       const calculateAvg = (arr) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
       
-      // Laske p95 (95. persentiili)
+      // Calculate p95 (95th percentile)
       const calculateP95 = (arr) => {
         if (arr.length === 0) return 0;
         const sorted = [...arr].sort((a, b) => a - b);
@@ -85,7 +85,7 @@ async function analyzeResults(filePath) {
         return sorted[idx] || sorted[sorted.length - 1];
       };
       
-      // Etsi mallien metriikat yhteenvedosta
+      // Find model metrics from the summary
       const openaiTimeRegex = /openai_processing_time[.\s]*: avg=([0-9.]+).*?p\(95\)=([0-9.]+)/;
       const anthropicTimeRegex = /anthropic_processing_time[.\s]*: avg=([0-9.]+).*?p\(95\)=([0-9.]+)/;
       const ollamaTimeRegex = /ollama_processing_time[.\s]*: avg=([0-9.]+).*?p\(95\)=([0-9.]+)/;
@@ -94,22 +94,22 @@ async function analyzeResults(filePath) {
       const anthropicSuccessRegex = /anthropic_success_rate[.\s]*: ([0-9.]+)% ([0-9]+) out of ([0-9]+)/;
       const ollamaSuccessRegex = /ollama_success_rate[.\s]*: ([0-9.]+)% ([0-9]+) out of ([0-9]+)/;
       
-      // Etsi testin kokonaiskesto
+      // Find the total test duration
       const durationRegex = /running \(([0-9]+)m([0-9]+)\.([0-9]+)s\)/;
       
-      // Etsi virtuaalikäyttäjien määrä
+      // Find the number of virtual users
       const vusRegex = /vus_max[.\s]*: ([0-9]+)/;
       
-      // Etsi kokonaispyyntöjen määrä
+      // Find the total number of requests
       const requestsRegex = /http_reqs[.\s]*: ([0-9]+)/;
       
-      // Etsi virheprosentti
+      // Find the error rate
       const errorRateRegex = /error_rate[.\s]*: ([0-9.]+)%/;
       
-      // Etsi keskimääräinen vasteaika
+      // Find the average response time
       const avgDurationRegex = /http_req_duration[.\s]*: avg=([0-9.]+)ms.*?p\(95\)=([0-9.]+)s/;
       
-      // Alusta muuttujat
+      // Initialize variables
       let openaiAvg = 0;
       let openaiP95 = 0;
       let openaiCount = 0;
@@ -132,7 +132,7 @@ async function analyzeResults(filePath) {
       let avgDuration = 0;
       let p95Duration = 0;
       
-      // Etsi tiedot lokista
+      // Find data from the log
       const openaiTimeMatch = rawData.match(openaiTimeRegex);
       if (openaiTimeMatch) {
         openaiAvg = parseFloat(openaiTimeMatch[1]);
@@ -173,10 +173,10 @@ async function analyzeResults(filePath) {
       if (durationMatch) {
         const minutes = parseInt(durationMatch[1]);
         const seconds = parseInt(durationMatch[2]);
-        const milliseconds = parseInt(durationMatch[3]) * 100; // k6 näyttää vain yhden desimaalin
+        const milliseconds = parseInt(durationMatch[3]) * 100; // k6 shows only one decimal place
         totalDuration = minutes * 60 * 1000 + seconds * 1000 + milliseconds;
       } else {
-        // Etsi viimeinen "running" rivi
+        // Find the last "running" line
         const lastRunningRegex = /running \(([0-9]+)m([0-9]+)\.([0-9]+)s\)/g;
         let lastMatch;
         let tempMatch;
@@ -188,7 +188,7 @@ async function analyzeResults(filePath) {
         if (lastMatch) {
           const minutes = parseInt(lastMatch[1]);
           const seconds = parseInt(lastMatch[2]);
-          const milliseconds = parseInt(lastMatch[3]) * 100; // k6 näyttää vain yhden desimaalin
+          const milliseconds = parseInt(lastMatch[3]) * 100; // k6 shows only one decimal place
           totalDuration = minutes * 60 * 1000 + seconds * 1000 + milliseconds;
         }
       }
@@ -211,19 +211,19 @@ async function analyzeResults(filePath) {
       const avgDurationMatch = rawData.match(avgDurationRegex);
       if (avgDurationMatch) {
         avgDuration = parseFloat(avgDurationMatch[1]);
-        p95Duration = parseFloat(avgDurationMatch[2]) * 1000; // Muunna sekunnit millisekunneiksi
+        p95Duration = parseFloat(avgDurationMatch[2]) * 1000; // Convert seconds to milliseconds
       }
       
       console.log(`OpenAI: avg=${openaiAvg}ms, p95=${openaiP95}ms, count=${openaiCount}, success=${openaiSuccessRate}%`);
       console.log(`Anthropic: avg=${anthropicAvg}ms, p95=${anthropicP95}ms, count=${anthropicCount}, success=${anthropicSuccessRate}%`);
       console.log(`Ollama: avg=${ollamaAvg}ms, p95=${ollamaP95}ms, count=${ollamaCount}, success=${ollamaSuccessRate}%`);
       
-      // Laske kokonaispyyntöjen määrä ja onnistuneiden pyyntöjen määrä
+      // Calculate the total number of requests and successful requests
       const totalModelRequests = openaiCount + anthropicCount + ollamaCount;
       const successfulRequests = totalModelRequests;
       const failedRequests = totalRequests * (errorRate / 100);
       
-      // Luo keinotekoiset metriikat
+      // Create artificial metrics
       const metrics = {
         'openai_processing_time': {
           values: {
@@ -297,54 +297,54 @@ async function analyzeResults(filePath) {
         }
       };
       
-      // Aseta metriikat data-objektiin
+      // Set metrics in the data object
       data.metrics = metrics;
       
-      // Aseta testin kesto
+      // Set the test duration
       data.state = {
         testRunDurationMs: totalDuration,
         maxVUs: maxVUs
       };
     }
     
-    // Tarkista, onko metriikoita
+    // Check if there are metrics
     if (!data.metrics || Object.keys(data.metrics).length === 0) {
-      console.error(`${colors.red}Virhe: Metriikoita ei löytynyt tiedostosta.${colors.reset}`);
+      console.error(`${colors.red}Error: No metrics found in the file.${colors.reset}`);
       return;
     }
     
-    // Tulostetaan yleiset tiedot
+    // Print general information
     printGeneralInfo(data);
     
-    // Analysoidaan eri mallien suorituskykyä
+    // Analyze model performance
     analyzeModelPerformance(data);
     
-    // Annetaan suosituksia
+    // Provide recommendations
     provideRecommendations(data);
     
-    // Tallennetaan tulokset CSV-tiedostoon
+    // Save results to a CSV file
     const csvFilePath = saveResultsToCSV(data);
-    console.log(`\nTulokset tallennettu CSV-tiedostoon: ${colors.green}${csvFilePath}${colors.reset}`);
+    console.log(`\nResults saved to CSV file: ${colors.green}${csvFilePath}${colors.reset}`);
     
   } catch (error) {
-    console.error(`${colors.red}Virhe tulosten analysoinnissa: ${error.message}${colors.reset}`);
+    console.error(`${colors.red}Error analyzing results: ${error.message}${colors.reset}`);
   }
 }
 
 /**
- * Tulostaa yleiset tiedot testistä
- * @param {Object} data - k6:n tuottama JSON-data
+ * Prints general information about the test
+ * @param {Object} data - k6 test results
  */
 function printGeneralInfo(data) {
   const metrics = data.metrics || {};
   const state = data.state || {};
   
-  console.log(`\n${colors.bright}${colors.bgBlue}${colors.white} AI-MALLIEN VERTAILUN TULOKSET ${colors.reset}\n`);
+  console.log(`\n${colors.bright}${colors.bgBlue}${colors.white} MODEL COMPARISON RESULTS ${colors.reset}\n`);
   
-  // Testin tiedot
-  console.log(`${colors.bright}Testin tiedot:${colors.reset}`);
+  // Test information
+  console.log(`${colors.bright}Test Information:${colors.reset}`);
   
-  // Muunna millisekunnit luettavaan muotoon
+  // Convert milliseconds to a readable format
   const durationMs = state.testRunDurationMs || 0;
   const minutes = Math.floor(durationMs / 60000);
   const seconds = Math.floor((durationMs % 60000) / 1000);
@@ -354,29 +354,29 @@ function printGeneralInfo(data) {
     ? `${minutes} min ${seconds}.${String(milliseconds).padStart(3, '0')} s`
     : `${seconds}.${String(milliseconds).padStart(3, '0')} s`;
   
-  console.log(`- Testin kesto: ${durationStr}`);
-  console.log(`- Virtuaalikäyttäjien maksimimäärä: ${state.maxVUs || 0}`);
+  console.log(`- Test duration: ${durationStr}`);
+  console.log(`- Maximum virtual users: ${state.maxVUs || 0}`);
   
-  // Yleiset metriikat
-  console.log(`\n${colors.bright}Yleiset metriikat:${colors.reset}`);
+  // General metrics
+  console.log(`\n${colors.bright}General Metrics:${colors.reset}`);
   
   const totalRequests = metrics['http_reqs']?.values?.count || 0;
   const successfulRequests = metrics['successful_requests']?.values?.count || 0;
   const failedRequests = metrics['failed_requests']?.values?.count || 0;
   const successRate = totalRequests > 0 ? (successfulRequests / totalRequests) * 100 : 0;
   
-  console.log(`- Kokonaispyyntöjen määrä: ${totalRequests}`);
-  console.log(`- Onnistuneet pyynnöt: ${successfulRequests} (${successRate.toFixed(2)}%)`);
-  console.log(`- Epäonnistuneet pyynnöt: ${failedRequests} (${(100 - successRate).toFixed(2)}%)`);
-  console.log(`- Virheprosentti: ${(metrics['error_rate']?.values?.rate * 100 || 0).toFixed(2)}%`);
+  console.log(`- Total requests: ${totalRequests}`);
+  console.log(`- Successful requests: ${successfulRequests} (${successRate.toFixed(2)}%)`);
+  console.log(`- Failed requests: ${failedRequests} (${(100 - successRate).toFixed(2)}%)`);
+  console.log(`- Error rate: ${(metrics['error_rate']?.values?.rate * 100 || 0).toFixed(2)}%`);
   
-  // Vasteajat
-  console.log(`\n${colors.bright}Vasteajat:${colors.reset}`);
+  // Response times
+  console.log(`\n${colors.bright}Response Times:${colors.reset}`);
   
   const avgTime = metrics['ai_processing_time']?.values?.avg || 0;
   const p95Time = metrics['ai_processing_time']?.values?.p95 || 0;
   
-  // Muotoile vasteajat luettavaan muotoon
+  // Format response times
   const formatTime = (timeMs) => {
     if (timeMs >= 1000) {
       return `${(timeMs / 1000).toFixed(2)} s`;
@@ -385,20 +385,20 @@ function printGeneralInfo(data) {
     }
   };
   
-  console.log(`- Keskimääräinen käsittelyaika: ${formatTime(avgTime)}`);
-  console.log(`- 95% käsittelyaika: ${formatTime(p95Time)}`);
+  console.log(`- Average response time: ${formatTime(avgTime)}`);
+  console.log(`- 95th percentile response time: ${formatTime(p95Time)}`);
 }
 
 /**
- * Analysoi eri mallien suorituskykyä
- * @param {Object} data - k6:n tuottama JSON-data
+ * Analyzes model performance
+ * @param {Object} data - k6 test results
  */
 function analyzeModelPerformance(data) {
   const metrics = data.metrics || {};
   
-  console.log(`\n${colors.bright}${colors.bgGreen}${colors.black} MALLIEN SUORITUSKYKY ${colors.reset}\n`);
+  console.log(`\n${colors.bright}${colors.bgGreen}${colors.black} MODEL PERFORMANCE ${colors.reset}\n`);
   
-  // Kerätään mallien tiedot
+  // Collect model data
   const models = [
     {
       name: 'OpenAI (gpt-3.5-turbo)',
@@ -420,45 +420,45 @@ function analyzeModelPerformance(data) {
     }
   ];
   
-  // Järjestetään mallit vasteajan mukaan (nopein ensin)
+  // Sort models by response time (fastest first)
   const sortedBySpeed = [...models].filter(m => m.processingTime > 0).sort((a, b) => a.processingTime - b.processingTime);
   
-  // Järjestetään mallit onnistumisprosentin mukaan (paras ensin)
+  // Sort models by success rate (best first)
   const sortedBySuccess = [...models].filter(m => !isNaN(m.successRate)).sort((a, b) => b.successRate - a.successRate);
   
-  // Tulostetaan taulukko
-  console.log(`${colors.bright}Mallien vertailu:${colors.reset}`);
+  // Print table
+  console.log(`${colors.bright}Model Comparison:${colors.reset}`);
   console.log('┌─────────────────────────────┬────────────────────┬─────────────────┬─────────────────┐');
-  console.log('│ Malli                       │ Keskimääräinen     │ Onnistumis-     │ Pyyntöjen       │');
-  console.log('│                             │ vasteaika          │ prosentti       │ määrä           │');
+  console.log('│ Model                       │ Average Response  │ Success Rate    │ Request Count  │');
+  console.log('│                             │ Time              │                 │                 │');
   console.log('├─────────────────────────────┼────────────────────┼─────────────────┼─────────────────┤');
   
   models.forEach(model => {
-    const successRateFormatted = isNaN(model.successRate) ? 'Ei tietoa' : `${(model.successRate*100).toFixed(2)}%`;
+    const successRateFormatted = isNaN(model.successRate) ? 'N/A' : `${(model.successRate*100).toFixed(2)}%`;
     console.log(`│ ${padRight(model.name, 27)} │ ${padRight(formatDuration(model.processingTime), 18)} │ ${padRight(successRateFormatted, 15)} │ ${padRight(model.count.toString(), 15)} │`);
   });
   
   console.log('└─────────────────────────────┴────────────────────┴─────────────────┴─────────────────┘');
   
-  // Tulostetaan nopein malli
+  // Print the fastest model
   if (sortedBySpeed.length > 0) {
-    console.log(`\n${colors.bright}Nopein malli:${colors.reset} ${colors.green}${sortedBySpeed[0].name}${colors.reset} (${formatDuration(sortedBySpeed[0].processingTime)})`);
+    console.log(`\n${colors.bright}Fastest Model:${colors.reset} ${colors.green}${sortedBySpeed[0].name}${colors.reset} (${formatDuration(sortedBySpeed[0].processingTime)})`);
   }
   
-  // Tulostetaan luotettavin malli
+  // Print the most reliable model
   if (sortedBySuccess.length > 0) {
-    console.log(`${colors.bright}Luotettavin malli:${colors.reset} ${colors.green}${sortedBySuccess[0].name}${colors.reset} (${(sortedBySuccess[0].successRate*100).toFixed(2)}%)`);
+    console.log(`${colors.bright}Most Reliable Model:${colors.reset} ${colors.green}${sortedBySuccess[0].name}${colors.reset} (${(sortedBySuccess[0].successRate*100).toFixed(2)}%)`);
   }
 }
 
 /**
- * Antaa suosituksia tulosten perusteella
- * @param {Object} data - k6:n tuottama JSON-data
+ * Provides recommendations based on the results
+ * @param {Object} data - k6 test results
  */
 function provideRecommendations(data) {
   const metrics = data.metrics || {};
   
-  // Haetaan mallien vasteajat ja onnistumisprosentit
+  // Get model response times and success rates
   const openaiTime = metrics['openai_processing_time']?.values?.avg || 0;
   const anthropicTime = metrics['anthropic_processing_time']?.values?.avg || 0;
   const ollamaTime = metrics['ollama_processing_time']?.values?.avg || 0;
@@ -470,12 +470,12 @@ function provideRecommendations(data) {
   const timeoutErrors = metrics['timeout_errors']?.values?.count || 0;
   const totalErrors = (metrics['failed_requests']?.values?.count || 0);
   
-  console.log(`\n${colors.bright}${colors.bgMagenta}${colors.white} SUOSITUKSET ${colors.reset}\n`);
+  console.log(`\n${colors.bright}${colors.bgMagenta}${colors.white} RECOMMENDATIONS ${colors.reset}\n`);
   
-  // Suositukset mallien käytöstä
-  console.log(`${colors.bright}Mallien käyttösuositukset:${colors.reset}`);
+  // Model usage recommendations
+  console.log(`${colors.bright}Model Usage Recommendations:${colors.reset}`);
   
-  // Nopein malli
+  // Fastest model
   let fastestModel = 'OpenAI (gpt-3.5-turbo)';
   let fastestTime = openaiTime;
   
@@ -489,7 +489,7 @@ function provideRecommendations(data) {
     fastestTime = ollamaTime;
   }
   
-  // Luotettavin malli
+  // Most reliable model
   let mostReliableModel = 'OpenAI (gpt-3.5-turbo)';
   let highestReliability = openaiSuccessRate;
   
@@ -503,73 +503,73 @@ function provideRecommendations(data) {
     highestReliability = ollamaSuccessRate;
   }
   
-  // Paras hinta-laatusuhde (oletetaan, että Ollama on ilmainen, Anthropic halvempi kuin OpenAI)
+  // Best value model (assuming Ollama is free, Anthropic is cheaper than OpenAI)
   let bestValueModel = 'Ollama (llama2)';
   
-  // Jos kaikki mallit ovat yhtä luotettavia, suositellaan nopeinta
+  // If all models are equally reliable, recommend the fastest one
   if (openaiSuccessRate === anthropicSuccessRate && anthropicSuccessRate === ollamaSuccessRate) {
-    console.log(`- Nopeutta vaativiin tehtäviin: ${colors.green}${fastestModel}${colors.reset}`);
-    console.log(`- Luotettavuutta vaativiin tehtäviin: ${colors.green}${mostReliableModel}${colors.reset}`);
-    console.log(`- Kustannustehokkuutta vaativiin tehtäviin: ${colors.green}${bestValueModel}${colors.reset}`);
+    console.log(`- For speed-critical tasks: ${colors.green}${fastestModel}${colors.reset}`);
+    console.log(`- For reliability-critical tasks: ${colors.green}${mostReliableModel}${colors.reset}`);
+    console.log(`- For cost-critical tasks: ${colors.green}${bestValueModel}${colors.reset}`);
   } else {
-    // Muuten tehdään tasapainotettu suositus
-    console.log(`- Nopeutta vaativiin tehtäviin: ${colors.green}${fastestModel}${colors.reset}`);
-    console.log(`- Luotettavuutta vaativiin tehtäviin: ${colors.green}${mostReliableModel}${colors.reset}`);
-    console.log(`- Kustannustehokkuutta vaativiin tehtäviin: ${colors.green}${bestValueModel}${colors.reset}`);
+    // Otherwise, provide a balanced recommendation
+    console.log(`- For speed-critical tasks: ${colors.green}${fastestModel}${colors.reset}`);
+    console.log(`- For reliability-critical tasks: ${colors.green}${mostReliableModel}${colors.reset}`);
+    console.log(`- For cost-critical tasks: ${colors.green}${bestValueModel}${colors.reset}`);
     
-    // Suositellaan tasapainotettua lähestymistapaa
+    // Recommend a balanced approach
     if (anthropicSuccessRate >= 0.95 && anthropicTime < openaiTime * 1.5) {
-      console.log(`- Tasapainotettuun käyttöön: ${colors.green}Anthropic (claude-instant-1)${colors.reset}`);
+      console.log(`- For balanced usage: ${colors.green}Anthropic (claude-instant-1)${colors.reset}`);
     } else if (ollamaSuccessRate >= 0.9 && ollamaTime < anthropicTime * 0.5) {
-      console.log(`- Tasapainotettuun käyttöön: ${colors.green}Ollama (llama2)${colors.reset}`);
+      console.log(`- For balanced usage: ${colors.green}Ollama (llama2)${colors.reset}`);
     } else {
-      console.log(`- Tasapainotettuun käyttöön: ${colors.green}OpenAI (gpt-3.5-turbo)${colors.reset}`);
+      console.log(`- For balanced usage: ${colors.green}OpenAI (gpt-3.5-turbo)${colors.reset}`);
     }
   }
   
-  // Suositukset virhetilanteiden käsittelyyn
-  console.log(`\n${colors.bright}Suositukset virhetilanteiden käsittelyyn:${colors.reset}`);
+  // Error handling recommendations
+  console.log(`\n${colors.bright}Error Handling Recommendations:${colors.reset}`);
   
   if (totalErrors > 0) {
     if (timeoutErrors > 0) {
-      console.log(`- Lisää timeout-arvoa API-kutsuissa, nykyinen arvo saattaa olla liian alhainen.`);
+      console.log(`- Increase the timeout value in API calls, the current value may be too low.`);
     }
     
-    console.log(`- Käytä retry-mekanismia, joka yrittää uudelleen epäonnistuneiden pyyntöjen kohdalla.`);
-    console.log(`- Harkitse circuit breaker -mallin käyttöönottoa, joka estää toistuvat kutsut vikaantuneeseen palveluun.`);
+    console.log(`- Use a retry mechanism to retry failed requests.`);
+    console.log(`- Consider implementing a circuit breaker pattern to prevent repeated calls to a faulty service.`);
   }
   
-  // Yleiset suositukset
-  console.log(`\n${colors.bright}Yleiset suositukset:${colors.reset}`);
-  console.log(`- Käytä AIGateway-luokan fallback-mekanismia, joka vaihtaa automaattisesti toiseen malliin virhetilanteissa.`);
-  console.log(`- Aseta mallit prioriteettijärjestykseen luotettavuuden ja nopeuden perusteella.`);
-  console.log(`- Rajoita samanaikaisten pyyntöjen määrää palvelimella, jotta vältytään ylikuormitukselta.`);
-  console.log(`- Harkitse jonojärjestelmän käyttöönottoa korkean kuormituksen aikana.`);
+  // General recommendations
+  console.log(`\n${colors.bright}General Recommendations:${colors.reset}`);
+  console.log(`- Use the AIGateway class's fallback mechanism to automatically switch to another model in case of errors.`);
+  console.log(`- Set models in priority order based on reliability and speed.`);
+  console.log(`- Limit the number of concurrent requests to prevent overloading.`);
+  console.log(`- Consider implementing a queuing system for high-load scenarios.`);
   
-  // Suositukset testien perusteella
+  // Recommendations based on test results
   if (openaiTime > 1000 && anthropicTime < 500) {
-    console.log(`- Harkitse Anthropic-mallin käyttöä ensisijaisena vaihtoehtona nopeutta vaativissa tehtävissä.`);
+    console.log(`- Consider using Anthropic (claude-instant-1) as the primary model for speed-critical tasks.`);
   }
   
   if (ollamaTime < 100 && ollamaSuccessRate > 0.9) {
-    console.log(`- Harkitse Ollama-mallin käyttöä yksinkertaisissa tehtävissä sen nopeuden vuoksi.`);
+    console.log(`- Consider using Ollama (llama2) for simple tasks due to its speed.`);
   }
 }
 
 /**
- * Tallentaa tulokset CSV-tiedostoon
- * @param {Object} data - k6:n tuottama JSON-data
+ * Saves results to a CSV file
+ * @param {Object} data - k6 test results
  */
 function saveResultsToCSV(data) {
   const metrics = data.metrics || {};
   
-  // Määritetään CSV-tiedoston polku
+  // Determine the CSV file path
   const csvFilePath = path.join(
     path.dirname(process.argv[2]),
     `model-comparison-results-${new Date().toISOString().replace(/:/g, '-')}.csv`
   );
   
-  // Kerätään mallien tiedot
+  // Collect model data
   const models = [
     {
       name: 'OpenAI (gpt-3.5-turbo)',
@@ -591,40 +591,40 @@ function saveResultsToCSV(data) {
     }
   ];
   
-  // Luodaan CSV-sisältö
-  let csvContent = 'Malli,Keskimääräinen vasteaika (ms),P95 vasteaika (ms),Onnistumisprosentti\n';
+  // Create CSV content
+  let csvContent = 'Model,Average Response Time (ms),P95 Response Time (ms),Success Rate\n';
   
   models.forEach(model => {
     const successRateFormatted = isNaN(model.successRate) ? 'N/A' : `${(model.successRate*100).toFixed(2)}%`;
     csvContent += `${model.name},${model.processingTime.toFixed(2)},${model.p95Time.toFixed(2)},${successRateFormatted}\n`;
   });
   
-  // Lisätään yleiset metriikat
-  csvContent += '\nYleiset metriikat\n';
-  csvContent += `Kokonaispyyntöjen määrä,${(metrics['successful_requests']?.values?.count || 0) + (metrics['failed_requests']?.values?.count || 0)}\n`;
-  csvContent += `Onnistuneet pyynnöt,${metrics['successful_requests']?.values?.count || 0}\n`;
-  csvContent += `Epäonnistuneet pyynnöt,${metrics['failed_requests']?.values?.count || 0}\n`;
-  csvContent += `Virheprosentti,${((metrics['error_rate']?.values?.rate || 0)*100).toFixed(2)}\n`;
+  // Add general metrics
+  csvContent += '\nGeneral Metrics\n';
+  csvContent += `Total Requests,${(metrics['successful_requests']?.values?.count || 0) + (metrics['failed_requests']?.values?.count || 0)}\n`;
+  csvContent += `Successful Requests,${metrics['successful_requests']?.values?.count || 0}\n`;
+  csvContent += `Failed Requests,${metrics['failed_requests']?.values?.count || 0}\n`;
+  csvContent += `Error Rate,${((metrics['error_rate']?.values?.rate || 0)*100).toFixed(2)}\n`;
   
-  // Lisätään virhetyypit
-  csvContent += '\nVirhetyypit\n';
-  csvContent += `Timeout-virheet,${metrics['timeout_errors']?.values?.count || 0}\n`;
-  csvContent += `Palvelinvirheet,${metrics['server_errors']?.values?.count || 0}\n`;
-  csvContent += `Asiakasvirheet,${metrics['client_errors']?.values?.count || 0}\n`;
+  // Add error types
+  csvContent += '\nError Types\n';
+  csvContent += `Timeout Errors,${metrics['timeout_errors']?.values?.count || 0}\n`;
+  csvContent += `Server Errors,${metrics['server_errors']?.values?.count || 0}\n`;
+  csvContent += `Client Errors,${metrics['client_errors']?.values?.count || 0}\n`;
   
-  // Tallennetaan CSV-tiedosto
+  // Save the CSV file
   try {
     fs.writeFileSync(csvFilePath, csvContent);
     return csvFilePath;
   } catch (error) {
-    console.error(`${colors.red}Virhe CSV-tiedoston tallennuksessa: ${error.message}${colors.reset}`);
+    console.error(`${colors.red}Error saving CSV file: ${error.message}${colors.reset}`);
   }
 }
 
 /**
- * Apufunktio ajan muotoiluun
- * @param {number} ms - Aika millisekunteina
- * @returns {string} Muotoiltu aika
+ * Formats time in milliseconds to a human-readable format
+ * @param {number} ms - Time in milliseconds
+ * @returns {string} Formatted time
  */
 function formatDuration(ms) {
   if (ms < 1000) {
@@ -639,19 +639,19 @@ function formatDuration(ms) {
 }
 
 /**
- * Apufunktio tekstin tasaamiseen oikealle
- * @param {string} text - Teksti
- * @param {number} length - Haluttu pituus
- * @returns {string} Tasattu teksti
+ * Pads a string to the right with spaces
+ * @param {string} text - Text to pad
+ * @param {number} length - Desired length
+ * @returns {string} Padded text
  */
 function padRight(text, length) {
   return String(text).padEnd(length);
 }
 
-// Pääohjelman suoritus
+// Main program execution
 if (process.argv.length < 3) {
-  console.error(`${colors.red}Virhe: Anna tulostiedoston polku parametrina.${colors.reset}`);
-  console.log(`Käyttö: ${colors.cyan}node analyze-model-comparison.js results.json${colors.reset}`);
+  console.error(`${colors.red}Error: Provide the path to the results file as an argument.${colors.reset}`);
+  console.log(`Usage: ${colors.cyan}node analyze-model-comparison.js results.json${colors.reset}`);
 } else {
   analyzeResults(process.argv[2]);
 }

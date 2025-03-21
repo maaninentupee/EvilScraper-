@@ -1,81 +1,81 @@
-# GitHub-salaisuuksien määrittäminen
+# Setting Up GitHub Secrets
 
-Tämä dokumentti opastaa, miten määrität tarvittavat GitHub-salaisuudet CI/CD-työnkulkua varten.
+This document guides you on how to set up the necessary GitHub secrets for the CI/CD workflow.
 
-## Tarvittavat salaisuudet
+## Required Secrets
 
-CI/CD-työnkulku vaatii seuraavat salaisuudet:
+The CI/CD workflow requires the following secrets:
 
-1. **SONAR_TOKEN**: SonarQube-integraatiota varten
-2. **ANTHROPIC_API_KEY**: Anthropic Claude AI -optimointia varten
-3. **OPENAI_API_KEY**: OpenAI GPT-4 -optimointia varten
+1. **SONAR_TOKEN**: For SonarQube integration
+2. **ANTHROPIC_API_KEY**: For Anthropic Claude AI optimization
+3. **OPENAI_API_KEY**: For OpenAI GPT-4 optimization
 
-## SONAR_TOKEN-salaisuuden lisääminen
+## Adding the SONAR_TOKEN Secret
 
-1. Kirjaudu [SonarCloud](https://sonarcloud.io/)-palveluun
-2. Siirry käyttäjäasetuksiin (My Account > Security)
-3. Luo uusi token nimellä "GitHub Actions"
-4. Kopioi generoitu token
+1. Log in to [SonarCloud](https://sonarcloud.io/)
+2. Go to user settings (My Account > Security)
+3. Create a new token named "GitHub Actions"
+4. Copy the generated token
 
-Lisää token GitHub-repositorioosi:
+Add the token to your GitHub repository:
 
-1. Siirry GitHub-repositoriosi asetuksiin
-2. Valitse "Secrets and variables" > "Actions"
-3. Klikkaa "New repository secret"
-4. Aseta nimeksi `SONAR_TOKEN`
-5. Liitä SonarCloud-token arvokenttään
-6. Klikkaa "Add secret"
+1. Go to your GitHub repository settings
+2. Select "Secrets and variables" > "Actions"
+3. Click "New repository secret"
+4. Set the name to `SONAR_TOKEN`
+5. Paste the SonarCloud token in the value field
+6. Click "Add secret"
 
-## ANTHROPIC_API_KEY-salaisuuden lisääminen
+## Adding the ANTHROPIC_API_KEY Secret
 
-1. Kirjaudu [Anthropic](https://console.anthropic.com/)-palveluun
-2. Siirry API-avaimet -osioon
-3. Luo uusi API-avain nimellä "GitHub Actions"
-4. Kopioi generoitu API-avain
+1. Log in to [Anthropic](https://console.anthropic.com/)
+2. Go to the API keys section
+3. Create a new API key named "GitHub Actions"
+4. Copy the generated API key
 
-Lisää API-avain GitHub-repositorioosi:
+Add the API key to your GitHub repository:
 
-1. Siirry GitHub-repositoriosi asetuksiin
-2. Valitse "Secrets and variables" > "Actions"
-3. Klikkaa "New repository secret"
-4. Aseta nimeksi `ANTHROPIC_API_KEY`
-5. Liitä Anthropic API-avain arvokenttään
-6. Klikkaa "Add secret"
+1. Go to your GitHub repository settings
+2. Select "Secrets and variables" > "Actions"
+3. Click "New repository secret"
+4. Set the name to `ANTHROPIC_API_KEY`
+5. Paste the Anthropic API key in the value field
+6. Click "Add secret"
 
-## OPENAI_API_KEY-salaisuuden lisääminen
+## Adding the OPENAI_API_KEY Secret
 
-1. Kirjaudu [OpenAI](https://platform.openai.com/)-palveluun
-2. Siirry API-avaimet -osioon
-3. Luo uusi API-avain nimellä "GitHub Actions"
-4. Kopioi generoitu API-avain
+1. Log in to [OpenAI](https://platform.openai.com/)
+2. Go to the API keys section
+3. Create a new API key named "GitHub Actions"
+4. Copy the generated API key
 
-Lisää API-avain GitHub-repositorioosi:
+Add the API key to your GitHub repository:
 
-1. Siirry GitHub-repositoriosi asetuksiin
-2. Valitse "Secrets and variables" > "Actions"
-3. Klikkaa "New repository secret"
-4. Aseta nimeksi `OPENAI_API_KEY`
-5. Liitä OpenAI API-avain arvokenttään
-6. Klikkaa "Add secret"
+1. Go to your GitHub repository settings
+2. Select "Secrets and variables" > "Actions"
+3. Click "New repository secret"
+4. Set the name to `OPENAI_API_KEY`
+5. Paste the OpenAI API key in the value field
+6. Click "Add secret"
 
-## Salaisuuksien käyttö GitHub Actions -työnkulussa
+## Using the Secrets in GitHub Actions Workflow
 
-GitHub Actions -työnkulku käyttää näitä salaisuuksia seuraavasti:
+GitHub Actions workflow uses these secrets as follows:
 
 ```yaml
-- name: 🔍 Run SonarQube Analysis
+- name: Run SonarQube Analysis
   uses: sonarsource/sonarqube-scan-action@master
   env:
     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-- name: 🤖 Send code issues to Anthropic Claude for optimization
+- name: Send code issues to Anthropic Claude for optimization
   run: |
     curl -X POST "https://api.anthropic.com/v1/complete" \
     -H "Authorization: Bearer ${{ secrets.ANTHROPIC_API_KEY }}" \
     -H "Content-Type: application/json" \
     -d '{...}'
 
-- name: 🤖 Send code issues to OpenAI GPT-4 for additional optimizations
+- name: Send code issues to OpenAI GPT-4 for additional optimizations
   run: |
     curl -X POST "https://api.openai.com/v1/completions" \
     -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
@@ -83,8 +83,8 @@ GitHub Actions -työnkulku käyttää näitä salaisuuksia seuraavasti:
     -d '{...}'
 ```
 
-## Salaisuuksien turvallisuus
+## Security Notes
 
-GitHub salaa salaisuudet ja välittää ne työnkulkuun vain tarvittaessa. Salaisuudet eivät koskaan näy GitHub Actions -lokeissa, vaikka yrittäisit tulostaa ne.
+GitHub secrets are encrypted and only exposed to GitHub Actions during workflow runs. Secrets are never visible in GitHub Actions logs, even if you try to print them.
 
-**HUOM!** Älä koskaan sisällytä näitä salaisuuksia suoraan koodiin tai työnkulkutiedostoihin. Käytä aina `${{ secrets.SECRET_NAME }}` -syntaksia.
+**IMPORTANT!** Never include these secrets directly in your code or workflow files. Always use `${{ secrets.SECRET_NAME }}` syntax.

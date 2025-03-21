@@ -1,10 +1,10 @@
 /**
- * Manuaalinen testi: AI-mallien vastausten virhetilanteiden simulointi
+ * Manual test: AI model response error simulation
  * 
- * Tämä testi simuloi erilaisia virhetilanteita AI-mallien vastauksissa,
- * kuten epämuodostunut JSON, tyhjä vastaus, ja virheelliset tietorakenteet.
+ * This test simulates various error situations in AI model responses,
+ * such as malformed JSON, empty responses, and incorrect data structures.
  * 
- * Suorita tämä testi manuaalisesti komennolla:
+ * Run this test manually with the command:
  * npx ts-node test/manual/ai-response-errors.test.ts
  */
 
@@ -14,24 +14,24 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Decision } from '../../src/services/EvilBotService';
 
-// Ohita tämä manuaalinen testi Jest-suorituksessa
-test.skip('Manuaalinen skripti AI-vastausvirheiden testaamiseksi', () => {
-  // Tyhjä testi ainoastaan Jest-yhteensopivuutta varten
+// Skip this manual test in Jest execution
+test.skip('Manual script for testing AI response errors', () => {
+  // Empty test only for Jest compatibility
 });
 
-// Estä pääohjelman suoritus Jest-ympäristössä
+// Prevent main execution in Jest environment
 if (process.env.JEST_WORKER_ID) {
-  // Jest-suorituksessa, älä suorita testiä
+  // In Jest execution, do not run the test
 } else {
-  // Lokitiedoston sijainti
+  // Log file location
   const logFile = path.join(__dirname, 'ai-response-errors.log');
 
-  // Testipalvelimen asetukset
+  // Test server settings
   const TEST_PORT = 5555;
   const TEST_HOST = 'localhost';
   const SERVER_ENDPOINT = `http://${TEST_HOST}:${TEST_PORT}`;
 
-  // Virheelliset vastaukset simulaatioita varten
+  // Error responses for simulation
   const ERROR_RESPONSES = {
     empty: '',
     invalidJson: '{"malformed json here',
@@ -60,7 +60,7 @@ if (process.env.JEST_WORKER_ID) {
   };
 
   /**
-   * Kirjoittaa lokiin testin tuloksen
+   * Writes the test result to the log
    */
   function log(message: string): void {
     const timestamp = new Date().toISOString();
@@ -71,55 +71,55 @@ if (process.env.JEST_WORKER_ID) {
   }
 
   /**
-   * Alustaa lokin
+   * Initializes the log
    */
   function initLog(): void {
     if (fs.existsSync(logFile)) {
       fs.unlinkSync(logFile);
     }
-    log('=== AI-mallien vastausten virhetilanteiden testi ===');
+    log('=== AI model response error simulation test ===');
   }
 
   /**
-   * Manuaalinen toteutus EvilBotService:n jäsennyslogiikasta
-   * Tätä käytetään testaamaan jäsennyslogiikkaa erillään palvelusta
+   * Manual implementation of EvilBotService's parsing logic
+   * This is used to test the parsing logic separately from the service
    */
   function parseAIResponse(response: string | any, situation: string, options: string[]): Decision {
-    // Oletus virhepäätös
+    // Default error decision
     const defaultErrorDecision: Decision = {
-      action: "Virhe", 
-      reason: "AI-malli ei tuottanut validia vastausta", 
+      action: "Error", 
+      reason: "AI model did not produce a valid response", 
       confidence: 0
     };
     
     try {
-      // Jos vastaus on tyhjä
+      // If the response is empty
       if (!response) {
-        log('Tyhjä vastaus havaittu');
+        log('Empty response detected');
         return defaultErrorDecision;
       }
       
       let jsonResult: any;
       
       if (typeof response === 'string') {
-        // Poistetaan mahdolliset markdown-koodiblokki-rajat
+        // Remove possible markdown code block boundaries
         const cleanJson = response.replace(/```json|```/g, '').trim();
-        // Varovainen JSON-jäsennys: jos tämä epäonnistuu, käytetään vaihtoehtoista päätöstä
+        // Cautious JSON parsing: if this fails, use an alternative decision
         try {
           jsonResult = JSON.parse(cleanJson);
         } catch (jsonError) {
-          log(`JSON-jäsennys epäonnistui: ${jsonError.message}, yritetään löytää JSON merkkijonosta`);
-          // Yritetään etsiä JSON-objektia merkkijonosta
+          log(`JSON parsing failed: ${jsonError.message}, trying to find JSON object in string`);
+          // Try to find a JSON object in the string
           const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             try {
               jsonResult = JSON.parse(jsonMatch[0]);
             } catch (e) {
-              log(`JSON objektin jäsennys epäonnistui: ${e.message}`);
+              log(`JSON object parsing failed: ${e.message}`);
               return defaultErrorDecision;
             }
           } else {
-            log('JSON-objektia ei löytynyt vastauksesta');
+            log('JSON object not found in response');
             return defaultErrorDecision;
           }
         }
@@ -127,21 +127,21 @@ if (process.env.JEST_WORKER_ID) {
         jsonResult = response;
       }
       
-      // Varmistetaan, että pakolliset kentät ovat olemassa
+      // Ensure required fields are present
       return {
-        action: jsonResult && jsonResult.action ? jsonResult.action : "Ei toimintoa",
-        reason: jsonResult && jsonResult.reason ? jsonResult.reason : "Ei perustelua",
+        action: jsonResult && jsonResult.action ? jsonResult.action : "No action",
+        reason: jsonResult && jsonResult.reason ? jsonResult.reason : "No reason",
         confidence: jsonResult && typeof jsonResult.confidence === 'number' ? 
-          Math.max(0, Math.min(1, jsonResult.confidence)) : 0.5 // Rajoitetaan välille 0-1
+          Math.max(0, Math.min(1, jsonResult.confidence)) : 0.5 // Limit to range 0-1
       };
     } catch (parseError) {
-      log(`Vastauksen jäsennys epäonnistui: ${parseError.message}`);
+      log(`Response parsing failed: ${parseError.message}`);
       return defaultErrorDecision;
     }
   }
 
   /**
-   * Simulaatiopalvelin, joka simuloi erilaisia AI-mallien vastauksia
+   * Simulation server that simulates various AI model responses
    */
   class AIResponseSimulationServer {
     private server: http.Server;
@@ -151,7 +151,7 @@ if (process.env.JEST_WORKER_ID) {
     }
     
     /**
-     * Käsittelee HTTP-pyynnöt ja simuloi eri AI-vastauksia
+     * Handles HTTP requests and simulates different AI responses
      */
     private handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
       let body = '';
@@ -162,33 +162,33 @@ if (process.env.JEST_WORKER_ID) {
       
       req.on('end', () => {
         try {
-          // Parsitaan pyynnön polku simulaation määrittämiseksi
+          // Parse the request URL to determine the simulation type
           const url = new URL(req.url, `http://${req.headers.host}`);
           const simulationType = url.pathname.split('/').pop();
           
-          log(`Vastaanotettu pyyntö: ${req.method} ${req.url}`);
+          log(`Received request: ${req.method} ${req.url}`);
           
-          // Tarkistetaan, onko simulaatiotyyppi validi
+          // Check if the simulation type is valid
           const responseContent = ERROR_RESPONSES[simulationType];
           
           if (responseContent !== undefined) {
-            log(`Simuloidaan vastaustyyppiä: ${simulationType}`);
+            log(`Simulating response type: ${simulationType}`);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.write(responseContent);
             res.end();
           } else {
-            // Oletusvastauksena palautetaan validi vastaus
-            log('Lähetetään oletusarvoinen validi vastaus');
+            // Default response: return a valid response
+            log('Sending default valid response');
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.write(JSON.stringify({
               action: "default",
-              reason: "Tämä on oletuspäätös",
+              reason: "This is a default decision",
               confidence: 0.95
             }));
             res.end();
           }
         } catch (error) {
-          log(`Virhe pyynnön käsittelyssä: ${error.message}`);
+          log(`Error handling request: ${error.message}`);
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.write(JSON.stringify({ error: 'Internal Server Error' }));
           res.end();
@@ -197,24 +197,24 @@ if (process.env.JEST_WORKER_ID) {
     }
     
     /**
-     * Käynnistää simulaatiopalvelimen
+     * Starts the simulation server
      */
     public start(): Promise<void> {
       return new Promise((resolve) => {
         this.server.listen(TEST_PORT, TEST_HOST, () => {
-          log(`AI-simulaatiopalvelin käynnistetty osoitteessa ${SERVER_ENDPOINT}`);
+          log(`AI simulation server started at ${SERVER_ENDPOINT}`);
           resolve();
         });
       });
     }
     
     /**
-     * Pysäyttää simulaatiopalvelimen
+     * Stops the simulation server
      */
     public stop(): Promise<void> {
       return new Promise((resolve) => {
         this.server.close(() => {
-          log('AI-simulaatiopalvelin pysäytetty');
+          log('AI simulation server stopped');
           resolve();
         });
       });
@@ -222,20 +222,20 @@ if (process.env.JEST_WORKER_ID) {
   }
 
   /**
-   * Testaa AI-vastausten jäsennyslogiikkaa simuloidulla AI-vastauksella
+   * Tests AI response parsing logic with a simulated AI response
    */
   async function testAIResponseParsing(responseType: string): Promise<void> {
     const url = `${SERVER_ENDPOINT}/${responseType}`;
     
     try {
-      log(`\nTestaan AI-vastausten jäsennyslogiikkaa vastaustyypillä: ${responseType}`);
+      log(`\nTesting AI response parsing logic with response type: ${responseType}`);
       
-      // Suora HTTP-pyyntö simulaatiopalvelimelle
+      // Direct HTTP request to the simulation server
       const response = await axios.get(url);
-      log(`Simulaatiopalvelimen raakavastaus: ${JSON.stringify(response.data)}`);
+      log(`Simulation server raw response: ${JSON.stringify(response.data)}`);
       
-      // Testataan vastauksen jäsennystä
-      const testSituation = "Testitilanne";
+      // Test response parsing
+      const testSituation = "Test situation";
       const testOptions = ["option1", "option2", "option3"];
       
       const parsedDecision = parseAIResponse(
@@ -244,21 +244,21 @@ if (process.env.JEST_WORKER_ID) {
         testOptions
       );
       
-      log(`Jäsennetty päätös: ${JSON.stringify(parsedDecision)}`);
+      log(`Parsed decision: ${JSON.stringify(parsedDecision)}`);
       
-      // Tarkistetaan jäsennyksen lopputulos
+      // Check the parsing result
       if (parsedDecision.action && typeof parsedDecision.confidence === 'number') {
-        log(`Testin tulos: ONNISTUI - Jäsennyslogiikka palautti validin päätöksen`);
+        log(`Test result: SUCCESS - Parsing logic returned a valid decision`);
       } else {
-        log(`Testin tulos: OSITTAIN ONNISTUI - Jäsennyslogiikka palautti puutteellisen päätöksen`);
+        log(`Test result: PARTIAL SUCCESS - Parsing logic returned an incomplete decision`);
       }
     } catch (error) {
-      log(`Testin tulos: VIRHE - ${error.message}`);
+      log(`Test result: ERROR - ${error.message}`);
     }
   }
 
   /**
-   * Suorittaa testit
+   * Runs the tests
    */
   async function runTests(): Promise<void> {
     initLog();
@@ -266,27 +266,27 @@ if (process.env.JEST_WORKER_ID) {
     const server = new AIResponseSimulationServer();
     
     try {
-      // Käynnistetään simulaatiopalvelin
+      // Start the simulation server
       await server.start();
       
-      // Testataan kaikki virheelliset vastaukset
+      // Test all error responses
       for (const [responseType] of Object.entries(ERROR_RESPONSES)) {
         await testAIResponseParsing(responseType);
       }
       
-      // Testataan oletusarvoinen validi vastaus
+      // Test the default valid response
       await testAIResponseParsing('validResponse');
       
-      log('\n=== Kaikki AI-vastausten virhetilanteiden testit suoritettu ===');
+      log('\n=== All AI response error simulation tests completed ===');
     } catch (error) {
-      log(`\n=== Testivirhe: ${error.message} ===`);
+      log(`\n=== Test error: ${error.message} ===`);
     } finally {
-      // Pysäytetään simulaatiopalvelin
+      // Stop the simulation server
       await server.stop();
     }
   }
 
-  // Suorita testit
+  // Run the tests
   if (!process.env.JEST_WORKER_ID) {
     runTests();
   }

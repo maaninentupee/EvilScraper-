@@ -1,83 +1,83 @@
-# AI-palvelun kuormitustestit
+# AI Service Load Tests
 
-Tämä hakemisto sisältää kuormitustestit AI-palvelun suorituskyvyn ja luotettavuuden testaamiseen suurilla pyyntömäärillä.
+This directory contains load tests for testing the performance and reliability of the AI service with large request volumes.
 
-## Vaatimukset
+## Requirements
 
-- [k6](https://k6.io/) - Moderni kuormitustyökalu
-- Bash-yhteensopiva komentotulkki resurssien monitorointiin
+- [k6](https://k6.io/) - Modern load testing tool
+- Bash-compatible command shell for resource monitoring
 
-## Testien asennus
+## Test Installation
 
-1. Asenna k6:
+1. Install k6:
    ```
    brew install k6  # macOS
    ```
 
-2. Tee monitorointiskriptistä suoritettava:
+2. Make the monitoring script executable:
    ```
    chmod +x monitor-resources.sh
    ```
 
-## Testien suorittaminen
+## Running the Tests
 
-### Perustason kuormitustesti
+### Basic Load Test
 
-Tämä testi simuloi maltillista kuormaa AI-palvelulle:
+This test simulates moderate load on the AI service:
 
 ```bash
 k6 run load-test.js
 ```
 
-### Raskas kuormitustesti (500 samanaikaista pyyntöä)
+### Heavy Load Test (500 concurrent requests)
 
-Tämä testi simuloi raskasta kuormaa AI-palvelulle:
+This test simulates heavy load on the AI service:
 
 ```bash
 k6 run heavy-load-test.js
 ```
 
-### Resurssien monitorointi testin aikana
+### Resource Monitoring During the Test
 
-Suorita resurssien monitorointi erillisessä terminaalissa samalla kun ajat kuormitustestin:
+Run resource monitoring in a separate terminal while running the load test:
 
 ```bash
-./monitor-resources.sh node 180  # Monitoroi 'node' prosessia 3 minuutin ajan
+./monitor-resources.sh node 180  # Monitor the 'node' process for 3 minutes
 ```
 
-## Testien konfigurointi
+## Configuring the Tests
 
-Voit muokata testien asetuksia muokkaamalla JavaScript-tiedostoja:
+You can modify the test settings by editing the JavaScript files:
 
-- `options.stages`: Määrittelee testin vaiheet ja keston
-- `options.thresholds`: Määrittelee hyväksyttävät raja-arvot
-- Pyyntöjen parametrit: URL, payload, headers jne.
+- `options.stages`: Defines the test stages and duration
+- `options.thresholds`: Defines the acceptable threshold values
+- Request parameters: URL, payload, headers, etc.
 
-## Tulosten tulkinta
+## Interpreting the Results
 
-K6 näyttää testin tulokset konsolissa, mukaan lukien:
+K6 displays the test results in the console, including:
 
-- Pyyntöjen määrä ja nopeus
-- Virheprosentti
-- Vasteaikojen jakaumat (min, max, keskiarvo, mediaani, p90, p95)
-- Mukautetut metriikat (AI-käsittelyaika, onnistumisprosentti)
+- Number and speed of requests
+- Error percentage
+- Response time distributions (min, max, average, median, p90, p95)
+- Custom metrics (AI processing time, success rate)
 
-Resurssien monitorointi tuottaa CSV-tiedoston ja yhteenvedon CPU- ja muistinkäytöstä.
+Resource monitoring produces a CSV file and a summary of CPU and memory usage.
 
-## Testien mukauttaminen
+## Customizing the Tests
 
-Voit mukauttaa testejä muuttamalla:
+You can customize the tests by modifying:
 
-- Tehtävätyyppejä ja syötteitä
-- Kuorman määrää ja jakaumaa
-- Onnistumiskriteerejä
-- Monitoroitavia metriikoita
+- Task types and inputs
+- Load volume and distribution
+- Success criteria
+- Monitored metrics
 
-## Vianetsintä
+## Troubleshooting
 
-Jos testit epäonnistuvat:
+If the tests fail:
 
-1. Varmista, että AI-palvelu on käynnissä osoitteessa `http://localhost:3000`
-2. Tarkista, että kaikki tarvittavat API-avaimet ovat asetettu
-3. Tarkista palvelun lokit virheiden varalta
-4. Säädä testin parametreja, jos palvelu ylikuormittuu
+1. Ensure that the AI service is running at `http://localhost:3000`
+2. Check that all required API keys are set
+3. Check the service logs for errors
+4. Adjust the test parameters if the service is overloaded

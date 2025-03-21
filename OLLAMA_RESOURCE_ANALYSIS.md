@@ -1,102 +1,101 @@
-# Ollama-resurssien analyysi
+# Ollama Resource Analysis
 
-## Yhteenveto
+## Summary
 
-Tämä dokumentti analysoi Ollama-palvelun resurssien käyttöä Windsurf-projektissa. Analyysi perustuu `analyze-ollama-resources.sh`-skriptin tuottamiin tuloksiin, jotka kerättiin 3.3.2025.
+This document analyzes the resource usage of the Ollama service in the Windsurf project. The analysis is based on the results produced by the `analyze-ollama-resources.sh` script, collected on March 3, 2025.
 
-## Käytössä olevat mallit
+## Models in Use
 
-Ollama-palvelussa on käytössä seuraavat mallit:
+The following models are in use in the Ollama service:
 
-| Malli | Koko | Parametrien määrä | Kvantisointitaso |
-|-------|------|-------------------|------------------|
+| Model | Size | Number of Parameters | Quantization Level |
+|-------|------|----------------------|-------------------|
 | llama2:13b | 7.0 GB | 13B | Q4_0 |
 | codellama:7b-code | 3.6 GB | 7B | Q4_0 |
 | mistral:latest | 3.9 GB | 7.2B | Q4_0 |
 
-## CPU-käytön analyysi
+## CPU Usage Analysis
 
-### Perustilanne (ennen kuormitusta)
+### Baseline (Before Load)
 
-- Ollama serve -prosessi: ~22.4% CPU
-- Ollama runner -prosessi: ~1.2% CPU
-- Järjestelmän kokonaiskuorma: 2.06, 3.42, 3.66 (1, 5, 15 min)
-- CPU-käyttö: 39.44% käyttäjä, 25.92% järjestelmä, 34.62% vapaa
+- Ollama serve process: ~22.4% CPU
+- Ollama runner process: ~1.2% CPU
+- System total load: 2.06, 3.42, 3.66 (1, 5, 15 min)
+- CPU usage: 39.44% user, 25.92% system, 34.62% idle
 
-### Kuormituksen aikana
+### During Load
 
-- CPU-käyttö vaihteli välillä 15-45% käyttäjäprosesseille
-- Järjestelmäprosessien CPU-käyttö vaihteli välillä 8-15%
-- Järjestelmän kokonaiskuorma pysyi melko tasaisena (~2.0-2.1 yhden minuutin keskiarvolla)
+- CPU usage varied between 15-45% for user processes
+- System processes CPU usage varied between 8-15%
+- System total load remained fairly stable (~2.0-2.1 on one-minute average)
 
-### Kuormituksen jälkeen
+### After Load
 
-- CPU-käyttö palautui normaalille tasolle
-- Ollama-prosessien CPU-käyttö laski lähes nollaan
-- Järjestelmän kokonaiskuorma laski hieman: 1.94, 3.25, 3.59 (1, 5, 15 min)
+- CPU usage returned to normal levels
+- Ollama processes CPU usage dropped to near zero
+- System total load decreased slightly: 1.94, 3.25, 3.59 (1, 5, 15 min)
 
-## Muistinkäytön analyysi
+## Memory Usage Analysis
 
-### Perustilanne
+### Baseline
 
-- Ollama serve -prosessi: ~26 MB (0.2% muistista)
-- Ollama runner -prosessi: ~578 MB (3.4% muistista)
-- Kokonaismuistinkäyttö: 15 GB (10 GB wired, 3.1 GB compressor)
-- Swap-käyttö: 3.1 GB / 4.0 GB
+- Ollama serve process: ~26 MB (0.2% of memory)
+- Ollama runner process: ~578 MB (3.4% of memory)
+- Total memory usage: 15 GB (10 GB wired, 3.1 GB compressor)
+- Swap usage: 3.1 GB / 4.0 GB
 
-### Kuormituksen aikana
+### During Load
 
-- Ollama runner -prosessin muistinkäyttö pysyi melko tasaisena (~562 MB)
-- Ollama serve -prosessin muistinkäyttö laski hieman (~24 MB)
-- Kokonaismuistinkäyttö pysyi vakaana
+- Ollama runner process memory usage remained fairly stable (~562 MB)
+- Ollama serve process memory usage decreased slightly (~24 MB)
+- Total memory usage remained stable
 
-### Kuormituksen jälkeen
+### After Load
 
-- Ollama-prosessien muistinkäyttö pysyi lähes samana kuin kuormituksen aikana
-- Kokonaismuistinkäyttö: 15 GB (1.4 GB wired, 2.7 GB compressor)
-- Swap-käyttö pysyi samana: 3.1 GB / 4.0 GB
+- Ollama processes memory usage remained almost the same as during load
+- Total memory usage: 15 GB (1.4 GB wired, 2.7 GB compressor)
+- Swap usage remained the same: 3.1 GB / 4.0 GB
 
-## Havainnot ja johtopäätökset
+## Observations and Conclusions
 
-1. **CPU-käyttö**: 
-   - Ollama-palvelu käyttää merkittävästi CPU-resursseja erityisesti käynnistyksen yhteydessä
-   - Kuormituksen aikana CPU-käyttö nousee, mutta pysyy kohtuullisella tasolla
-   - Järjestelmä palautuu nopeasti normaalitilaan kuormituksen jälkeen
+1. **CPU Usage**: 
+   - Ollama service uses significant CPU resources especially during startup
+   - During load, CPU usage increases but remains at a reasonable level
+   - The system returns quickly to normal state after load
 
-2. **Muistinkäyttö**:
-   - Ollama runner -prosessi käyttää merkittävästi muistia (~560-580 MB)
-   - Muistinkäyttö pysyy melko vakaana kuormituksen aikana
-   - Swap-muistia käytetään huomattavasti (3.1 GB), mikä voi vaikuttaa suorituskykyyn
+2. **Memory Usage**:
+   - Ollama runner process uses significant memory (~560-580 MB)
+   - Memory usage remains fairly stable during load
+   - Swap memory is used considerably (3.1 GB), which may affect performance
 
-3. **Mallit**:
-   - Suurin malli (llama2:13b) vie eniten levytilaa (7.0 GB)
-   - Kaikki mallit käyttävät Q4_0-kvantisointia, mikä on hyvä kompromissi tarkkuuden ja resurssien käytön välillä
+3. **Models**:
+   - The largest model (llama2:13b) takes up the most disk space (7.0 GB)
+   - All models use Q4_0 quantization, which is a good compromise between accuracy and resource usage
 
-## Suositukset
+## Recommendations
 
-1. **CPU-optimointi**:
-   - Harkitse Ollama-prosessin thread-määrän optimointia (`--threads` parametri)
-   - Testaa eri batch-size-arvoja (`--batch-size` parametri) optimaalisen suorituskyvyn löytämiseksi
-   - Monitoroi CPU-käyttöä pitkäkestoisissa kuormitustilanteissa
+1. **CPU Optimization**:
+   - Consider optimizing the thread count of the Ollama process (`--threads` parameter)
+   - Test different batch size values (`--batch-size` parameter) to find optimal performance
+   - Monitor CPU usage in long-term load situations
 
-2. **Muistin optimointi**:
-   - Harkitse pienempien mallien käyttöä, jos 13B-malli ei ole välttämätön
-   - Varmista, että järjestelmässä on riittävästi fyysistä muistia swap-käytön vähentämiseksi
-   - Testaa eri context size -arvoja (`--ctx-size` parametri) muistinkäytön optimoimiseksi
+2. **Memory Optimization**:
+   - Consider using smaller models if the 13B model is not essential
+   - Ensure that the system has enough physical memory to reduce swap usage
+   - Test different context size values (`--ctx-size` parameter) to optimize memory usage
 
-3. **Kuormitustestaus**:
-   - Tee pidempiä kuormitustestejä (10+ samanaikaista pyyntöä)
-   - Testaa eri malleja ja vertaile niiden resurssien käyttöä
-   - Monitoroi lämpötiloja pitkäkestoisissa kuormitustilanteissa
+3. **Load Testing**:
+   - Perform longer load tests (10+ concurrent requests)
+   - Test different models and compare their resource usage
+   - Monitor temperatures in long-term load situations
 
-4. **Skaalautuvuus**:
-   - Harkitse Ollama-palvelun ajamista erillisellä palvelimella raskaassa käytössä
-   - Testaa rinnakkaisten Ollama-instanssien käyttöä kuorman jakamiseksi
-   - Implementoi automaattinen skaalaus kuormituksen mukaan
+4. **Scalability**:
+   - Consider running the Ollama service on a separate server in heavy use
+   - Test using parallel Ollama instances to distribute the load
+   - Implement automatic scaling according to load
 
-## Jatkotoimenpiteet
+## Next Steps
 
-1. Päivitä `analyze-ollama-resources.sh`-skriptiä keräämään tietoja pidemmältä ajalta
-2. Toteuta vertailutestit eri mallien välillä
-3. Testaa eri konfiguraatioparametreja ja niiden vaikutusta suorituskykyyn
-4. Implementoi automaattinen monitorointi tuotantoympäristöön
+1. Update the `analyze-ollama-resources.sh` script to collect data over a longer period
+2. Implement comparative tests between different models
+3. Test different configuration parameters and their impact on performance

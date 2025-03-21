@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-// Konfiguraatio
+// Configuration
 const config = {
   baseUrl: 'http://localhost:3001',
   concurrentRequests: 10,
@@ -8,21 +8,21 @@ const config = {
   delayBetweenBatches: 500, // ms
 };
 
-// Testattavat promptit
+// Test prompts
 const prompts = [
-  "Miten tekoäly toimii?",
-  "Kirjoita lyhyt runo",
-  "Selitä mitä on koneoppiminen",
-  "Anna kolme SEO-vinkkiä",
-  "Mikä on paras ohjelmointikieli aloittelijalle?",
-  "Kirjoita esimerkki REST API:sta",
-  "Miten voin parantaa verkkosivuni suorituskykyä?",
-  "Selitä mitä on kvanttilaskenta",
-  "Miten tekoäly voi auttaa liiketoiminnassa?",
-  "Kirjoita lyhyt tarina robotista"
+  "How does artificial intelligence work?",
+  "Write a short poem",
+  "Explain what machine learning is",
+  "Give three SEO tips",
+  "What is the best programming language for beginners?",
+  "Write an example of a REST API",
+  "How can I improve my website's performance?",
+  "Explain what quantum computing is",
+  "How can AI help in business?",
+  "Write a short story about a robot"
 ];
 
-// Metriikat
+// Metrics
 const metrics = {
   totalRequests: 0,
   successfulRequests: 0,
@@ -43,7 +43,7 @@ const metrics = {
   }
 };
 
-// Lokitus
+// Logging
 const logs = [];
 function log(message, model, status, duration) {
   const timestamp = new Date().toISOString();
@@ -58,7 +58,7 @@ function log(message, model, status, duration) {
   });
 }
 
-// Lähettää yhden AI-pyynnön
+// Sends one AI request
 async function sendRequest(prompt, index) {
   const startTime = Date.now();
   let status = 'failed';
@@ -78,24 +78,24 @@ async function sendRequest(prompt, index) {
     const endTime = Date.now();
     const duration = endTime - startTime;
     
-    // Tarkistetaan vastauksen rakenne
+    // Check response structure
     if (response.data && response.data.success) {
       status = 'success';
       metrics.successfulRequests++;
       metrics.totalLatency += duration;
       
-      // Tallenna käytetty malli ja palveluntarjoaja
+      // Save the model and provider used
       if (response.data.result && typeof response.data.result === 'object') {
-        // Uusi vastausmuoto, jossa result on objekti
+        // New response format where result is an object
         model = response.data.result.model || 'unknown';
         provider = response.data.result.provider || 'unknown';
       } else {
-        // Vanha vastausmuoto, jossa result on suoraan tekstiä
+        // Old response format where result is directly text
         model = 'unknown';
         provider = 'unknown';
       }
       
-      // Päivitä palveluntarjoajan metriikat
+      // Update provider metrics
       if (metrics.providerUsage[provider]) {
         metrics.providerUsage[provider].count++;
         metrics.providerUsage[provider].success++;
@@ -107,11 +107,11 @@ async function sendRequest(prompt, index) {
       status = 'failed';
       metrics.failedRequests++;
       
-      // Tarkistetaan onko vastauksessa virheviesti
+      // Check if there's an error message in the response
       const errorMessage = response.data.error || 'Unknown error';
       
-      // Tunnistetaan virhetyyppi viestistä
-      if (errorMessage.includes('Kaikki AI-palvelut epäonnistuivat')) {
+      // Identify error type from the message
+      if (errorMessage.includes('All AI services failed')) {
         log(`Request ${index} failed with all providers: ${errorMessage}`, model, 'all_providers_failed', duration);
       } else {
         log(`Request ${index} failed with response: ${JSON.stringify(response.data)}`, model, status, duration);
@@ -124,21 +124,21 @@ async function sendRequest(prompt, index) {
     const duration = endTime - startTime;
     metrics.failedRequests++;
     
-    // Luokittele virhe
+    // Classify error
     if (error.code === 'ECONNABORTED') {
       metrics.errors.timeout++;
       log(`Request ${index} timed out after ${duration}ms`, model, 'timeout', duration);
     } else if (error.response) {
-      // HTTP-virheet
+      // HTTP errors
       if (error.response.status >= 500) {
         metrics.errors.server++;
         
-        // Tarkistetaan, onko kyseessä fallback-virhe
+        // Check if it's a fallback error
         const errorMessage = error.response.data && error.response.data.message 
           ? error.response.data.message 
           : error.message;
           
-        if (errorMessage.includes('Kaikki AI-palvelut epäonnistuivat')) {
+        if (errorMessage.includes('All AI services failed')) {
           log(`Request ${index} failed with fallback error: ${errorMessage}`, model, 'fallback_error', duration);
         } else {
           log(`Request ${index} failed with server error ${error.response.status}: ${errorMessage}`, model, 'server_error', duration);
@@ -151,11 +151,11 @@ async function sendRequest(prompt, index) {
         log(`Request ${index} failed with unknown status ${error.response.status}`, model, 'unknown_error', duration);
       }
     } else if (error.request) {
-      // Pyyntö tehtiin mutta vastausta ei saatu
+      // Request was made but no response received
       metrics.errors.server++;
       log(`Request ${index} failed: no response received`, model, 'no_response', duration);
     } else {
-      // Virhe pyynnön valmistelussa
+      // Error in preparing the request
       metrics.errors.unknown++;
       log(`Request ${index} failed with error: ${error.message}`, model, 'unknown_error', duration);
     }
@@ -164,7 +164,7 @@ async function sendRequest(prompt, index) {
   }
 }
 
-// Lähettää useita pyyntöjä samanaikaisesti
+// Sends multiple requests simultaneously
 async function sendBatch(startIndex, batchSize) {
   const batch = [];
   for (let i = 0; i < batchSize; i++) {
@@ -178,7 +178,7 @@ async function sendBatch(startIndex, batchSize) {
   return Promise.all(batch);
 }
 
-// Suorittaa testin
+// Runs the test
 async function runTest() {
   console.log(`Starting fallback test with ${config.totalRequests} total requests, ${config.concurrentRequests} concurrent`);
   console.log(`Server URL: ${config.baseUrl}`);
@@ -189,7 +189,7 @@ async function runTest() {
   for (let i = 0; i < config.totalRequests; i += config.concurrentRequests) {
     await sendBatch(i, config.concurrentRequests);
     
-    // Pieni viive erien välillä
+    // Small delay between batches
     if (i + config.concurrentRequests < config.totalRequests) {
       await new Promise(resolve => setTimeout(resolve, config.delayBetweenBatches));
     }
@@ -198,11 +198,11 @@ async function runTest() {
   const endTime = Date.now();
   const totalDuration = endTime - startTime;
   
-  // Tulosta yhteenveto
+  // Print summary
   printSummary(totalDuration);
 }
 
-// Tulostaa testin yhteenvedon
+// Prints test summary
 function printSummary(totalDuration) {
   console.log('\n---------------------------------------------------');
   console.log('FALLBACK TEST SUMMARY');
@@ -231,7 +231,7 @@ function printSummary(totalDuration) {
   console.log('---------------------------------------------------');
 }
 
-// Suorita testi
+// Run the test
 runTest().catch(error => {
   console.error('Test failed with error:', error);
   process.exit(1);

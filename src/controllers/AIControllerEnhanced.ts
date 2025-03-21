@@ -4,59 +4,59 @@ import { SelectionStrategy } from '../services/utils/ProviderSelectionStrategy';
 import { EnhancedProcessingOptions } from '../services/AIGatewayEnhancer';
 
 /**
- * Pyyntö tekoälyn käsittelyä varten
+ * Request for AI processing
  */
 interface EnhancedProcessingRequest {
-  // Syöte tekoälylle
+  // Input for the AI
   input: string;
   
-  // Tehtävän tyyppi
+  // Task type
   taskType?: string;
   
-  // Valintastrategia
+  // Selection strategy
   strategy?: string;
   
-  // Haluttu palveluntarjoaja
+  // Preferred service provider
   preferredProvider?: string;
   
-  // Käytetäänkö välimuistia
+  // Whether to use cache
   cacheResults?: boolean;
   
-  // Testitila
+  // Test mode
   testMode?: boolean;
   
-  // Simuloitava virhetyyppi testitilassa
+  // Error type to simulate in test mode
   testError?: string;
 }
 
 /**
- * Pyyntö tekoälyn eräkäsittelyä varten
+ * Request for AI batch processing
  */
 interface BatchProcessingRequest {
-  // Syötteet tekoälylle
+  // Inputs for the AI
   inputs: string[];
   
-  // Tehtävän tyyppi
+  // Task type
   taskType?: string;
   
-  // Valintastrategia
+  // Selection strategy
   strategy?: string;
   
-  // Haluttu palveluntarjoaja
+  // Preferred service provider
   preferredProvider?: string;
   
-  // Käytetäänkö välimuistia
+  // Whether to use cache
   cacheResults?: boolean;
   
-  // Testitila
+  // Test mode
   testMode?: boolean;
   
-  // Simuloitava virhetyyppi testitilassa
+  // Error type to simulate in test mode
   testError?: string;
 }
 
 /**
- * Paranneltu AI-kontrolleri, joka käyttää AIGatewayEnhancer-luokkaa
+ * Enhanced AI controller that uses the AIGatewayEnhancer class
  */
 @Controller('ai-enhanced')
 export class AIControllerEnhanced {
@@ -67,9 +67,9 @@ export class AIControllerEnhanced {
   ) {}
   
   /**
-   * Käsittelee tekoälypyynnön älykkäällä fallback-mekanismilla
-   * @param request Pyyntö
-   * @returns Tekoälyn vastaus
+   * Processes an AI request with smart fallback
+   * @param request Request
+   * @returns AI response
    */
   @Post('process')
   async processWithSmartFallback(
@@ -77,7 +77,7 @@ export class AIControllerEnhanced {
     @Ip() ip: string
   ) {
     try {
-      this.logger.log(`Käsitellään tekoälypyyntö IP-osoitteesta ${ip}`);
+      this.logger.log(`Processing AI request from IP address ${ip}`);
       
       const { 
         input, 
@@ -86,14 +86,14 @@ export class AIControllerEnhanced {
         preferredProvider,
         cacheResults = true,
         testMode = false,
-        testError = null
+        testError 
       } = request;
       
       if (!input || input.trim() === '') {
-        throw new HttpException('Syöte on pakollinen', HttpStatus.BAD_REQUEST);
+        throw new HttpException('Input is required', HttpStatus.BAD_REQUEST);
       }
       
-      // Valitaan strategia
+      // Select strategy
       let selectionStrategy = SelectionStrategy.PRIORITY;
       
       if (strategy) {
@@ -111,11 +111,11 @@ export class AIControllerEnhanced {
             selectionStrategy = SelectionStrategy.FALLBACK;
             break;
           default:
-            this.logger.warn(`Tuntematon strategia: ${strategy}, käytetään oletusstrategiaa`);
+            this.logger.warn(`Unknown strategy: ${strategy}, using default strategy`);
         }
       }
       
-      // Käsitellään pyyntö
+      // Process the request
       const result = await this.aiGatewayEnhancer.processWithSmartFallback(
         taskType,
         input,
@@ -128,23 +128,23 @@ export class AIControllerEnhanced {
         }
       );
       
-      // Palautetaan tulos
+      // Return the result
       return result;
       
     } catch (error) {
-      this.logger.error(`Virhe tekoälypyynnön käsittelyssä: ${error.message}`);
+      this.logger.error(`Error processing AI request: ${error.message}`);
       
       throw new HttpException(
-        `Virhe tekoälypyynnön käsittelyssä: ${error.message}`,
+        `Error processing AI request: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
   
   /**
-   * Käsittelee useita tekoälypyyntöjä rinnakkain
-   * @param request Pyyntö
-   * @returns Tekoälyn vastaukset
+   * Processes multiple AI requests in parallel with smart fallback
+   * @param request Request
+   * @returns AI responses
    */
   @Post('process-batch')
   async processBatchWithSmartFallback(
@@ -152,7 +152,7 @@ export class AIControllerEnhanced {
     @Ip() ip: string
   ) {
     try {
-      this.logger.log(`Käsitellään tekoälyn eräkäsittelypyyntö IP-osoitteesta ${ip}`);
+      this.logger.log(`Processing AI batch request from IP address ${ip}`);
       
       const { 
         inputs, 
@@ -161,14 +161,14 @@ export class AIControllerEnhanced {
         preferredProvider,
         cacheResults = true,
         testMode = false,
-        testError = null
+        testError 
       } = request;
       
       if (!inputs || !Array.isArray(inputs) || inputs.length === 0) {
-        throw new HttpException('Syötteet ovat pakollisia', HttpStatus.BAD_REQUEST);
+        throw new HttpException('Inputs are required', HttpStatus.BAD_REQUEST);
       }
       
-      // Valitaan strategia
+      // Select strategy
       let selectionStrategy = SelectionStrategy.PRIORITY;
       
       if (strategy) {
@@ -186,11 +186,11 @@ export class AIControllerEnhanced {
             selectionStrategy = SelectionStrategy.FALLBACK;
             break;
           default:
-            this.logger.warn(`Tuntematon strategia: ${strategy}, käytetään oletusstrategiaa`);
+            this.logger.warn(`Unknown strategy: ${strategy}, using default strategy`);
         }
       }
       
-      // Käsitellään pyyntö
+      // Process the batch request
       const result = await this.aiGatewayEnhancer.processBatchWithSmartFallback(
         taskType,
         inputs,
@@ -203,14 +203,14 @@ export class AIControllerEnhanced {
         }
       );
       
-      // Palautetaan tulos
+      // Return the result
       return result;
       
     } catch (error) {
-      this.logger.error(`Virhe tekoälyn eräkäsittelypyynnön käsittelyssä: ${error.message}`);
+      this.logger.error(`Error processing AI batch request: ${error.message}`);
       
       throw new HttpException(
-        `Virhe tekoälyn eräkäsittelypyynnön käsittelyssä: ${error.message}`,
+        `Error processing AI batch request: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }

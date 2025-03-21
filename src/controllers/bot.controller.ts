@@ -5,14 +5,14 @@ interface UserInputDto {
   message: string;
 }
 
-// AIGateway:n palauttama virhetyyppi
+// AI Gateway's returned error type
 interface AIErrorResponse {
   error: boolean;
   message: string;
   details?: string;
 }
 
-// Tyypinvarmistukset
+// Type checks
 function isAIErrorResponse(obj: any): obj is AIErrorResponse {
   return obj 
     && typeof obj === 'object'
@@ -31,22 +31,22 @@ export class BotController {
 
   @Post('decide')
   async decideNextAction(@Body() request: UserInputDto) {
-    // Tarkistetaan, onko viesti tyhjä tai null
+    // Check if the message is empty or null
     if (!request.message) {
-      this.logger.error('Virheellinen syöte: viesti on tyhjä tai null');
+      this.logger.error('Invalid input: message is empty or null');
       throw new HttpException(
-        'Virheellinen syöte: viesti ei voi olla tyhjä tai null',
+        'Invalid input: message cannot be empty or null',
         HttpStatus.BAD_REQUEST
       );
     }
     
-    this.logger.log(`Käsitellään käyttäjän syöte: ${request.message.substring(0, 50)}...`);
+    this.logger.log(`Processing user input: ${request.message.substring(0, 50)}...`);
     
     const decision = await this.botService.decideNextAction(request.message);
     
-    // Tarkista, onko vastaus virheilmoitus
+    // Check if the response is an error message
     if (isAIErrorResponse(decision)) {
-      this.logger.error(`AI-palvelun virhe: ${decision.message}`);
+      this.logger.error(`AI service error: ${decision.message}`);
       throw new HttpException({
         status: HttpStatus.SERVICE_UNAVAILABLE,
         error: decision.message,

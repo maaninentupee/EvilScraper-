@@ -17,7 +17,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0  # Varmistaa, että kaikki historia on käytettävissä SonarQubea varten
+          fetch-depth: 0  # Ensures that all history is available for SonarQube analysis
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -30,7 +30,7 @@ jobs:
 
       - name: Run tests with coverage
         run: npm test -- --coverage --coverageReporters=lcov --coverageReporters=text --coverageReporters=cobertura
-        continue-on-error: true  # Jatka, vaikka testit epäonnistuisivat
+        continue-on-error: true  # Continue even if tests fail
 
       - name: Convert test reports
         run: |
@@ -66,7 +66,7 @@ jobs:
 
       - name: Fetch SonarQube Quality Gate Status
         run: |
-          # Haetaan laatuportin tila
+          # Get the quality gate status
           curl -X GET "https://sonarcloud.io/api/qualitygates/project_status?projectKey=maaninentupee_EvilScraper-" \
           -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
           -o quality-gate-status.json

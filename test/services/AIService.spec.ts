@@ -7,7 +7,7 @@ import { MockLogger } from '../test-utils';
 jest.mock('../../src/services/ModelSelector');
 jest.mock('../../src/services/AIGateway');
 
-describe('AIService - Paikalliset ja fallback-mallit', () => {
+describe('AIService - Local and fallback models', () => {
     let aiService: AIService;
     let mockModelSelector: jest.Mocked<ModelSelector>;
     let mockAIGateway: jest.Mocked<AIGateway>;
@@ -42,11 +42,11 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
         jest.clearAllMocks();
     });
 
-    test('Käyttää ensisijaisesti paikallista LM Studio -mallia', async () => {
-        // Mockataan getModel palauttamaan LM Studio -mallin
+    test('Uses local LM Studio model first', async () => {
+        // Mock getModel to return LM Studio model
         mockModelSelector.getModel = jest.fn().mockReturnValue('LMStudio-Model-1');
         
-        // Mockataan getModelInfo palauttamaan mallin tiedot
+        // Mock getModelInfo to return model info
         mockModelSelector.getModelInfo = jest.fn().mockReturnValue({
             name: 'LMStudio-Model-1',
             provider: 'lmstudio',
@@ -55,36 +55,36 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
             contextLength: 8192
         });
 
-        // Mockataan AI-vastaus
+        // Mock AI response
         mockAIGateway.processAIRequest = jest.fn().mockResolvedValue({
-            result: 'SEO analyysi tässä',
+            result: 'SEO analysis here',
             model: 'LMStudio-Model-1'
         });
 
-        // Suoritetaan SEO-analyysi
+        // Run SEO analysis
         const result = await aiService.analyzeSEO({ title: 'Test' });
 
-        // Tarkistetaan, että käytettiin LM Studio -mallia
+        // Check that LM Studio model was used
         expect(mockAIGateway.processAIRequest).toHaveBeenCalledWith(
             'seo',
             expect.any(String),
             'LMStudio-Model-1'
         );
         
-        // Tarkistetaan, että tulos on odotettu
+        // Check that the result is as expected
         expect(result).toEqual({
-            result: 'SEO analyysi tässä',
+            result: 'SEO analysis here',
             model: 'LMStudio-Model-1'
         });
     });
 
-    test('Siirtyy OLLAMA:an, jos LM Studio epäonnistuu', async () => {
-        // Mockataan getModel palauttamaan ensin LM Studio -mallin ja sitten Ollama-mallin
+    test('Falls back to OLLAMA if LM Studio fails', async () => {
+        // Mock getModel to return LM Studio model first and then Ollama model
         mockModelSelector.getModel = jest.fn()
             .mockReturnValueOnce('LMStudio-Model-1')
             .mockReturnValueOnce('Ollama-Model-1');
         
-        // Mockataan getModelInfo palauttamaan mallin tiedot
+        // Mock getModelInfo to return model info
         mockModelSelector.getModelInfo = jest.fn()
             .mockReturnValueOnce({
                 name: 'LMStudio-Model-1',
@@ -101,21 +101,21 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
                 contextLength: 8192
             });
 
-        // Mockataan AI-vastaukset: LM Studio epäonnistuu, Ollama onnistuu
+        // Mock AI responses: LM Studio fails, Ollama succeeds
         mockAIGateway.processAIRequest = jest.fn()
             .mockRejectedValueOnce(new Error('LM Studio Error'))
             .mockResolvedValueOnce({
-                result: 'SEO analyysi Ollama-mallista',
+                result: 'SEO analysis from Ollama model',
                 model: 'Ollama-Model-1'
             });
 
-        // Suoritetaan SEO-analyysi
+        // Run SEO analysis
         const result = await aiService.analyzeSEO({ title: 'Test' });
 
-        // Tarkistetaan, että kutsuttiin molempia malleja
+        // Check that both models were called
         expect(mockAIGateway.processAIRequest).toHaveBeenCalledTimes(2);
         
-        // Tarkistetaan, että ensin yritettiin LM Studiota
+        // Check that LM Studio was tried first
         expect(mockAIGateway.processAIRequest).toHaveBeenNthCalledWith(
             1,
             'seo',
@@ -123,7 +123,7 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
             'LMStudio-Model-1'
         );
         
-        // Tarkistetaan, että sitten käytettiin Ollamaa
+        // Check that Ollama was used
         expect(mockAIGateway.processAIRequest).toHaveBeenNthCalledWith(
             2,
             'seo',
@@ -131,21 +131,21 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
             'Ollama-Model-1'
         );
         
-        // Tarkistetaan, että tulos on Ollama-mallista
+        // Check that the result is from Ollama model
         expect(result).toEqual({
-            result: 'SEO analyysi Ollama-mallista',
+            result: 'SEO analysis from Ollama model',
             model: 'Ollama-Model-1'
         });
     });
 
-    test('Siirtyy OpenAI:hin, jos LM Studio ja OLLAMA epäonnistuvat', async () => {
-        // Mockataan getModel palauttamaan eri malleja järjestyksessä
+    test('Falls back to OpenAI if LM Studio and OLLAMA fail', async () => {
+        // Mock getModel to return different models in sequence
         mockModelSelector.getModel = jest.fn()
             .mockReturnValueOnce('LMStudio-Model-1')
             .mockReturnValueOnce('Ollama-Model-1')
             .mockReturnValueOnce('gpt-4-turbo');
         
-        // Mockataan getModelInfo palauttamaan mallin tiedot
+        // Mock getModelInfo to return model info
         mockModelSelector.getModelInfo = jest.fn()
             .mockReturnValueOnce({
                 name: 'LMStudio-Model-1',
@@ -169,22 +169,22 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
                 contextLength: 128000
             });
 
-        // Mockataan AI-vastaukset: LM Studio ja Ollama epäonnistuvat, OpenAI onnistuu
+        // Mock AI responses: LM Studio and Ollama fail, OpenAI succeeds
         mockAIGateway.processAIRequest = jest.fn()
             .mockRejectedValueOnce(new Error('LM Studio Error'))
             .mockRejectedValueOnce(new Error('OLLAMA Error'))
             .mockResolvedValueOnce({
-                result: 'SEO analyysi OpenAI-mallista',
+                result: 'SEO analysis from OpenAI model',
                 model: 'gpt-4-turbo'
             });
 
-        // Suoritetaan SEO-analyysi
+        // Run SEO analysis
         const result = await aiService.analyzeSEO({ title: 'Test' });
 
-        // Tarkistetaan, että kutsuttiin kaikkia kolmea mallia
+        // Check that all three models were called
         expect(mockAIGateway.processAIRequest).toHaveBeenCalledTimes(3);
         
-        // Tarkistetaan, että viimeiseksi käytettiin OpenAI:ta
+        // Check that OpenAI was used last
         expect(mockAIGateway.processAIRequest).toHaveBeenNthCalledWith(
             3,
             'seo',
@@ -192,15 +192,15 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
             'gpt-4-turbo'
         );
         
-        // Tarkistetaan, että tulos on OpenAI-mallista
+        // Check that the result is from OpenAI model
         expect(result).toEqual({
-            result: 'SEO analyysi OpenAI-mallista',
+            result: 'SEO analysis from OpenAI model',
             model: 'gpt-4-turbo'
         });
     });
 
-    test('Heittää virheen, jos kaikki mallit epäonnistuvat', async () => {
-        // Mockataan getModel palauttamaan eri malleja järjestyksessä kaikille eri palveluntarjoajille
+    test('Throws an error if all models fail', async () => {
+        // Mock getModel to return different models in sequence for all providers
         mockModelSelector.getModel = jest.fn()
             .mockReturnValueOnce('LMStudio-Model-1')
             .mockReturnValueOnce('Ollama-Model-1')
@@ -208,7 +208,7 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
             .mockReturnValueOnce('claude-3-opus')
             .mockReturnValueOnce('gemini-pro');
         
-        // Mockataan getModelInfo palauttamaan mallin tiedot
+        // Mock getModelInfo to return model info
         mockModelSelector.getModelInfo = jest.fn()
             .mockReturnValueOnce({
                 name: 'LMStudio-Model-1',
@@ -246,7 +246,7 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
                 contextLength: 32000
             });
 
-        // Mockataan AI-vastaukset: kaikki mallit epäonnistuvat
+        // Mock AI responses: all models fail
         mockAIGateway.processAIRequest = jest.fn()
             .mockRejectedValueOnce(new Error('LM Studio Error'))
             .mockRejectedValueOnce(new Error('OLLAMA Error'))
@@ -254,25 +254,25 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
             .mockRejectedValueOnce(new Error('Anthropic Error'))
             .mockRejectedValueOnce(new Error('Google Error'));
 
-        // Suoritetaan SEO-analyysi ja odotetaan virhettä
+        // Run SEO analysis and expect an error
         await expect(aiService.analyzeSEO({ title: 'Test' }))
             .rejects
-            .toThrow('Kaikki mallit epäonnistuivat');
+            .toThrow('All models failed');
 
-        // Tarkistetaan, että kutsuttiin kaikkia viittä mallia
+        // Check that all five models were called
         expect(mockAIGateway.processAIRequest).toHaveBeenCalledTimes(5);
         
-        // Tarkistetaan, että virheloki sisältää kaikkien mallien virheet
+        // Check that the error log contains errors from all models
         expect(mockLogger.logs.error.length).toBe(5);
     });
 
-    test('Ohittaa mallit, joille getModelInfo palauttaa null', async () => {
-        // Mockataan getModel palauttamaan eri malleja järjestyksessä
+    test('Skips models for which getModelInfo returns null', async () => {
+        // Mock getModel to return different models in sequence
         mockModelSelector.getModel = jest.fn()
             .mockReturnValueOnce('LMStudio-Model-1')
             .mockReturnValueOnce('Ollama-Model-1');
         
-        // Mockataan getModelInfo palauttamaan null ensimmäiselle mallille ja tiedot toiselle
+        // Mock getModelInfo to return null for the first model and info for the second
         mockModelSelector.getModelInfo = jest.fn()
             .mockReturnValueOnce(null)
             .mockReturnValueOnce({
@@ -283,35 +283,35 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
                 contextLength: 8192
             });
 
-        // Mockataan AI-vastaus onnistumaan Ollama-mallilla
+        // Mock AI response to succeed with Ollama model
         mockAIGateway.processAIRequest = jest.fn()
             .mockResolvedValueOnce({
-                result: 'SEO analyysi Ollama-mallista',
+                result: 'SEO analysis from Ollama model',
                 model: 'Ollama-Model-1'
             });
 
-        // Suoritetaan SEO-analyysi
+        // Run SEO analysis
         const result = await aiService.analyzeSEO({ title: 'Test' });
 
-        // Tarkistetaan, että kutsuttiin vain Ollama-mallia (ei LM Studiota, koska getModelInfo palautti null)
+        // Check that only Ollama model was called (not LM Studio, since getModelInfo returned null)
         expect(mockAIGateway.processAIRequest).toHaveBeenCalledTimes(1);
         
-        // Tarkistetaan, että käytettiin Ollamaa
+        // Check that Ollama model was used
         expect(mockAIGateway.processAIRequest).toHaveBeenCalledWith(
             'seo',
             expect.any(String),
             'Ollama-Model-1'
         );
         
-        // Tarkistetaan, että tulos on Ollama-mallista
+        // Check that the result is from Ollama model
         expect(result).toEqual({
-            result: 'SEO analyysi Ollama-mallista',
+            result: 'SEO analysis from Ollama model',
             model: 'Ollama-Model-1'
         });
     });
 
-    test('generateCode käyttää oikeaa promptia', async () => {
-        // Mockataan getModel ja getModelInfo
+    test('generateCode uses the correct prompt', async () => {
+        // Mock getModel and getModelInfo
         mockModelSelector.getModel = jest.fn().mockReturnValue('test-model');
         mockModelSelector.getModelInfo = jest.fn().mockReturnValue({
             name: 'test-model',
@@ -321,33 +321,33 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
             contextLength: 8192
         });
 
-        // Mockataan AI-vastaus
+        // Mock AI response
         mockAIGateway.processAIRequest = jest.fn().mockResolvedValue({
             result: 'Generated code here',
             model: 'test-model'
         });
 
-        // Suoritetaan generateCode oikeilla parametreilla
+        // Run generateCode with correct parameters
         await aiService.generateCode({
             language: 'typescript',
             description: 'Generate a React component'
         });
 
-        // Tarkistetaan, että processAIRequest kutsuttiin oikealla task-parametrilla
+        // Check that processAIRequest was called with the correct task parameter
         expect(mockAIGateway.processAIRequest).toHaveBeenCalledWith(
             'code',
             expect.any(String),
             'test-model'
         );
 
-        // Tarkistetaan, että promptissa on annettu kieli ja kuvaus
+        // Check that the prompt contains the language and description
         const promptArg = mockAIGateway.processAIRequest.mock.calls[0][1];
         expect(promptArg).toContain('typescript');
         expect(promptArg).toContain('Generate a React component');
     });
     
-    test('generateCode käsittelee valinnaiset requirements-parametrit', async () => {
-        // Mockataan getModel ja getModelInfo
+    test('generateCode handles optional requirements parameters', async () => {
+        // Mock getModel and getModelInfo
         mockModelSelector.getModel = jest.fn().mockReturnValue('test-model');
         mockModelSelector.getModelInfo = jest.fn().mockReturnValue({
             name: 'test-model',
@@ -357,27 +357,27 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
             contextLength: 8192
         });
 
-        // Mockataan AI-vastaus
+        // Mock AI response
         mockAIGateway.processAIRequest = jest.fn().mockResolvedValue({
             result: 'Generated code with requirements',
             model: 'test-model'
         });
 
-        // Suoritetaan generateCode vaatimuksilla
+        // Run generateCode with requirements
         await aiService.generateCode({
             language: 'typescript',
             description: 'Generate a React component',
             requirements: ['Must use hooks', 'Must be responsive']
         });
 
-        // Tarkistetaan, että promptissa on annetut vaatimukset
+        // Check that the prompt contains the requirements
         const promptArg = mockAIGateway.processAIRequest.mock.calls[0][1];
         expect(promptArg).toContain('Must use hooks');
         expect(promptArg).toContain('Must be responsive');
     });
 
-    test('makeDecision käyttää oikeaa promptia', async () => {
-        // Mockataan getModel ja getModelInfo
+    test('makeDecision uses the correct prompt', async () => {
+        // Mock getModel and getModelInfo
         mockModelSelector.getModel = jest.fn().mockReturnValue('test-model');
         mockModelSelector.getModelInfo = jest.fn().mockReturnValue({
             name: 'test-model',
@@ -387,26 +387,26 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
             contextLength: 8192
         });
 
-        // Mockataan AI-vastaus
+        // Mock AI response
         mockAIGateway.processAIRequest = jest.fn().mockResolvedValue({
             result: '{"decision": "yes", "reason": "test reason"}',
             model: 'test-model'
         });
 
-        // Suoritetaan makeDecision oikeilla parametreilla
+        // Run makeDecision with correct parameters
         await aiService.makeDecision({
             situation: 'Should I do this?',
             options: ['Yes', 'No', 'Maybe']
         });
 
-        // Tarkistetaan, että processAIRequest kutsuttiin oikealla task-parametrilla
+        // Check that processAIRequest was called with the correct task parameter
         expect(mockAIGateway.processAIRequest).toHaveBeenCalledWith(
             'decision',
             expect.any(String),
             'test-model'
         );
 
-        // Tarkistetaan, että promptissa on annettu tilanne ja vaihtoehdot
+        // Check that the prompt contains the situation and options
         const promptArg = mockAIGateway.processAIRequest.mock.calls[0][1];
         expect(promptArg).toContain('Should I do this?');
         expect(promptArg).toContain('Yes');
@@ -414,8 +414,8 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
         expect(promptArg).toContain('Maybe');
     });
 
-    test('analyzeSEO käsittelee sekä pakolliset että valinnaiset parametrit', async () => {
-        // Mockataan getModel ja getModelInfo
+    test('analyzeSEO handles both required and optional parameters', async () => {
+        // Mock getModel and getModelInfo
         mockModelSelector.getModel = jest.fn().mockReturnValue('test-model');
         mockModelSelector.getModelInfo = jest.fn().mockReturnValue({
             name: 'test-model',
@@ -425,27 +425,27 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
             contextLength: 8192
         });
 
-        // Mockataan AI-vastaus
+        // Mock AI response
         mockAIGateway.processAIRequest = jest.fn().mockResolvedValue({
             result: 'SEO analysis result',
             model: 'test-model'
         });
 
-        // Testataan vain pakollisella title-parametrilla
+        // Test with only the required title parameter
         await aiService.analyzeSEO({ title: 'Test Title' });
         let promptArg = mockAIGateway.processAIRequest.mock.calls[0][1];
         expect(promptArg).toContain('Test Title');
         expect(promptArg).not.toContain('Test Description');
         expect(promptArg).not.toContain('Test Content');
 
-        // Nollataan mockit
+        // Reset mocks
         jest.clearAllMocks();
         mockAIGateway.processAIRequest = jest.fn().mockResolvedValue({
             result: 'SEO analysis result with all params',
             model: 'test-model'
         });
 
-        // Testataan kaikilla parametreilla
+        // Test with all parameters
         await aiService.analyzeSEO({ 
             title: 'Test Title', 
             description: 'Test Description', 
@@ -458,23 +458,23 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
         expect(promptArg).toContain('Test Content');
     });
 
-    // Testataan virheellisiä syötteitä ja virhetilanteita
-    test('analyzeSEO heittää virheen, jos title puuttuu', async () => {
+    // Test error cases
+    test('analyzeSEO throws an error if title is missing', async () => {
         await expect(aiService.analyzeSEO({ description: 'Test Description' } as any))
             .rejects
             .toThrow();
     });
     
-    test('processWithFallback käsittelee virheet oikein ja yrittää seuraavaa mallia', async () => {
-        // Nollataan mockLogger
+    test('processWithFallback handles errors correctly and tries the next model', async () => {
+        // Clear mockLogger
         mockLogger.clear();
         
-        // Mockataan getModel palauttamaan eri malleja järjestyksessä
+        // Mock getModel to return different models in sequence
         mockModelSelector.getModel = jest.fn()
             .mockReturnValueOnce('model-1')
             .mockReturnValueOnce('model-2');
         
-        // Mockataan getModelInfo palauttamaan mallin tiedot
+        // Mock getModelInfo to return model info
         mockModelSelector.getModelInfo = jest.fn()
             .mockReturnValueOnce({
                 name: 'model-1',
@@ -491,7 +491,7 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
                 contextLength: 8192
             });
 
-        // Ensimmäinen kutsu epäonnistuu, toinen onnistuu
+        // First call fails, second call succeeds
         mockAIGateway.processAIRequest = jest.fn()
             .mockRejectedValueOnce(new Error('Specific error message'))
             .mockResolvedValueOnce({
@@ -499,31 +499,31 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
                 model: 'model-2'
             });
 
-        // Suoritetaan analysointi
+        // Run analysis
         const result = await aiService.analyzeSEO({ title: 'Test Title' });
 
-        // Tarkistetaan, että kutsuttiin molempia malleja
+        // Check that both models were called
         expect(mockAIGateway.processAIRequest).toHaveBeenCalledTimes(2);
         
-        // Tarkistetaan, että virhelokiin on tullut viesti
+        // Check that the error log contains an error message
         expect(mockLogger.logs.error.length).toBeGreaterThan(0);
         
-        // Tarkistetaan, että tulos on toisesta mallista
+        // Check that the result is from the second model
         expect(result).toEqual({
             result: 'Success from fallback model',
             model: 'model-2'
         });
     });
     
-    test('processWithFallback käsittelee virheet oikein, kun kaikki mallit epäonnistuvat', async () => {
-        // Nollataan mockLogger
+    test('processWithFallback handles errors correctly when all models fail', async () => {
+        // Clear mockLogger
         mockLogger.clear();
         
-        // Mockataan getModel palauttamaan eri malleja järjestyksessä
+        // Mock getModel to return different models in sequence
         mockModelSelector.getModel = jest.fn()
             .mockReturnValue('test-model');
         
-        // Mockataan getModelInfo palauttamaan mallin tiedot
+        // Mock getModelInfo to return model info
         mockModelSelector.getModelInfo = jest.fn()
             .mockReturnValue({
                 name: 'test-model',
@@ -533,52 +533,52 @@ describe('AIService - Paikalliset ja fallback-mallit', () => {
                 contextLength: 8192
             });
 
-        // Kaikki kutsut epäonnistuvat
+        // All calls fail
         mockAIGateway.processAIRequest = jest.fn()
             .mockRejectedValue(new Error('Specific error message'));
 
-        // Suoritetaan analysointi ja odotetaan virhettä
+        // Run analysis and expect an error
         await expect(aiService.analyzeSEO({ title: 'Test Title' }))
             .rejects
-            .toThrow('Kaikki mallit epäonnistuivat');
+            .toThrow('All models failed');
 
-        // Tarkistetaan, että virhelokiin on tullut viesti
+        // Check that the error log contains an error message
         expect(mockLogger.logs.error.length).toBeGreaterThan(0);
     });
     
-    test('processWithFallback käsittelee virheet oikein, kun mallitietoja ei löydy', async () => {
-        // Mockataan getModel palauttamaan mallin nimen
+    test('processWithFallback handles errors correctly when model info is not found', async () => {
+        // Mock getModel to return a model name
         mockModelSelector.getModel = jest.fn()
             .mockReturnValue('test-model');
         
-        // Mockataan getModelInfo palauttamaan null (mallia ei löydy)
+        // Mock getModelInfo to return null (model not found)
         mockModelSelector.getModelInfo = jest.fn()
             .mockReturnValue(null);
 
-        // Suoritetaan analysointi ja odotetaan virhettä
+        // Run analysis and expect an error
         await expect(aiService.analyzeSEO({ title: 'Test Title' }))
             .rejects
-            .toThrow('Kaikki mallit epäonnistuivat');
+            .toThrow('All models failed');
 
-        // Tarkistetaan, että varoitus kirjattiin lokiin
+        // Check that a warning was logged
         expect(mockLogger.logs.warn.some(msg => 
-            msg.includes('Ei löydetty mallia tehtävätyypille seo')
+            msg.includes('No model found for task type seo')
         )).toBeTruthy();
     });
     
-    test('processWithFallback käsittelee virheet oikein, kun getModel palauttaa null', async () => {
-        // Mockataan getModel palauttamaan null
+    test('processWithFallback handles errors correctly when getModel returns null', async () => {
+        // Mock getModel to return null
         mockModelSelector.getModel = jest.fn()
             .mockReturnValue(null);
 
-        // Suoritetaan analysointi ja odotetaan virhettä
+        // Run analysis and expect an error
         await expect(aiService.analyzeSEO({ title: 'Test Title' }))
             .rejects
-            .toThrow('Kaikki mallit epäonnistuivat');
+            .toThrow('All models failed');
 
-        // Tarkistetaan, että varoitus kirjattiin lokiin
+        // Check that a warning was logged
         expect(mockLogger.logs.warn.some(msg => 
-            msg.includes('Ei löydetty mallia tehtävätyypille seo')
+            msg.includes('No model found for task type seo')
         )).toBeTruthy();
     });
 });

@@ -133,12 +133,12 @@ export class ModelSelector {
     };
 
     /**
-     * Palauttaa sopivan mallin tehtävätyyppiä varten
-     * @param taskType Tehtävän tyyppi (seo, code, decision)
-     * @param provider Haluttu palveluntarjoaja (null = käytä oletusta prioriteetin mukaan)
+     * Returns a suitable model for the task type
+     * @param taskType Task type (seo, code, decision)
+     * @param provider Desired service provider (null = use default priority)
      */
     public getModel(taskType: string, provider?: ProviderType): string {
-        // Jos provider on määritelty, käytä sitä
+        // If provider is specified, use it
         if (provider) {
             switch (provider) {
                 case 'local':
@@ -152,12 +152,12 @@ export class ModelSelector {
                 case 'anthropic':
                     return "claude-3-opus-20240229";
                 default:
-                    this.logger.warn(`Tuntematon palveluntarjoaja: ${provider}, käytetään paikallista mallia`);
+                    this.logger.warn(`Unknown service provider: ${provider}, using local model`);
                     return this.localModels[taskType] || this.localModels["seo"];
             }
         }
         
-        // Jos ei määritelty, käytä prioriteettijärjestystä
+        // If not specified, use priority order
         const providerPriority = environment.providerPriorityArray;
         
         for (const priorityProvider of providerPriority) {
@@ -174,14 +174,14 @@ export class ModelSelector {
             }
         }
         
-        // Fallback käyttäen nimenomaisia fallback-malleja
-        this.logger.warn(`Ei löydetty saatavilla olevaa mallia tehtävätyypille ${taskType}, käytetään fallback-mallia`);
+        // Fallback using explicit fallback models
+        this.logger.warn(`No available model found for task type ${taskType}, using fallback model`);
         return this.fallbackModels[taskType] || this.fallbackModels["seo"];
     }
     
     /**
-     * Muuntaa tehtävätyypin vastaavaan kyvykkyyteen mallille
-     * @param taskType Tehtävän tyyppi
+     * Converts task type to corresponding capability for the model
+     * @param taskType Task type
      */
     public mapTaskTypeToCapability(taskType: string): string | null {
         switch (taskType) {
@@ -197,30 +197,30 @@ export class ModelSelector {
     }
 
     /**
-     * Hakee mallin tiedot nimen perusteella
-     * @param modelName Mallin nimi
+     * Gets model information by name
+     * @param modelName Model name
      */
     public getModelInfo(modelName: string): ModelInfo | null {
         return this.modelCapabilities[modelName] || null;
     }
 
     /**
-     * Palauttaa mallin palveluntarjoajan
-     * @param modelName Mallin nimi
+     * Returns the model's service provider
+     * @param modelName Model name
      */
     public getProviderForModel(modelName: string): ProviderType {
-        // Tarkista ensin suorat määrittelyt
+        // First check direct definitions
         if (this.providerMap[modelName]) {
             return this.providerMap[modelName];
         }
         
-        // Tarkista sitten modelCapabilities
+        // Then check modelCapabilities
         const modelInfo = this.getModelInfo(modelName);
         if (modelInfo) {
             return modelInfo.provider;
         }
         
-        // Tarkista mallien nimeämiskäytännöt
+        // Check model naming conventions
         // Check model name prefixes directly to avoid circular dependency
         if (modelName === 'gpt-4-turbo' || modelName.startsWith('gpt-')) {
             return 'openai';
@@ -238,21 +238,21 @@ export class ModelSelector {
             return 'lmstudio';
         }
         
-        // Oletus: paikallinen malli
+        // Default: local model
         return 'local';
     }
 
     /**
-     * Tarkistaa, onko malli paikallinen malli
-     * @param modelName Mallin nimi
+     * Checks if the model is a local model
+     * @param modelName Model name
      */
     public isLocalModel(modelName: string): boolean {
         return Object.values(this.localModels).includes(modelName);
     }
 
     /**
-     * Tarkistaa, onko malli OpenAI-malli
-     * @param modelName Mallin nimi
+     * Checks if the model is an OpenAI model
+     * @param modelName Model name
      */
     public isOpenAIModel(modelName: string): boolean {
         // Avoid calling getProviderForModel to prevent circular dependency
@@ -263,8 +263,8 @@ export class ModelSelector {
     }
 
     /**
-     * Tarkistaa, onko malli Anthropic-malli
-     * @param modelName Mallin nimi
+     * Checks if the model is an Anthropic model
+     * @param modelName Model name
      */
     public isAnthropicModel(modelName: string): boolean {
         // Avoid calling getProviderForModel to prevent circular dependency
@@ -275,30 +275,30 @@ export class ModelSelector {
     }
 
     /**
-     * Tarkistaa, onko malli Ollama-malli
-     * @param modelName Mallin nimi
+     * Checks if the model is an Ollama model
+     * @param modelName Model name
      */
     public isOllamaModel(modelName: string): boolean {
         return Object.values(this.ollamaModels).includes(modelName);
     }
 
     /**
-     * Tarkistaa, onko malli LM Studio -malli
-     * @param modelName Mallin nimi
+     * Checks if the model is an LM Studio model
+     * @param modelName Model name
      */
     public isLMStudioModel(modelName: string): boolean {
         return Object.values(this.lmStudioModels).includes(modelName);
     }
 
     /**
-     * Tarkistaa, onko malli kykenevä tiettyyn toimintoon
-     * @param modelName Mallin nimi
-     * @param capability Kyvykkyys, jota tarkistetaan
+     * Checks if the model is capable of a specific capability
+     * @param modelName Model name
+     * @param capability Capability to check
      */
     public isModelCapableOf(modelName: string, capability: string): boolean {
         const modelInfo = this.getModelInfo(modelName);
         if (!modelInfo) {
-            this.logger.warn(`Ei löydetty mallitietoja mallille ${modelName}. Oletetaan ei kyvykästä.`);
+            this.logger.warn(`No model information found for model ${modelName}. Assuming not capable.`);
             return false;
         }
         
@@ -306,35 +306,35 @@ export class ModelSelector {
     }
 
     /**
-     * Palauttaa sopivan järjestelmäpromptin tehtävätyypille
-     * @param taskType Tehtävän tyyppi
-     * @returns Järjestelmäprompti
+     * Returns a suitable system prompt for the task type
+     * @param taskType Task type
+     * @returns System prompt
      */
     public getSystemPrompt(taskType: string): string {
         switch (taskType) {
             case 'seo':
-                return "Olet SEO-asiantuntija, joka auttaa luomaan laadukasta sisältöä hakukoneoptimointia varten.";
+                return "You are an SEO expert, helping to create high-quality content for search engine optimization.";
             case 'code':
-                return "Olet kokenut ohjelmoija, joka auttaa koodin kirjoittamisessa, debuggauksessa ja optimoinnissa.";
+                return "You are an experienced programmer, helping with code writing, debugging, and optimization.";
             case 'decision':
-                return "Olet päätöksenteon asiantuntija, joka auttaa analysoimaan vaihtoehtoja ja tekemään perusteltuja päätöksiä.";
+                return "You are a decision-making expert, helping to analyze options and make informed decisions.";
             default:
-                return "Olet avulias tekoälyassistentti, joka vastaa käyttäjän kysymyksiin selkeästi ja tarkasti.";
+                return "You are a helpful AI assistant, answering user questions clearly and accurately.";
         }
     }
 
     /**
-     * Palauttaa kaikki saatavilla olevat mallit ja niiden tiedot
+     * Returns all available models and their information
      */
     public getAvailableModels() {
         const modelTypes: ModelType[] = ['seo', 'code', 'decision'];
         const models = {};
         
-        // Lisää provider-kohtaiset mallit
+        // Add provider-specific models
         for (const type of modelTypes) {
             models[type] = {};
             
-            // Lisää vain käytössä olevat providerit
+            // Only add providers that are in use
             if (environment.useLocalModels) {
                 models[type]['local'] = this.getModel(type, 'local');
             }
@@ -356,7 +356,7 @@ export class ModelSelector {
             }
         }
         
-        // Lisää mallien yksityiskohtaiset tiedot
+        // Add model details
         const modelDetails = {};
         Object.values(this.modelCapabilities).forEach(modelInfo => {
             modelDetails[modelInfo.name] = modelInfo;

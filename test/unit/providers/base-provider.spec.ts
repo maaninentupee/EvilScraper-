@@ -1,6 +1,6 @@
 import { BaseProvider, CompletionRequest, CompletionResult } from '../../../src/services/providers/BaseProvider';
 
-// Luodaan konkreettinen toteutus abstraktista BaseProvider-luokasta testausta varten
+// Create a concrete implementation of the abstract BaseProvider class for testing
 class TestBaseProvider extends BaseProvider {
   constructor() {
     super();
@@ -42,7 +42,7 @@ describe('BaseProvider', () => {
 
   describe('handleAvailabilityError', () => {
     it('should log error and return false', () => {
-      // Käytetään private-metodia testaamiseen
+      // Using private method for testing
       const result = (provider as any).handleAvailabilityError(new Error('Test error'));
       
       expect(result).toBe(false);
@@ -82,7 +82,7 @@ describe('BaseProvider', () => {
     });
 
     it('should add score for code blocks', () => {
-      // Käytetään samanpituisia tekstejä, jotta pituuspisteet eivät vaikuta
+      // Using texts of the same length so that length points don't affect the result
       const textWithoutCode = 'Text without code blocks'.padEnd(50, ' ');
       const textWithCode = 'Text with code blocks\n```\nconst x = 1;\n```'.padEnd(50, ' ');
       
@@ -90,7 +90,7 @@ describe('BaseProvider', () => {
       const scoreWithCode = (provider as any).calculateQualityScore(textWithCode);
       
       expect(scoreWithCode).toBeGreaterThan(scoreWithoutCode);
-      // Koodiblokki vaikuttaa myös rivilukuun, joten ero ei ole tasan 1
+      // Code block also affects line count, so the difference is not exactly 1
       expect(scoreWithCode - scoreWithoutCode).toBeGreaterThan(0.5);
     });
 

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 /**
- * Palveluntarjoajan terveystiedot
+ * Service provider health information
  */
 export interface ProviderHealth {
     name: string;
@@ -16,22 +16,22 @@ export interface ProviderHealth {
 }
 
 /**
- * Luokka, joka seuraa palveluntarjoajien terveyttä
+ * Class that monitors service provider health
  */
 @Injectable()
 export class ProviderHealthMonitor {
     private readonly logger = new Logger(ProviderHealthMonitor.name);
     
-    // Palveluntarjoajien terveystiedot
+    // Service provider health information
     private providerHealth: Map<string, ProviderHealth> = new Map();
     
-    // Terveystietojen päivitysasetukset
-    private readonly HEALTH_WINDOW_SIZE = 100; // Viimeisimpien pyyntöjen määrä, jota seurataan
-    private readonly MIN_REQUESTS_FOR_HEALTH = 5; // Vähimmäismäärä pyyntöjä, jotta terveystiedot ovat luotettavia
+    // Health information update settings
+    private readonly HEALTH_WINDOW_SIZE = 100; // Number of most recent requests to track
+    private readonly MIN_REQUESTS_FOR_HEALTH = 5; // Minimum number of requests for reliable health information
     
     /**
-     * Alustaa palveluntarjoajan terveystiedot
-     * @param name Palveluntarjoajan nimi
+     * Initializes service provider health information
+     * @param name Service provider name
      */
     public initializeProviderHealth(name: string): void {
         if (!this.providerHealth.has(name)) {
@@ -47,16 +47,16 @@ export class ProviderHealthMonitor {
                 lastError: null
             });
             
-            this.logger.log(`Palveluntarjoajan ${name} terveystiedot alustettu`);
+            this.logger.log(`Service provider ${name} health information initialized`);
         }
     }
     
     /**
-     * Päivittää palveluntarjoajan terveystiedot pyynnön tuloksen perusteella
-     * @param name Palveluntarjoajan nimi
-     * @param success Onnistuiko pyyntö
-     * @param latency Vasteaika millisekunteina
-     * @param errorType Virhetyyppi, jos pyyntö epäonnistui
+     * Updates service provider health information based on the request result
+     * @param name Service provider name
+     * @param success Whether the request was successful
+     * @param latency Request processing time in milliseconds
+     * @param errorType Error type if the request failed
      */
     public updateProviderHealth(
         name: string, 
@@ -64,20 +64,20 @@ export class ProviderHealthMonitor {
         latency?: number,
         errorType?: string
     ): void {
-        // Varmistetaan, että palveluntarjoajan terveystiedot on alustettu
+        // Ensure service provider health information is initialized
         if (!this.providerHealth.has(name)) {
             this.initializeProviderHealth(name);
         }
         
         const health = this.providerHealth.get(name);
         
-        // Päivitetään viimeisimmät pyynnöt ja virheet
+        // Update recent requests and errors
         const totalRequests = health.recentRequests + 1;
         const totalErrors = health.recentErrors + (success ? 0 : 1);
         
-        // Rajoitetaan seurattavien pyyntöjen määrää
+        // Limit the number of tracked requests
         if (totalRequests > this.HEALTH_WINDOW_SIZE) {
-            // Jos ylitetään seurattavien pyyntöjen määrä, skaalataan arvot
+            // If the number of requests exceeds the limit, scale the values
             const scaleFactor = this.HEALTH_WINDOW_SIZE / totalRequests;
             health.recentRequests = Math.floor(totalRequests * scaleFactor);
             health.recentErrors = Math.floor(totalErrors * scaleFactor);
@@ -86,69 +86,69 @@ export class ProviderHealthMonitor {
             health.recentErrors = totalErrors;
         }
         
-        // Päivitetään onnistumis- ja virheprosentit
+        // Update success and error rates
         if (health.recentRequests >= this.MIN_REQUESTS_FOR_HEALTH) {
             health.successRate = (health.recentRequests - health.recentErrors) / health.recentRequests;
             health.errorRate = health.recentErrors / health.recentRequests;
         }
         
-        // Päivitetään keskimääräinen vasteaika
+        // Update average latency
         if (success && latency) {
             if (health.averageLatency === 0) {
                 health.averageLatency = latency;
             } else {
-                // Painotettu keskiarvo, joka antaa enemmän painoa uusimmille mittauksille
+                // Weighted average, giving more weight to recent measurements
                 health.averageLatency = health.averageLatency * 0.7 + latency * 0.3;
             }
         }
         
-        // Päivitetään viimeisimmät käyttö- ja virheajat
+        // Update last used and last error timestamps
         if (success) {
             health.lastUsed = new Date();
         } else {
             health.lastError = new Date();
             
-            // Lokitetaan virhetyyppi
+            // Log error type
             if (errorType) {
-                this.logger.warn(`Palveluntarjoaja ${name} kohtasi virheen: ${errorType}`);
+                this.logger.warn(`Service provider ${name} encountered an error: ${errorType}`);
             }
         }
         
-        // Päivitetään saatavuus
-        // Jos virheprosentti on liian korkea, merkitään palveluntarjoaja ei-saatavilla olevaksi
+        // Update availability based on error rate
+        // If the error rate is too high, mark the provider as unavailable
         if (health.recentRequests >= this.MIN_REQUESTS_FOR_HEALTH && health.errorRate > 0.8) {
             health.available = false;
-            this.logger.warn(`Palveluntarjoaja ${name} merkitty ei-saatavilla olevaksi korkean virheprosentin takia (${(health.errorRate * 100).toFixed(1)}%)`);
+            this.logger.warn(`Service provider ${name} marked as unavailable due to high error rate (${(health.errorRate * 100).toFixed(1)}%)`);
         } else {
             health.available = true;
         }
         
-        // Päivitetään tiedot takaisin karttaan
+        // Update health information in the map
         this.providerHealth.set(name, health);
     }
     
     /**
-     * Palauttaa palveluntarjoajan terveystiedot
-     * @param name Palveluntarjoajan nimi
-     * @returns Palveluntarjoajan terveystiedot
+     * Gets service provider health information
+     * @param name Service provider name
+     * @returns Service provider health information
      */
     public getProviderHealth(name: string): ProviderHealth | undefined {
         return this.providerHealth.get(name);
     }
     
     /**
-     * Palauttaa kaikkien palveluntarjoajien terveystiedot
-     * @returns Kartta palveluntarjoajien terveystiedoista
+     * Gets all service provider health information
+     * @returns Map of service provider health information
      */
     public getAllProviderHealth(): Map<string, ProviderHealth> {
         return this.providerHealth;
     }
     
     /**
-     * Nollaa kaikkien palveluntarjoajien terveystiedot
+     * Resets all service provider health information
      */
     public resetStats(): void {
-        // Käydään läpi kaikki palveluntarjoajat ja nollataan tilastot
+        // Iterate over all service providers and reset their statistics
         for (const [name, health] of this.providerHealth.entries()) {
             this.providerHealth.set(name, {
                 name,
@@ -163,27 +163,27 @@ export class ProviderHealthMonitor {
             });
         }
         
-        this.logger.log('Palveluntarjoajien terveystiedot nollattu');
+        this.logger.log('Service provider health information reset');
     }
     
     /**
-     * Palauttaa palveluntarjoajat järjestettynä pisteytyksen mukaan
-     * @param scoreFunction Funktio, joka laskee pisteet palveluntarjoajalle
-     * @returns Järjestetty lista palveluntarjoajista
+     * Gets service providers sorted by score
+     * @param scoreFunction Function to calculate the score
+     * @returns Service providers sorted by score
      */
     public getProvidersByScore(scoreFunction: (health: ProviderHealth) => number): ProviderHealth[] {
         const providers: ProviderHealth[] = [];
         
-        // Kerätään kaikki palveluntarjoajat
+        // Collect all service providers
         for (const health of this.providerHealth.values()) {
             providers.push(health);
         }
         
-        // Järjestetään palveluntarjoajat pisteytyksen mukaan
+        // Sort service providers by score
         return providers.sort((a, b) => {
             const scoreA = scoreFunction(a);
             const scoreB = scoreFunction(b);
-            return scoreB - scoreA; // Suuremmat pisteet ensin
+            return scoreB - scoreA; // Descending order
         });
     }
 }

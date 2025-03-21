@@ -39,7 +39,7 @@ jest.mock('../../src/services/providers/OllamaProvider', () => {
         }
         return Promise.resolve({
           success: true,
-          text: 'Tämä on Ollama-palveluntarjoajan vastaus',
+          text: 'This is the response from the Ollama provider',
           provider: 'ollama',
           model: request.modelName || 'mistral',
           latency: 150
@@ -69,7 +69,7 @@ jest.mock('../../src/services/providers/OpenAIProvider', () => {
       generateCompletion: jest.fn().mockImplementation((request) => {
         return Promise.resolve({
           success: true,
-          text: 'Tämä on OpenAI-palveluntarjoajan vastaus',
+          text: 'This is the response from the OpenAI provider',
           provider: 'openai',
           model: request.modelName || 'gpt-4-turbo',
           latency: 250
@@ -97,7 +97,7 @@ jest.mock('../../src/services/providers/AnthropicProvider', () => {
       generateCompletion: jest.fn().mockImplementation((request) => {
         return Promise.resolve({
           success: true,
-          text: 'Tämä on Anthropic-palveluntarjoajan vastaus',
+          text: 'This is the response from the Anthropic provider',
           provider: 'anthropic',
           model: request.modelName || 'claude-3-opus-20240229',
           latency: 300
@@ -125,7 +125,7 @@ jest.mock('../../src/services/providers/LocalProvider', () => {
       generateCompletion: jest.fn().mockImplementation((request) => {
         return Promise.resolve({
           success: true,
-          text: 'Tämä on Local-palveluntarjoajan vastaus',
+          text: 'This is the response from the Local provider',
           provider: 'local',
           model: request.modelName || 'mistral-7b-instruct-q8_0.gguf',
           latency: 100
@@ -153,7 +153,7 @@ jest.mock('../../src/services/providers/LMStudioProvider', () => {
       generateCompletion: jest.fn().mockImplementation((request) => {
         return Promise.resolve({
           success: true,
-          text: 'Tämä on LM Studio -palveluntarjoajan vastaus',
+          text: 'This is the response from the LM Studio provider',
           provider: 'lmstudio',
           model: request.modelName || 'mistral-7b-instruct-v0.2',
           latency: 120
@@ -180,10 +180,10 @@ describe('AIGateway HTTP Integration Tests', () => {
   let originalOllamaDisabled: string | undefined;
 
   beforeAll(async () => {
-    // Tallenna alkuperäinen Ollama-asetus
+    // Save the original Ollama setting
     originalOllamaDisabled = process.env.OLLAMA_API_DISABLED;
     
-    // Varmista, että Ollama on käytössä ensimmäisessä testissä
+    // Ensure that Ollama is enabled in the first test
     process.env.OLLAMA_API_DISABLED = "false";
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -195,7 +195,7 @@ describe('AIGateway HTTP Integration Tests', () => {
   });
 
   afterAll(async () => {
-    // Palauta alkuperäinen Ollama-asetus
+    // Restore the original Ollama setting
     if (originalOllamaDisabled) {
       process.env.OLLAMA_API_DISABLED = originalOllamaDisabled;
     } else {
@@ -206,60 +206,60 @@ describe('AIGateway HTTP Integration Tests', () => {
   });
 
   it('should return response from Ollama if available', async () => {
-    // Varmista, että Ollama on käytössä
+    // Ensure that Ollama is enabled
     process.env.OLLAMA_API_DISABLED = "false";
 
     const response = await request(app.getHttpServer())
       .post('/ai/process')
-      .send({ taskType: "seo", input: "Testi" })
+      .send({ taskType: "seo", input: "Test" })
       .expect(201);
 
     expect(response.body).toBeDefined();
     expect(response.body.result).toBeDefined();
     
-    // Tarkista, että vastaus sisältää provider-kentän
+    // Check that the response contains the provider field
     expect(response.body.result.provider).toBeDefined();
     
-    // Tarkista, että vastaus tuli Ollamalta
+    // Check that the response came from Ollama
     expect(response.body.result.provider).toBe('ollama');
-  }, 30000); // Lisää aikaa testin suorittamiseen
+  }, 30000); // Add more time for test execution
 
   it('should fallback to OpenAI if Ollama fails', async () => {
-    // Simuloidaan tilanne, jossa Ollama on pois käytöstä
+    // Simulate a situation where Ollama is disabled
     process.env.OLLAMA_API_DISABLED = "true";
 
     const response = await request(app.getHttpServer())
       .post('/ai/process')
-      .send({ taskType: "seo", input: "Testi" })
+      .send({ taskType: "seo", input: "Test" })
       .expect(201);
 
     expect(response.body).toBeDefined();
     expect(response.body.result).toBeDefined();
     
-    // Tarkista, että vastaus sisältää provider-kentän
+    // Check that the response contains the provider field
     expect(response.body.result.provider).toBeDefined();
     
-    // Tarkista, että vastaus ei tullut Ollamalta
+    // Check that the response did not come from Ollama
     expect(response.body.result.provider).not.toBe('ollama');
     
-    // Tarkista, että vastaus tuli OpenAI:lta (seuraava prioriteetissa)
+    // Check that the response came from OpenAI (next in priority)
     expect(response.body.result.provider).toBe('openai');
-  }, 30000); // Lisää aikaa testin suorittamiseen
+  }, 30000); // Add more time for test execution
 
   it('should include wasFailover flag when fallback occurs', async () => {
-    // Simuloidaan tilanne, jossa Ollama on pois käytöstä
+    // Simulate a situation where Ollama is disabled
     process.env.OLLAMA_API_DISABLED = "true";
 
     const response = await request(app.getHttpServer())
       .post('/ai/process')
-      .send({ taskType: "seo", input: "Testi" })
+      .send({ taskType: "seo", input: "Test" })
       .expect(201);
 
     expect(response.body).toBeDefined();
     expect(response.body.result).toBeDefined();
     
-    // Tarkista, että vastaus sisältää wasFailover-kentän ja se on true
+    // Check that the response contains the wasFailover field and it is true
     expect(response.body.result.wasFailover).toBeDefined();
     expect(response.body.result.wasFailover).toBe(true);
-  }, 30000); // Lisää aikaa testin suorittamiseen
+  }, 30000); // Add more time for test execution
 });

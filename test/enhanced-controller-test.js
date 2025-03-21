@@ -1,10 +1,10 @@
 /**
- * Testi AIControllerEnhanced-luokan toiminnalle
+ * Test for AIControllerEnhanced class functionality
  * 
- * Tämä skripti testaa AIControllerEnhanced-luokan toimintaa erilaisissa tilanteissa,
- * kuten yksittäisten pyyntöjen ja eräkäsittelyn toiminnassa.
+ * This script tests the functionality of the AIControllerEnhanced class in various situations,
+ * such as individual requests and batch processing.
  * 
- * Käyttö: node test/enhanced-controller-test.js
+ * Usage: node test/enhanced-controller-test.js
  */
 
 const { NestFactory } = require('@nestjs/core');
@@ -13,22 +13,22 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
-// Testiasetukset
+// Test settings
 const TEST_ITERATIONS = 5;
 const STRATEGIES = ['performance', 'cost', 'quality', 'fallback'];
 const ERROR_TYPES = [null, 'timeout', 'rate_limit', 'invalid_request'];
 const BATCH_SIZES = [2, 5];
 
-// Testipromptit
+// Test prompts
 const TEST_PROMPTS = [
-  'Kerro minulle Suomen historiasta',
-  'Miten tekoäly toimii?',
-  'Kirjoita runo keväästä',
-  'Selitä kvanttimekaniikan perusteet',
-  'Mikä on ilmastonmuutos?'
+  'Tell me about Finnish history',
+  'How does artificial intelligence work?',
+  'Write a poem about spring',
+  'Explain the basics of quantum mechanics',
+  'What is climate change?'
 ];
 
-// Testitulokset
+// Test results
 const results = {
   singleRequests: {
     total: 0,
@@ -50,7 +50,7 @@ const results = {
   }
 };
 
-// Alusta tulokset
+// Initialize results
 STRATEGIES.forEach(strategy => {
   results.singleRequests.byStrategy[strategy] = {
     total: 0,
@@ -82,27 +82,27 @@ BATCH_SIZES.forEach(size => {
   };
 });
 
-// Suorita testit
+// Run tests
 async function runTests() {
-  console.log('Käynnistetään AIControllerEnhanced-testit...');
+  console.log('Starting AIControllerEnhanced tests...');
   
   try {
-    // Käynnistä NestJS-sovellus
+    // Start NestJS application
     const app = await NestFactory.create(AppModule);
     await app.listen(3000);
     
-    console.log('Sovellus käynnistetty portissa 3000, aloitetaan testit');
+    console.log('Application started on port 3000, beginning tests');
     
-    // Testaa yksittäiset pyynnöt
+    // Test individual requests
     await testSingleRequests();
     
-    // Testaa eräkäsittely
+    // Test batch processing
     await testBatchRequests();
     
-    // Tallenna tulokset
+    // Save results
     const resultsPath = path.join(__dirname, 'results', 'enhanced-controller-results.json');
     
-    // Varmista, että hakemisto on olemassa
+    // Ensure directory exists
     const resultsDir = path.dirname(resultsPath);
     if (!fs.existsSync(resultsDir)) {
       fs.mkdirSync(resultsDir, { recursive: true });
@@ -110,22 +110,22 @@ async function runTests() {
     
     fs.writeFileSync(resultsPath, JSON.stringify(results, null, 2));
     
-    console.log('Testit suoritettu onnistuneesti!');
-    console.log(`Tulokset tallennettu: ${resultsPath}`);
-    console.log(`Yhteenveto yksittäisistä pyynnöistä: yhteensä=${results.singleRequests.total}, onnistuneet=${results.singleRequests.success}, epäonnistuneet=${results.singleRequests.failed}, keskimääräinen vastausaika=${results.singleRequests.averageResponseTime.toFixed(2)}ms`);
-    console.log(`Yhteenveto eräkäsittelystä: yhteensä=${results.batchRequests.total}, onnistuneet=${results.batchRequests.success}, epäonnistuneet=${results.batchRequests.failed}, keskimääräinen vastausaika=${results.batchRequests.averageResponseTime.toFixed(2)}ms`);
+    console.log('Tests completed successfully!');
+    console.log(`Results saved to: ${resultsPath}`);
+    console.log(`Summary of individual requests: total=${results.singleRequests.total}, successful=${results.singleRequests.success}, failed=${results.singleRequests.failed}, average response time=${results.singleRequests.averageResponseTime.toFixed(2)}ms`);
+    console.log(`Summary of batch processing: total=${results.batchRequests.total}, successful=${results.batchRequests.success}, failed=${results.batchRequests.failed}, average response time=${results.batchRequests.averageResponseTime.toFixed(2)}ms`);
     
-    // Sulje sovellus
+    // Close application
     await app.close();
     
   } catch (error) {
-    console.error(`Virhe testien suorituksessa: ${error}`);
+    console.error(`Error running tests: ${error}`);
   }
 }
 
-// Testaa yksittäiset pyynnöt
+// Test individual requests
 async function testSingleRequests() {
-  console.log('Testataan yksittäisiä pyyntöjä...');
+  console.log('Testing individual requests...');
   
   for (const strategy of STRATEGIES) {
     for (const errorType of ERROR_TYPES) {
@@ -133,11 +133,11 @@ async function testSingleRequests() {
         const prompt = TEST_PROMPTS[Math.floor(Math.random() * TEST_PROMPTS.length)];
         
         try {
-          console.log(`Suoritetaan yksittäinen testi: strategia=${strategy}, virhetyyppi=${errorType || 'ei virhettä'}, iteraatio=${i+1}`);
+          console.log(`Running individual test: strategy=${strategy}, error type=${errorType || 'no error'}, iteration=${i+1}`);
           
           const startTime = Date.now();
           
-          // Suorita testi
+          // Run test
           const response = await axios.post('http://localhost:3000/ai-enhanced/process', {
             input: prompt,
             taskType: 'text-generation',
@@ -150,7 +150,7 @@ async function testSingleRequests() {
           const endTime = Date.now();
           const responseTime = endTime - startTime;
           
-          // Päivitä tulokset
+          // Update results
           results.singleRequests.total++;
           results.singleRequests.byStrategy[strategy].total++;
           
@@ -176,10 +176,10 @@ async function testSingleRequests() {
           
           results.singleRequests.totalResponseTime += responseTime;
           
-          console.log(`Yksittäinen testi valmis: onnistui=${response.data && response.data.success}, vastausaika=${responseTime}ms`);
+          console.log(`Individual test complete: success=${response.data && response.data.success}, response time=${responseTime}ms`);
           
         } catch (error) {
-          console.error(`Virhe yksittäisen testin suorituksessa: ${error.message}`);
+          console.error(`Error running individual test: ${error.message}`);
           results.singleRequests.total++;
           results.singleRequests.failed++;
           results.singleRequests.byStrategy[strategy].total++;
@@ -194,34 +194,34 @@ async function testSingleRequests() {
     }
   }
   
-  // Laske keskimääräinen vastausaika
+  // Calculate average response time
   if (results.singleRequests.total > 0) {
     results.singleRequests.averageResponseTime = results.singleRequests.totalResponseTime / results.singleRequests.total;
   }
   
-  console.log('Yksittäisten pyyntöjen testit suoritettu');
+  console.log('Individual request tests completed');
 }
 
-// Testaa eräkäsittely
+// Test batch processing
 async function testBatchRequests() {
-  console.log('Testataan eräkäsittelyä...');
+  console.log('Testing batch processing...');
   
   for (const strategy of STRATEGIES) {
     for (const batchSize of BATCH_SIZES) {
       for (let i = 0; i < TEST_ITERATIONS; i++) {
         const inputs = [];
         
-        // Luo satunnaisia prompteja
+        // Create random prompts
         for (let j = 0; j < batchSize; j++) {
           inputs.push(TEST_PROMPTS[Math.floor(Math.random() * TEST_PROMPTS.length)]);
         }
         
         try {
-          console.log(`Suoritetaan eräkäsittelytesti: strategia=${strategy}, eräkoko=${batchSize}, iteraatio=${i+1}`);
+          console.log(`Running batch processing test: strategy=${strategy}, batch size=${batchSize}, iteration=${i+1}`);
           
           const startTime = Date.now();
           
-          // Suorita testi
+          // Run test
           const response = await axios.post('http://localhost:3000/ai-enhanced/process-batch', {
             inputs,
             taskType: 'text-generation',
@@ -232,7 +232,7 @@ async function testBatchRequests() {
           const endTime = Date.now();
           const responseTime = endTime - startTime;
           
-          // Päivitä tulokset
+          // Update results
           results.batchRequests.total++;
           results.batchRequests.byStrategy[strategy].total++;
           results.batchRequests.byBatchSize[batchSize].total++;
@@ -249,10 +249,10 @@ async function testBatchRequests() {
           
           results.batchRequests.totalResponseTime += responseTime;
           
-          console.log(`Eräkäsittelytesti valmis: onnistui=${response.data && Array.isArray(response.data) && response.data.every(item => item.success)}, vastausaika=${responseTime}ms`);
+          console.log(`Batch processing test complete: success=${response.data && Array.isArray(response.data) && response.data.every(item => item.success)}, response time=${responseTime}ms`);
           
         } catch (error) {
-          console.error(`Virhe eräkäsittelytestin suorituksessa: ${error.message}`);
+          console.error(`Error running batch processing test: ${error.message}`);
           results.batchRequests.total++;
           results.batchRequests.failed++;
           results.batchRequests.byStrategy[strategy].total++;
@@ -264,13 +264,13 @@ async function testBatchRequests() {
     }
   }
   
-  // Laske keskimääräinen vastausaika
+  // Calculate average response time
   if (results.batchRequests.total > 0) {
     results.batchRequests.averageResponseTime = results.batchRequests.totalResponseTime / results.batchRequests.total;
   }
   
-  console.log('Eräkäsittelyn testit suoritettu');
+  console.log('Batch processing tests completed');
 }
 
-// Käynnistä testit
+// Start tests
 runTests();

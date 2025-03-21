@@ -1,109 +1,109 @@
-# AI-palveluntarjoajien kuormitustestaus
+# Load Testing of AI Service Providers
 
-Tämä dokumentti sisältää ohjeet Windsurf-projektin AI-palveluntarjoajien (Ollama, LM Studio) kuormitustestaukseen.
+This document contains instructions for load testing of AI service providers (Ollama, LM Studio) in the Windsurf project.
 
-## Kuormitustestauksen tarkoitus
+## Purpose of Load Testing
 
-Kuormitustestauksen tarkoituksena on:
-1. Varmistaa, että AI-palveluntarjoajat pystyvät käsittelemään useita samanaikaisia pyyntöjä
-2. Tutkia optimaalinen rinnakkaisten pyyntöjen määrä kullekin palveluntarjoajalle
-3. Tunnistaa ja korjata mahdolliset suorituskyvyn pullonkaulat
-4. Testata virheenhallintalogiikan toimivuus kuormitustilanteissa
+The purpose of load testing is to:
+1. Ensure that AI service providers can handle multiple concurrent requests
+2. Investigate the optimal number of concurrent requests for each service provider
+3. Identify and fix potential performance bottlenecks
+4. Test the functionality of error handling logic in load situations
 
-## Toteutetut parannukset
+## Implemented Improvements
 
-Olemme toteuttaneet seuraavat parannukset kuormitustestauksen mahdollistamiseksi:
+We have implemented the following improvements to enable load testing:
 
-### 1. OllamaProvider ja LMStudioProvider
+### 1. OllamaProvider and LMStudioProvider
 
-Molempiin providereihin on tehty seuraavat parannukset:
-- Lisätty pyyntöjen jonotusmekanismi
-- Rajoitettu samanaikaisten pyyntöjen maksimimäärä (20)
-- Parannettu virheenhallintaa
-- Luotu oma axios-instanssi paremmilla asetuksilla (timeout 30s)
+The following improvements have been made to both providers:
+- Added request queuing mechanism
+- Limited the maximum number of concurrent requests (20)
+- Improved error handling
+- Created a dedicated axios instance with better settings (timeout 30s)
 
 ### 2. ProviderRegistry
 
-Luotu uusi ProviderRegistry-luokka, joka:
-- Tarjoaa pääsyn kaikkiin rekisteröityihin palveluntarjoajiin
-- Mahdollistaa palveluntarjoajien haun nimen perusteella
-- Tarjoaa metodin saatavilla olevien palveluntarjoajien tarkistamiseen
+Created a new ProviderRegistry class that:
+- Provides access to all registered service providers
+- Enables searching for service providers by name
+- Offers a method to check available service providers
 
-### 3. Kuormitustestaus-endpoint
+### 3. Load Testing Endpoint
 
-Luotu uusi REST API endpoint kuormitustestausta varten:
+Created a new REST API endpoint for load testing:
 - URL: `POST /ai/load-test/:provider`
-- Parametrit:
-  - `provider`: palveluntarjoajan nimi (ollama, lmstudio)
-  - Pyynnön body:
+- Parameters:
+  - `provider`: service provider name (ollama, lmstudio)
+  - Request body:
     ```json
     {
-      "prompt": "Kirjoita esimerkki AI:sta",
+      "prompt": "Write an example about AI",
       "model": "llama2",
       "iterations": 10
     }
     ```
-- Palauttaa yksityiskohtaista tietoa kuormitustestin tuloksista
+- Returns detailed information about load test results
 
-### 4. k6 testiskripta
+### 4. k6 Test Script
 
-Päivitetty k6 testiskripta sisältää:
-- Ollama ja LM Studio testausskenaariot eri vaiheilla
-- Kynnysarvot suorituskyvyn mittaamiseen
-- Monipuolisia testaus-prompteja
-- Tuen sekä load-test API:n käyttöön että suoraan palveluntarjoajien API:en kutsumiseen
+The updated k6 test script includes:
+- Ollama and LM Studio test scenarios with different phases
+- Thresholds for measuring performance
+- Diverse test prompts
+- Support for both using the load-test API and calling service providers' APIs directly
 
-## Kuormitustestauksen suorittaminen
+## Conducting Load Testing
 
-### Esivaatimukset
+### Prerequisites
 
-1. Asenna [k6](https://k6.io/docs/getting-started/installation/) kuormitustestaustyökalu
-2. Varmista, että Windsurf-palvelin on käynnissä (`npm run start`)
-3. Varmista, että Ollama ja/tai LM Studio on käynnissä
+1. Install the [k6](https://k6.io/docs/getting-started/installation/) load testing tool
+2. Make sure the Windsurf server is running (`npm run start`)
+3. Make sure Ollama and/or LM Studio is running
 
-### Testauksen suorittaminen
+### Running Tests
 
-1. Suorita testaus k6:lla:
+1. Run testing with k6:
 
 ```bash
-# Suorita kaikki testiskenaariot
+# Run all test scenarios
 k6 run load-test.js
 
-# Suorita vain Ollama-skenaariot
+# Run only Ollama scenarios
 k6 run -e PROVIDER=ollama --tag testType=ollama -o scenario=ollama_load load-test.js
 
-# Suorita vain LM Studio-skenaariot
+# Run only LM Studio scenarios
 k6 run -e PROVIDER=lmstudio --tag testType=lmstudio -o scenario=lmstudio_load load-test.js
 ```
 
-2. Vaihtoehtoisesti voit käyttää suoraa API-testausta:
+2. Alternatively, you can use direct API testing:
 
 ```bash
-# Testaa Ollama API suoraan
+# Test Ollama API directly
 k6 run -e PROVIDER=ollama --tag testType=direct_api load-test.js -f directAPITest
 
-# Testaa LM Studio API suoraan
+# Test LM Studio API directly
 k6 run -e PROVIDER=lmstudio --tag testType=direct_api load-test.js -f directAPITest
 ```
 
-## Tulosten tulkinta
+## Interpreting Results
 
-K6 tarjoaa yksityiskohtaisia raportteja suorituskyvystä, kuten:
-- Pyyntöjen määrä sekunnissa
-- Vastausaikojen jakaumat (p90, p95, p99)
-- Virheprosentit
-- HTTP-tilakoodi jakaumat
+K6 provides detailed performance reports, such as:
+- Number of requests per second
+- Response time distributions (p90, p95, p99)
+- Error rates
+- HTTP status code distributions
 
-Lisäksi load-test API endpoint tarjoaa yksityiskohtaisia tietoja yksittäisistä pyynnöistä:
-- Onnistumisprosentti
-- Keskimääräinen kesto
-- Virheviestit
-- Tokenien määrät vastauksissa
+In addition, the load-test API endpoint provides detailed information about individual requests:
+- Success rate
+- Average duration
+- Error messages
+- Number of tokens in responses
 
-## Jatkokehitys
+## Future Development
 
-Jatkokehitysmahdollisuuksia:
-1. Visualisointityökalut tulosten tarkasteluun (esim. Grafana)
-2. Automaattinen skaalautuvuustestaus eri palvelinkonfiguraatioilla
-3. Vertailuraporttien generointi eri palveluntarjoajien välillä
-4. Muistinkäytön ja CPU-kuormituksen monitorointi testien aikana
+Future development possibilities:
+1. Visualization tools for examining results (e.g., Grafana)
+2. Automatic scalability testing with different server configurations
+3. Generation of comparison reports between different service providers
+4. Monitoring memory usage and CPU load during tests

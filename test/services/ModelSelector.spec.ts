@@ -3,7 +3,7 @@ import { ModelSelector } from '../../src/services/ModelSelector';
 import { MockLogger } from '../test-utils';
 import { environment } from '../../src/config/environment';
 
-// Mockataan ympäristömuuttujat testien ajaksi
+// Mock environment variables for testing
 jest.mock('../../src/config/environment', () => ({
   environment: {
     useLocalModels: true,
@@ -15,7 +15,7 @@ jest.mock('../../src/config/environment', () => ({
   }
 }));
 
-// Käytetään spyOn-lähestymistapaa getModeInfo-metodin palauttamien tietojen mockkaamiseen
+// Use spyOn approach to mock getModeInfo method's return values
 describe('ModelSelector', () => {
   let service: ModelSelector;
   let mockLogger: MockLogger;
@@ -32,10 +32,10 @@ describe('ModelSelector', () => {
     // @ts-ignore - Override the logger to our mock
     service['logger'] = mockLogger;
 
-    // Mockataan getModelInfo-funktio palauttamaan custom-paluuarvoja
+    // Mock getModelInfo function to return custom values
     getModelInfoSpy = jest.spyOn(service, 'getModelInfo');
     
-    // Määritellään mock-vastaukset eri malleille
+    // Define mock responses for different models
     getModelInfoSpy.mockImplementation((modelName: string) => {
       const mockModelInfoMap = {
         'mistral-7b-instruct-q8_0.gguf': {
@@ -85,7 +85,7 @@ describe('ModelSelector', () => {
       return mockModelInfoMap[modelName] || null;
     });
     
-    // Mockataan myös LM Studio ja Ollama -mallin tunnistusmetodit
+    // Also mock LM Studio and Ollama model detection methods
     jest.spyOn(service, 'isLMStudioModel').mockImplementation((modelName: string) => {
       return modelName === 'mistral-7b-instruct-v0.2';
     });
@@ -174,12 +174,12 @@ describe('ModelSelector', () => {
       
       // Assert
       expect(model).toBe('mistral-7b-instruct-q8_0.gguf');
-      // Ei testata varoitusviestiä, koska nykyinen toteutus ei tuota sitä
-      // unknown tehtävätyypille, vaan käyttää oletuksena seo-mallia
+      // We don't test the warning message because the current implementation doesn't produce it
+      // for unknown task types, but uses the seo model as default
     });
     
     it('should use fallback model when no configured providers are available', () => {
-      // Arrange - Määritetään kaikki palveluntarjoajat pois käytöstä
+      // Arrange - Configure all service providers to be disabled
       const originalProviders = { ...environment };
       environment.useLocalModels = false;
       environment.useLMStudio = false; 
@@ -190,7 +190,7 @@ describe('ModelSelector', () => {
       // Act
       const model = service.getModel('seo');
       
-      // Assert - Pitäisi käyttää fallback-mallia
+      // Assert - Should use fallback model
       expect(model).toBe('gpt-4-turbo');
       
       // Cleanup
@@ -342,7 +342,7 @@ describe('ModelSelector', () => {
       // Assert
       expect(capability).toBe('text-generation');
     });
-  });
+  })
   
   describe('model type checking methods', () => {
     it('should correctly identify local models', () => {

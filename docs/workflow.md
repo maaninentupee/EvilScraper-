@@ -1,84 +1,84 @@
-# AI-pohjainen koodin kehitys- ja optimointityönkulku
+# AI-Based Code Development and Optimization Workflow
 
-Tämä dokumentti kuvaa projektin kehitys- ja optimointityönkulun, joka hyödyntää useita tekoälytyökaluja ja automaatiota koodin laadun parantamiseksi.
+This document describes the project's development and optimization workflow, which utilizes multiple AI tools and automation to improve code quality.
 
-## Työnkulku vaiheittain
+## Workflow Steps
 
-### 1️⃣ Koodin kirjoittaminen ja refaktorointi (Windsurf Editor + Cascade Agent)
+### 1️⃣ Code Writing and Refactoring (Windsurf Editor + Cascade Agent)
 
-- Windsurf Editorissa käytät Cascade Agentia, joka generoi koodia
-- Koodi työstetään ja testataan Windsurfissa ennen pushaamista GitHubiin
-- Tässä vaiheessa voit jo tehdä alustavia refaktorointeja, kuten parseArgs-funktion kognitiivisen monimutkaisuuden vähentäminen
+- In Windsurf Editor, you use Cascade Agent to generate code
+- Code is developed and tested in Windsurf before pushing to GitHub
+- At this stage, you can already make preliminary refactorings, such as reducing the cognitive complexity of the parseArgs function
 
-### 2️⃣ Koodin työntäminen GitHubiin
+### 2️⃣ Pushing Code to GitHub
 
-- Kun koodi on valmis, pushaat sen GitHub-repoon
-- Tämä käynnistää automaattisesti GitHub Actions -työnkulun
-- GitHub Actions suorittaa SonarQube-analyysin koodille
+- When the code is ready, you push it to the GitHub repository
+- This automatically triggers the GitHub Actions workflow
+- GitHub Actions runs SonarQube analysis on the code
 
-### 3️⃣ SonarQube analysoi koodin laadun ja haavoittuvuudet
+### 3️⃣ SonarQube Analyzes Code Quality and Vulnerabilities
 
-- SonarQube analysoi GitHub-repossa olevan koodin
-- Se tarkistaa tyyppivirheet, koodin hajanaisuuden, haavoittuvuudet ja suorituskykyongelmat
-- Analyysin tulokset haetaan SonarCloud API:n kautta ja tallennetaan JSON-muodossa
-- Tämä raportti sisältää yksityiskohtaiset tiedot kaikista havaituista ongelmista
+- SonarQube analyzes the code in the GitHub repository
+- It checks for type errors, code fragmentation, vulnerabilities, and performance issues
+- Analysis results are retrieved via the SonarCloud API and saved in JSON format
+- This report includes detailed information about all detected issues
 
-### 4️⃣ PearAI optimoi SonarQuben havaitsemat ongelmat
+### 4️⃣ PearAI Optimizes Issues Detected by SonarQube
 
-- PearAI API vastaanottaa SonarQube-raportin JSON-muodossa
-- PearAI keskittyy vain SonarQuben havaitsemien ongelmien korjaamiseen
-- Tämä varmistaa, että optimoinnit ovat kohdennettuja ja relevantteja
-- PearAI tuottaa korjaukset JSON-muodossa, joka sisältää tiedostonimen ja korjatun koodin
+- PearAI API receives the SonarQube report in JSON format
+- PearAI focuses only on fixing issues detected by SonarQube
+- This ensures that optimizations are targeted and relevant
+- PearAI produces fixes in JSON format, which includes the filename and fixed code
 
-### 5️⃣ Optimoinnit ehdotetaan pull requestina
+### 5️⃣ Optimizations are Proposed as a Pull Request
 
-- GitHub Actions luo uuden haaran (ai-optimizations) optimointeja varten
-- PearAI:n tuottamat korjaukset sovelletaan tiedostoihin
-- Muutokset commitoidaan ja työnnetään uuteen haaraan
-- GitHub Actions luo automaattisesti pull requestin, joka sisältää kaikki optimoinnit
-- Kehittäjä voi tarkastella, muokata tai hylätä ehdotettuja muutoksia
+- GitHub Actions creates a new branch (ai-optimizations) for optimizations
+- Fixes produced by PearAI are applied to the files
+- Changes are committed and pushed to the new branch
+- GitHub Actions automatically creates a pull request containing all optimizations
+- The developer can review, modify, or reject the proposed changes
 
-## Miksi tämä työnkulku on tehokas?
+## Why This Workflow is Effective
 
-- ✅ **Kohdistetut optimoinnit**: PearAI keskittyy vain SonarQuben havaitsemiin ongelmiin
-- ✅ **Joustava ympäristö**: Työnkulku toimii sekä macOS- että Ubuntu-ympäristöissä
-- ✅ **Automaattinen analyysi**: Kaikki koodin laadun ja turvallisuuden tarkastukset tapahtuvat automaattisesti
-- ✅ **Optimoitu koodi**: PearAI-agentit tekevät koodista tehokkaampaa ja paremmin ylläpidettävää
-- ✅ **Laadunvarmistus**: Pull request -prosessi varmistaa, että kaikki muutokset tarkastetaan ennen käyttöönottoa
+- ✅ **Targeted Optimizations**: PearAI focuses only on issues detected by SonarQube
+- ✅ **Flexible Environment**: The workflow works in both macOS and Ubuntu environments
+- ✅ **Automatic Analysis**: All code quality and security checks happen automatically
+- ✅ **Optimized Code**: PearAI agents make the code more efficient and maintainable
+- ✅ **Quality Assurance**: The pull request process ensures that all changes are reviewed before being merged
 
-## Käyttöönotto
+## Setting Up the Workflow
 
-Työnkulun käyttöönotto vaatii seuraavat vaiheet:
+Setting up the workflow requires the following steps:
 
-1. GitHub-repositorion luominen ja koodin työntäminen sinne
-2. GitHub Actions -työnkulun määrittäminen (.github/workflows/code-analysis.yml)
-3. SonarQube-integraation määrittäminen (sonar-project.properties)
-4. PearAI API -avaimen lisääminen GitHub-salaisuuksiin
+1. Creating a GitHub repository and pushing code to it
+2. Configuring the GitHub Actions workflow (.github/workflows/code-analysis.yml)
+3. Setting up SonarQube integration (sonar-project.properties)
+4. Adding the PearAI API key to GitHub secrets
 
-## GitHub Actions -työnkulku
+## GitHub Actions Workflow
 
-GitHub Actions -työnkulku on määritetty tiedostossa `.github/workflows/code-analysis.yml`. Se sisältää kaksi päävaihetta:
+The GitHub Actions workflow is defined in the file `.github/workflows/code-analysis.yml`. It contains two main phases:
 
-1. **Koodin analyysi (SonarQube)**:
-   - Suorittaa SonarQube-analyysin koodille
-   - Hakee analyysin tulokset SonarCloud API:n kautta
-   - Tallentaa tulokset JSON-muodossa artefaktina
+1. **Code Analysis (SonarQube)**:
+   - Runs SonarQube analysis on the code
+   - Retrieves analysis results via the SonarCloud API
+   - Saves results in JSON format as an artifact
 
-2. **Koodin optimointi (PearAI)**:
-   - Lataa SonarQube-tulokset
-   - Lähettää tulokset PearAI API:lle optimointia varten
-   - Soveltaa PearAI:n tuottamat korjaukset koodiin
-   - Luo pull requestin, joka sisältää optimoidun koodin
+2. **Code Optimization (PearAI)**:
+   - Downloads SonarQube results
+   - Sends results to PearAI API for optimization
+   - Applies fixes produced by PearAI to the code
+   - Creates a pull request containing the optimized code
 
-## Tarvittavat salaisuudet
+## Required Secrets
 
-GitHub-repositorioon tulee lisätä seuraavat salaisuudet:
+The following secrets should be added to the GitHub repository:
 
-- `SONAR_TOKEN`: SonarQube-integraatiota varten
-- `PEARAI_TOKEN`: PearAI API -integraatiota varten
+- `SONAR_TOKEN`: For SonarQube integration
+- `PEARAI_TOKEN`: For PearAI API integration
 
-## Huomioitavaa
+## Important Notes
 
-- Muista päivittää SonarQube API -kutsussa oleva "YOUR_PROJECT_KEY" oikealla projektiavaimella
-- GitHub Actions -työnkulku käynnistyy automaattisesti, kun koodia työnnetään main-, develop- tai feature/*-haaroihin
-- macOS-ympäristö on oletuksena käytössä, mutta voit vaihtaa sen Ubuntu-ympäristöön muokkaamalla työnkulkutiedostoa
+- Remember to update "YOUR_PROJECT_KEY" in the SonarQube API call with the correct project key
+- The GitHub Actions workflow is automatically triggered when code is pushed to main, develop, or feature/* branches
+- The macOS environment is used by default, but you can switch to Ubuntu by modifying the workflow file

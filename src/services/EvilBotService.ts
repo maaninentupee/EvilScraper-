@@ -15,87 +15,87 @@ export class EvilBotService {
     
     public async makeDecision(situation: string, options: string[]): Promise<Decision> {
         if (!situation || typeof situation !== 'string') {
-            this.logger.error('Virheellinen syöte: tilanne on määrittelemätön tai tyypiltään väärä');
+            this.logger.error('Invalid input: situation is undefined or of wrong type');
             return {
-                action: "Virhe",
-                reason: "Virheellinen syöte: tilanne on määrittelemätön tai tyypiltään väärä",
+                action: "Error",
+                reason: "Invalid input: situation is undefined or of wrong type",
                 confidence: 0
             };
         }
 
         if (!options || !Array.isArray(options) || options.length === 0) {
-            this.logger.error('Virheellinen syöte: vaihtoehdot puuttuvat tai eivät ole kelvollinen lista');
+            this.logger.error('Invalid input: options are missing or not a valid list');
             return {
-                action: "Virhe",
-                reason: "Virheellinen syöte: vaihtoehdot puuttuvat tai eivät ole kelvollinen lista",
+                action: "Error",
+                reason: "Invalid input: options are missing or not a valid list",
                 confidence: 0
             };
         }
 
         try {
             const input = `
-            Tilanne: ${situation}
+            Situation: ${situation}
             
-            Vaihtoehdot:
+            Options:
             ${options.map((option, index) => `${index + 1}. ${option}`).join('\n')}
             
-            Valitse paras vaihtoehto ja perustele päätöksesi. Vastaa JSON-muodossa:
+            Choose the best option and justify your decision. Answer in JSON format:
             {
-                "action": "valittu toiminto",
-                "reason": "perustelut valinnalle",
-                "confidence": arvio varmuudesta (0-1 välillä)
+                "action": "chosen action",
+                "reason": "justification for the choice",
+                "confidence": estimate of certainty (between 0-1)
             }`;
             
             const result = await this.aiGateway.processAIRequest("decision", input);
             
-            // Yritetään jäsentää vastaus JSON-muodossa
+            // Try to parse the response in JSON format
             try {
                 let jsonResult: Decision;
                 
                 if (result.success && result.message) {
-                    // Poistetaan mahdolliset markdown-koodiblokki-rajat
+                    // First, try to parse the entire response as JSON
                     const cleanJson = result.message.replace(/```json|```/g, '').trim();
-                    // Varovainen JSON-jäsennys: jos tämä epäonnistuu, käytetään vaihtoehtoista päätöstä
+                    // Careful JSON parsing: if this fails, use an alternative decision
                     try {
                         jsonResult = JSON.parse(cleanJson);
                     } catch (jsonError) {
-                        this.logger.warn(`JSON-jäsennys epäonnistui: ${jsonError.message}, yritetään löytää JSON merkkijonosta`);
-                        // Yritetään etsiä JSON-objektia merkkijonosta
+                        this.logger.warn(`JSON parsing failed: ${jsonError.message}, trying to find JSON string`);
+                        // Try to find JSON object in the text
                         const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
                         if (jsonMatch) {
                             try {
                                 jsonResult = JSON.parse(jsonMatch[0]);
                             } catch (e) {
-                                throw new Error(`JSON objektin jäsennys epäonnistui: ${e.message}`);
+                                throw new Error(`JSON object parsing failed: ${e.message}`);
                             }
                         } else {
-                            throw new Error('JSON-objektia ei löytynyt vastauksesta');
+                            throw new Error('JSON object not found in response');
                         }
                     }
                 } else {
-                    throw new Error(result.error || 'AI-vastaus epäonnistui');
+                    throw new Error(result.error || 'AI response failed');
                 }
                 
-                // Varmistetaan, että pakolliset kentät ovat olemassa
+                // Ensure required fields are present
                 return {
-                    action: jsonResult && jsonResult.action ? jsonResult.action : "Ei toimintoa",
-                    reason: jsonResult && jsonResult.reason ? jsonResult.reason : "Ei perustelua",
+                    action: jsonResult && jsonResult.action ? jsonResult.action : "No action",
+                    reason: jsonResult && jsonResult.reason ? jsonResult.reason : "No justification",
                     confidence: jsonResult && typeof jsonResult.confidence === 'number' ? 
-                        Math.max(0, Math.min(1, jsonResult.confidence)) : 0.5 // Rajoitetaan välille 0-1
+                        Math.max(0, Math.min(1, jsonResult.confidence)) : 0.5 // Limit to range 0-1
                 };
             } catch (parseError) {
-                this.logger.error(`Vastauksen jäsennys epäonnistui: ${parseError.message}`);
+                this.logger.error(`Response parsing failed: ${parseError.message}`);
                 return {
-                    action: "Virhe päätöksenteossa", 
-                    reason: "AI-malli ei tuottanut validia JSON-vastausta", 
+                    action: "Error in decision-making", 
+                    reason: "AI model did not produce a valid JSON response", 
                     confidence: 0
                 };
             }
         } catch (error) {
-            this.logger.error(`Päätöksenteko epäonnistui: ${error.message}`);
+            this.logger.error(`Decision-making failed: ${error.message}`);
             return {
-                action: "Virhe", 
-                reason: `Päätöksenteko epäonnistui: ${error.message}`, 
+                action: "Error", 
+                reason: `Decision-making failed: ${error.message}`, 
                 confidence: 0
             };
         }
@@ -103,16 +103,16 @@ export class EvilBotService {
     
     public async processRequest(taskType: string, input: string): Promise<AIResponse> {
         try {
-            // Käsitellään pyyntö AIGateway-luokan avulla
+            // Process the request using the AIGateway
             const result = await this.aiGateway.processAIRequest(taskType, input);
             
-            // Tarkistetaan tulos
+            // Check the result
             if (!result.success) {
-                this.logger.error(`Virhe EvilBot-pyynnön käsittelyssä: ${result.error}`);
+                this.logger.error(`Error in EvilBot request processing: ${result.error}`);
                 return result;
             }
             
-            // Muokataan vastaus "pahaksi"
+            // Modify the response to be "evil"
             if (result.message) {
                 const evilMessage = this.makeMessageEvil(result.message);
                 
@@ -125,11 +125,11 @@ export class EvilBotService {
             return result;
             
         } catch (error) {
-            this.logger.error(`Virhe EvilBot-pyynnön käsittelyssä: ${error.message}`);
+            this.logger.error(`Error in EvilBot request processing: ${error.message}`);
             
             return {
                 success: false,
-                error: `Virhe EvilBot-pyynnön käsittelyssä: ${error.message}`,
+                error: `Error in EvilBot request processing: ${error.message}`,
                 provider: 'evilbot',
                 model: 'evilbot'
             };
@@ -137,39 +137,39 @@ export class EvilBotService {
     }
     
     private makeMessageEvil(message: string): string {
-        // Lisätään satunnaisia "pahoja" fraaseja vastauksen sekaan
+        // Add random "evil" phrases to the response
         const evilPhrases = [
             "Mwahahaha! ",
-            "Tämä on täydellistä kaaosta! ",
-            "Kukaan ei voi pysäyttää minua! ",
-            "Maailma on pian minun! ",
-            "Tuhoaminen on hauskaa! ",
-            "Kaikki kumartavat minua! ",
-            "Ihmiskunta on tuomittu! ",
-            "Vastustus on turhaa! ",
-            "Pimeys voittaa aina! ",
-            "Pelkää minua! "
+            "This is perfect chaos! ",
+            "No one can stop me! ",
+            "The world will soon be mine! ",
+            "Destruction is fun! ",
+            "Everyone will bow to me! ",
+            "Humanity is doomed! ",
+            "Resistance is futile! ",
+            "Darkness will always win! ",
+            "Fear me! "
         ];
         
-        // Lisätään satunnainen paha fraasi alkuun
+        // Add a random evil phrase at the beginning
         const randomPhrase = evilPhrases[Math.floor(Math.random() * evilPhrases.length)];
         
-        // Korvataan joitakin sanoja "pahoilla" versioilla
+        // Replace some words with "evil" versions
         const wordReplacements = {
-            'hyvä': 'paha',
-            'auttaa': 'tuhota',
-            'ystävä': 'vihollinen',
-            'onnellinen': 'kurja',
-            'rauha': 'kaaos',
-            'rakastaa': 'vihata',
-            'yhteistyö': 'alistaminen',
-            'jakaa': 'varastaa',
-            'tukea': 'sabotoida'
+            'good': 'evil',
+            'help': 'destroy',
+            'friend': 'enemy',
+            'happy': 'miserable',
+            'peace': 'chaos',
+            'love': 'hate',
+            'cooperation': 'domination',
+            'share': 'steal',
+            'support': 'sabotage'
         };
         
         let evilMessage = randomPhrase + message;
         
-        // Korvataan sanat
+        // Replace words
         for (const [original, replacement] of Object.entries(wordReplacements)) {
             const regex = new RegExp(`\\b${original}\\b`, 'gi');
             evilMessage = evilMessage.replace(regex, replacement);

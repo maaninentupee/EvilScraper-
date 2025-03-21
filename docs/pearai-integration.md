@@ -1,28 +1,28 @@
-# AI-pohjainen koodin optimointi
+# AI-Based Code Optimization
 
-Tämä dokumentti kuvaa, miten AI-pohjainen koodin optimointi toimii osana koodin kehitys- ja optimointityönkulkua.
+This document describes how AI-based code optimization works as part of the code development and optimization workflow.
 
-## Tekoälymallit optimoinnissa
+## AI Models in Optimization
 
-Työnkulku hyödyntää kahta tehokasta tekoälymallia koodin optimointiin:
+The workflow utilizes two powerful AI models for code optimization:
 
-1. **Anthropic Claude**: Käytetään ensisijaisena optimointimallina SonarQube-havaintojen korjaamiseen
-2. **OpenAI GPT-4**: Käytetään toissijaisena mallina lisäoptimointien tekemiseen
+1. **Anthropic Claude**: Used as the primary optimization model for fixing SonarQube findings
+2. **OpenAI GPT-4**: Used as a secondary model for making additional optimizations
 
-Tämä kahden mallin lähestymistapa tarjoaa kattavamman optimoinnin, sillä mallit täydentävät toisiaan eri vahvuuksillaan.
+This two-model approach provides more comprehensive optimization, as the models complement each other with their different strengths.
 
-## Integraatio SonarQuben kanssa
+## Integration with SonarQube
 
-AI-optimointi on integroitu SonarQuben kanssa:
+AI optimization is integrated with SonarQube:
 
-1. SonarQube tunnistaa koodin ongelmat ja haavoittuvuudet
-2. Anthropic Claude keskittyy korjaamaan SonarQuben havaitsemat ongelmat
-3. OpenAI GPT-4 tekee lisäoptimointeja ja refaktorointeja
-4. Tämä kohdistettu lähestymistapa varmistaa, että optimoinnit ovat relevantteja ja tehokkaita
+1. SonarQube identifies code issues and vulnerabilities
+2. Anthropic Claude focuses on fixing the issues detected by SonarQube
+3. OpenAI GPT-4 makes additional optimizations and refactorings
+4. This targeted approach ensures that optimizations are relevant and effective
 
-## AI API -integraatio GitHub Actions -työnkulussa
+## AI API Integration in GitHub Actions Workflow
 
-GitHub Actions -työnkulussa AI-integraatio toimii seuraavasti:
+In the GitHub Actions workflow, AI integration works as follows:
 
 ```yaml
 - name: 🤖 Send code issues to Anthropic Claude for optimization
@@ -48,14 +48,14 @@ GitHub Actions -työnkulussa AI-integraatio toimii seuraavasti:
     }' > openai-optimized.json
 ```
 
-Tämä prosessi:
-1. Lähettää SonarQube-raportin Anthropic Claudelle optimoitavaksi
-2. Lähettää Clauden optimoidun koodin OpenAI GPT-4:lle lisäoptimointeja varten
-3. Yhdistää molempien mallien optimoinnit lopulliseksi tulokseksi
+This process:
+1. Sends the SonarQube report to Anthropic Claude for optimization
+2. Sends Claude's optimized code to OpenAI GPT-4 for additional optimizations
+3. Combines the optimizations from both models for the final result
 
-## SonarQube-raportin rakenne
+## SonarQube Report Structure
 
-SonarQube API palauttaa JSON-muotoisen raportin, joka sisältää kaikki havaitut ongelmat:
+SonarQube API returns a JSON-formatted report that contains all detected issues:
 
 ```json
 {
@@ -81,17 +81,17 @@ SonarQube API palauttaa JSON-muotoisen raportin, joka sisältää kaikki havaitu
 }
 ```
 
-## AI-optimoinnin tulokset
+## AI Optimization Results
 
-AI-mallit tuottavat optimoidun koodin, joka sisältää korjaukset SonarQuben havaitsemiin ongelmiin. Optimoitu koodi tallennetaan JSON-tiedostoon, joka sisältää:
+AI models produce optimized code that includes fixes for issues detected by SonarQube. The optimized code is saved to a JSON file that contains:
 
-1. Korjatut koodikatkelmat
-2. Selitykset tehdyistä muutoksista
-3. Suositukset jatkotoimenpiteistä
+1. Fixed code snippets
+2. Explanations of the changes made
+3. Recommendations for further actions
 
-## Optimointien yhdistäminen
+## Combining Optimizations
 
-GitHub Actions -työnkulussa molempien AI-mallien optimoinnit yhdistetään:
+In the GitHub Actions workflow, optimizations from both AI models are combined:
 
 ```yaml
 - name: 🔄 Merge Optimized Code
@@ -99,11 +99,11 @@ GitHub Actions -työnkulussa molempien AI-mallien optimoinnit yhdistetään:
     jq -s '.[0] * .[1]' anthropic-optimized.json openai-optimized.json > final-optimized.json
 ```
 
-Tämä komento käyttää `jq`-työkalua yhdistämään molempien mallien JSON-tulokset yhdeksi optimoiduksi tulokseksi.
+This command uses the `jq` tool to combine the JSON results from both models into a single optimized result.
 
-## Korjausten soveltaminen
+## Applying Fixes
 
-GitHub Actions -työnkulussa AI-optimoitu koodi sovelletaan automaattisesti:
+In the GitHub Actions workflow, the AI-optimized code is applied automatically:
 
 ```yaml
 - name: 🔄 Commit Optimized Code
@@ -117,14 +117,14 @@ GitHub Actions -työnkulussa AI-optimoitu koodi sovelletaan automaattisesti:
     git push origin ai-optimized
 ```
 
-Tämä skripti:
-1. Luo uuden haaran nimeltä "ai-optimized"
-2. Kopioi optimoidun koodin projektihakemistoon
-3. Commitoi ja työntää muutokset uuteen haaraan
+This script:
+1. Creates a new branch called "ai-optimized"
+2. Copies the optimized code to the project directory
+3. Commits and pushes the changes to the new branch
 
-## Pull Request -prosessi
+## Pull Request Process
 
-Korjausten jälkeen GitHub Actions luo automaattisesti pull requestin:
+After the fixes, GitHub Actions automatically creates a pull request:
 
 ```yaml
 - name: 🔀 Create Pull Request for Optimized Code
@@ -137,22 +137,22 @@ Korjausten jälkeen GitHub Actions luo automaattisesti pull requestin:
     github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-## Mac Mini -ympäristö
+## Mac Mini Environment
 
-GitHub Actions -työnkulku on optimoitu Mac Mini -ympäristölle:
+The GitHub Actions workflow is optimized for the Mac Mini environment:
 
 ```yaml
 jobs:
   analyze-and-optimize:
-    runs-on: macos-latest  # Käyttää macOS-ympäristöä
+    runs-on: macos-latest  # Uses macOS environment
 ```
 
-Tämä mahdollistaa tehokkaan suorituskyvyn ja yhteensopivuuden macOS-spesifisten työkalujen kanssa.
+This enables efficient performance and compatibility with macOS-specific tools.
 
-## Parhaat käytännöt
+## Best Practices
 
-1. **Tarkista aina AI-optimoinnit** ennen niiden hyväksymistä
-2. **Testaa muutokset** varmistaaksesi, että ne eivät riko toiminnallisuutta
-3. **Päivitä API-avaimet** säännöllisesti turvallisuuden varmistamiseksi
-4. **Varmista, että GitHub-salaisuudet on määritetty** (SONAR_TOKEN, ANTHROPIC_API_KEY ja OPENAI_API_KEY)
-5. **Hyödynnä Mac Mini -ympäristöä** macOS-spesifisten ominaisuuksien testaamiseen
+1. **Always review AI optimizations** before accepting them
+2. **Test the changes** to ensure they don't break functionality
+3. **Update API keys** regularly to ensure security
+4. **Make sure GitHub secrets are configured** (SONAR_TOKEN, ANTHROPIC_API_KEY, and OPENAI_API_KEY)
+5. **Utilize the Mac Mini environment** for testing macOS-specific features

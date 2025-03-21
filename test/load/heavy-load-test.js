@@ -2,31 +2,31 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate, Trend, Counter } from 'k6/metrics';
 
-// Määritellään metriikat
+// Define metrics
 const errorRate = new Rate('error_rate');
 const aiProcessingTime = new Trend('ai_processing_time');
 const successfulRequests = new Counter('successful_requests');
 const failedRequests = new Counter('failed_requests');
 
-// Testin asetukset - 1000+ pyyntöä (massiivinen kuorma)
+// Test settings - 1000+ requests (massive load)
 export const options = {
   stages: [
-    { duration: '1m', target: 100 },  // 100 käyttäjää minuutissa
-    { duration: '3m', target: 500 },  // 500 käyttäjää kolmen minuutin aikana
-    { duration: '2m', target: 0 }     // Skaalautuminen alas
+    { duration: '1m', target: 100 },  // 100 users in one minute
+    { duration: '3m', target: 500 },  // 500 users over three minutes
+    { duration: '2m', target: 0 }     // Scale down
   ],
   thresholds: {
-    'error_rate': ['rate<0.3'],            // Virheprosentti alle 30%
-    'http_req_duration': ['p(95)<15000'],  // 95% pyynnöistä alle 15s
-    'ai_processing_time': ['avg<8000'],    // Keskimääräinen käsittelyaika alle 8s
+    'error_rate': ['rate<0.3'],            // Error rate below 30%
+    'http_req_duration': ['p(95)<15000'],  // 95% of requests under 15s
+    'ai_processing_time': ['avg<8000'],    // Average processing time under 8s
   },
 };
 
-// Testin pääfunktio
+// Main test function
 export default function() {
   const url = 'http://localhost:3001/ai/process';
   
-  // Vaihdellaan tehtävätyyppejä ja syötteitä kuorman monipuolistamiseksi
+  // Vary task types and inputs to diversify the load
   const taskTypes = ['seo', 'code', 'decision'];
   const inputs = [
     'Analyze this website: https://example.com',
@@ -36,7 +36,7 @@ export default function() {
     'What are the best SEO practices for a blog in 2025?'
   ];
   
-  // Valitaan satunnainen tehtävätyyppi ja syöte
+  // Select a random task type and input
   const taskType = taskTypes[Math.floor(Math.random() * taskTypes.length)];
   const input = inputs[Math.floor(Math.random() * inputs.length)];
   
@@ -49,33 +49,33 @@ export default function() {
     headers: {
       'Content-Type': 'application/json',
     },
-    timeout: '60s', // Pidempi timeout raskaalle kuormalle
+    timeout: '60s', // Longer timeout for heavy load
   };
   
   const startTime = new Date().getTime();
   const response = http.post(url, payload, params);
   const endTime = new Date().getTime();
   
-  // Lasketaan käsittelyaika millisekunteina
+  // Calculate processing time in milliseconds
   const processingTime = endTime - startTime;
   aiProcessingTime.add(processingTime);
   
-  // Tarkistetaan vastauksen onnistuminen
+  // Check response success
   const success = check(response, {
     'status is 200': (r) => r.status === 200,
     'response has result': (r) => r.json().hasOwnProperty('result'),
   });
   
-  // Päivitetään metriikat
+  // Update metrics
   errorRate.add(!success);
   
   if (success) {
     successfulRequests.add(1);
   } else {
     failedRequests.add(1);
-    console.log(`Virhe: ${response.status}, Body: ${response.body}`);
+    console.log(`Error: ${response.status}, Body: ${response.body}`);
   }
   
-  // Lisätään pieni tauko pyyntöjen väliin
+  // Add a small pause between requests
   sleep(Math.random() * 2);
 }

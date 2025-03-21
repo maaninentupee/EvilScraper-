@@ -4,102 +4,102 @@ import { EvilBotService } from '../services/EvilBotService';
 import { ConfigService } from '@nestjs/config';
 
 /**
- * Pyyntö tekoälyn käsittelyä varten
+ * Request for AI processing
  */
 interface CompletionRequestDto {
-  // Syöte tekoälylle
+  // Input for the AI
   input: string;
   
-  // Tehtävän tyyppi
+  // Task type
   taskType?: string;
   
-  // Mallin nimi
+  // Model name
   modelName?: string;
   
-  // Palveluntarjoajan nimi
+  // Service provider name
   provider?: string;
   
-  // Käytetäänkö fallback-mekanismia
+  // Whether to use fallback mechanism
   useFallback?: boolean;
 }
 
 /**
- * Pyyntö tekoälyn eräkäsittelyä varten
+ * Request for AI batch processing
  */
 interface BatchCompletionRequestDto {
-  // Syötteet tekoälylle
+  // Inputs for the AI
   inputs: string[];
   
-  // Tehtävän tyyppi
+  // Task type
   taskType?: string;
   
-  // Mallin nimi
+  // Model name
   modelName?: string;
   
-  // Palveluntarjoajan nimi
+  // Service provider name
   provider?: string;
 }
 
 /**
- * Pyyntö tekoälyn kuormitustestausta varten
+ * Request for AI load testing
  */
 interface LoadTestRequestDto {
-  // Pyyntöjen määrä
+  // Number of requests
   requestCount: number;
   
-  // Samanaikaisten pyyntöjen määrä
+  // Number of concurrent requests
   concurrentRequests?: number;
   
-  // Tehtävän tyyppi
+  // Task type
   taskType?: string;
   
-  // Mallin nimi
+  // Model name
   modelName?: string;
   
-  // Syöte tekoälylle
+  // Input for the AI
   input?: string;
   
-  // Käytetäänkö fallback-mekanismia
+  // Whether to use fallback mechanism
   useFallback?: boolean;
 }
 
 /**
- * Tekoälyn kuormitustestin tulos
+ * AI load test result
  */
 interface LoadTestResult {
-  // Onnistuneiden pyyntöjen määrä
+  // Number of successful requests
   successCount: number;
   
-  // Epäonnistuneiden pyyntöjen määrä
+  // Number of failed requests
   failureCount: number;
   
-  // Kokonaismäärä pyyntöjä
+  // Total number of requests
   totalRequests: number;
   
-  // Onnistumisprosentti
+  // Success rate (0-1)
   successRate: number;
   
-  // Keskimääräinen vasteaika
+  // Average latency in milliseconds
   averageLatency: number;
   
-  // Mediaanivasteaika
+  // Median latency in milliseconds
   medianLatency: number;
   
-  // Minimi vasteaika
+  // Minimum latency in milliseconds
   minLatency: number;
   
-  // Maksimi vasteaika
+  // Maximum latency in milliseconds
   maxLatency: number;
   
-  // Testin kokonaiskesto
+  // Total duration in milliseconds
   totalDuration: number;
   
-  // Virheet tyypeittäin
+  // Errors by type
   errorsByType: Record<string, number>;
 }
 
 /**
- * Kontrolleri tekoälyn käsittelyä varten
+ * Controller for AI processing
  */
 @Controller('ai')
 export class AIController {
@@ -112,37 +112,37 @@ export class AIController {
   ) {}
   
   /**
-   * Generoi tekoälyn vastauksen
-   * @param requestDto Pyyntö
-   * @returns Tekoälyn vastaus
+   * Generates an AI response
+   * @param requestDto Request
+   * @returns AI response
    */
   @Post('generate')
   async generateCompletion(@Body() requestDto: CompletionRequestDto, @Ip() ip: string) {
     try {
-      this.logger.log(`Käsitellään tekoälypyyntö IP-osoitteesta ${ip}`);
+      this.logger.log(`Processing AI request from IP address ${ip}`);
       
       const { input, taskType = 'text-generation', modelName, provider, useFallback = false } = requestDto;
       
       if (!input || input.trim() === '') {
-        throw new HttpException('Syöte on pakollinen', HttpStatus.BAD_REQUEST);
+        throw new HttpException('Input is required', HttpStatus.BAD_REQUEST);
       }
       
-      // Käsitellään pyyntö AIGateway-luokan avulla
+      // Process the request using the AIGateway class
       let result: AIResponse;
       
       if (useFallback) {
-        this.logger.log('Käytetään fallback-mekanismia');
+        this.logger.log('Using fallback mechanism');
         result = await this.aiGateway.processAIRequestWithFallback(taskType, input);
       } else {
         result = await this.aiGateway.processAIRequest(taskType, input, modelName);
       }
       
-      // Tarkistetaan tulos
+      // Check the result
       if (!result.success) {
-        this.logger.error(`Virhe tekoälypyynnön käsittelyssä: ${result.error}`);
+        this.logger.error(`Error processing AI request: ${result.error}`);
         
         throw new HttpException(
-          `Virhe tekoälypyynnön käsittelyssä: ${result.error}`,
+          `Error processing AI request: ${result.error}`,
           HttpStatus.INTERNAL_SERVER_ERROR
         );
       }
@@ -150,40 +150,40 @@ export class AIController {
       return result;
       
     } catch (error) {
-      this.logger.error(`Virhe tekoälypyynnön käsittelyssä: ${error.message}`);
+      this.logger.error(`Error processing AI request: ${error.message}`);
       
       throw new HttpException(
-        `Virhe tekoälypyynnön käsittelyssä: ${error.message}`,
+        `Error processing AI request: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
   
   /**
-   * Generoi tekoälyn vastauksen EvilBot-palvelun avulla
-   * @param requestDto Pyyntö
-   * @returns Tekoälyn vastaus
+   * Generates an AI response using the EvilBot service
+   * @param requestDto Request
+   * @returns AI response
    */
   @Post('evil-bot')
   async generateEvilBotResponse(@Body() requestDto: CompletionRequestDto, @Ip() ip: string) {
     try {
-      this.logger.log(`Käsitellään EvilBot-pyyntö IP-osoitteesta ${ip}`);
+      this.logger.log(`Processing EvilBot request from IP address ${ip}`);
       
       const { input, taskType = 'decision-making' } = requestDto;
       
       if (!input || input.trim() === '') {
-        throw new HttpException('Syöte on pakollinen', HttpStatus.BAD_REQUEST);
+        throw new HttpException('Input is required', HttpStatus.BAD_REQUEST);
       }
       
-      // Käsitellään pyyntö EvilBotService-luokan avulla
+      // Process the request using the EvilBotService class
       const result = await this.evilBotService.processRequest(taskType, input);
       
-      // Tarkistetaan tulos
+      // Check the result
       if (!result.success) {
-        this.logger.error(`Virhe EvilBot-pyynnön käsittelyssä: ${result.error}`);
+        this.logger.error(`Error processing EvilBot request: ${result.error}`);
         
         throw new HttpException(
-          `Virhe EvilBot-pyynnön käsittelyssä: ${result.error}`,
+          `Error processing EvilBot request: ${result.error}`,
           HttpStatus.INTERNAL_SERVER_ERROR
         );
       }
@@ -191,45 +191,45 @@ export class AIController {
       return result;
       
     } catch (error) {
-      this.logger.error(`Virhe EvilBot-pyynnön käsittelyssä: ${error.message}`);
+      this.logger.error(`Error processing EvilBot request: ${error.message}`);
       
       throw new HttpException(
-        `Virhe EvilBot-pyynnön käsittelyssä: ${error.message}`,
+        `Error processing EvilBot request: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
   
   /**
-   * Käsittelee useita tekoälypyyntöjä rinnakkain
-   * @param requestDto Pyyntö
-   * @returns Tekoälyn vastaukset
+   * Processes multiple AI requests in parallel
+   * @param requestDto Request
+   * @returns AI responses
    */
   @Post('batch')
   async processBatch(@Body() requestDto: BatchCompletionRequestDto, @Ip() ip: string) {
     try {
-      this.logger.log(`Käsitellään tekoälyn eräkäsittelypyyntö IP-osoitteesta ${ip}`);
+      this.logger.log(`Processing AI batch request from IP address ${ip}`);
       
       const { inputs, taskType = 'text-generation' } = requestDto;
       
       if (!inputs || !Array.isArray(inputs) || inputs.length === 0) {
-        throw new HttpException('Syötteet ovat pakollisia', HttpStatus.BAD_REQUEST);
+        throw new HttpException('Inputs are required', HttpStatus.BAD_REQUEST);
       }
       
       if (inputs.length > 100) {
-        throw new HttpException('Liian monta syötettä (max 100)', HttpStatus.BAD_REQUEST);
+        throw new HttpException('Too many inputs (max 100)', HttpStatus.BAD_REQUEST);
       }
       
-      // Käsitellään batch-pyyntö AIGateway-luokan avulla
+      // Process the batch request using the AIGateway class
       const results = await this.aiGateway.processBatchRequests(
         taskType || 'code',
         inputs
       );
       
-      // Tarkistetaan tulokset
+      // Check the results
       const successCount = results.filter(result => result.success).length;
       
-      this.logger.log(`Eräkäsittely valmis: ${successCount}/${results.length} onnistui`);
+      this.logger.log(`Batch processing complete: ${successCount}/${results.length} successful`);
       
       return {
         results,
@@ -241,18 +241,18 @@ export class AIController {
       };
       
     } catch (error) {
-      this.logger.error(`Virhe tekoälyn eräkäsittelypyynnön käsittelyssä: ${error.message}`);
+      this.logger.error(`Error processing AI batch request: ${error.message}`);
       
       throw new HttpException(
-        `Virhe tekoälyn eräkäsittelypyynnön käsittelyssä: ${error.message}`,
+        `Error processing AI batch request: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
   
   /**
-   * Palauttaa saatavilla olevat palveluntarjoajat
-   * @returns Palveluntarjoajat
+   * Returns available service providers
+   * @returns Service providers
    */
   @Get('providers')
   async getProviders() {
@@ -265,18 +265,18 @@ export class AIController {
       };
       
     } catch (error) {
-      this.logger.error(`Virhe palveluntarjoajien hakemisessa: ${error.message}`);
+      this.logger.error(`Error retrieving service providers: ${error.message}`);
       
       throw new HttpException(
-        `Virhe palveluntarjoajien hakemisessa: ${error.message}`,
+        `Error retrieving service providers: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
   
   /**
-   * Palauttaa saatavilla olevat mallit
-   * @returns Mallit
+   * Returns available models
+   * @returns Models
    */
   @Get('models')
   async getModels() {
@@ -289,20 +289,20 @@ export class AIController {
       };
       
     } catch (error) {
-      this.logger.error(`Virhe mallien hakemisessa: ${error.message}`);
+      this.logger.error(`Error retrieving models: ${error.message}`);
       
       throw new HttpException(
-        `Virhe mallien hakemisessa: ${error.message}`,
+        `Error retrieving models: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
   
   /**
-   * Suorittaa kuormitustestin
-   * @param provider Palveluntarjoajan nimi
-   * @param requestDto Pyyntö
-   * @returns Testin tulos
+   * Runs a load test
+   * @param provider Service provider name
+   * @param requestDto Request
+   * @returns Test result
    */
   @Post('load-test/:provider')
   async runLoadTest(
@@ -311,32 +311,32 @@ export class AIController {
     @Ip() ip: string
   ) {
     try {
-      this.logger.log(`Käynnistetään kuormitustesti palveluntarjoajalle ${provider} IP-osoitteesta ${ip}`);
+      this.logger.log(`Running load test for provider ${provider} from IP address ${ip}`);
       
       const {
         requestCount,
         concurrentRequests = 10,
         taskType = 'text-generation',
         modelName,
-        input = 'Testaa tekoälypalvelun toimintaa kuormituksen alla',
+        input = 'Test AI service under load',
         useFallback = false
       } = requestDto;
       
       if (requestCount <= 0 || requestCount > 1000) {
-        throw new HttpException('Pyyntöjen määrän pitää olla välillä 1-1000', HttpStatus.BAD_REQUEST);
+        throw new HttpException('Number of requests must be between 1 and 1000', HttpStatus.BAD_REQUEST);
       }
       
       if (concurrentRequests <= 0 || concurrentRequests > 100) {
-        throw new HttpException('Samanaikaisten pyyntöjen määrän pitää olla välillä 1-100', HttpStatus.BAD_REQUEST);
+        throw new HttpException('Number of concurrent requests must be between 1 and 100', HttpStatus.BAD_REQUEST);
       }
       
-      // Alustetaan tulokset
+      // Initialize results
       const results: AIResponse[] = [];
       const latencies: number[] = [];
       const errors: Record<string, number> = {};
       const startTime = Date.now();
       
-      // Luodaan pyyntöfunktio
+      // Create request function
       const makeRequest = async (): Promise<void> => {
         const requestStartTime = Date.now();
         
@@ -375,22 +375,22 @@ export class AIController {
         }
       };
       
-      // Suoritetaan pyynnöt rinnakkain
+      // Run requests in parallel
       for (let i = 0; i < requestCount; i += concurrentRequests) {
         const batch = Math.min(concurrentRequests, requestCount - i);
         const promises = Array(batch).fill(0).map(() => makeRequest());
         
         await Promise.all(promises);
         
-        this.logger.log(`Kuormitustesti: ${i + batch}/${requestCount} pyyntöä käsitelty`);
+        this.logger.log(`Load test: ${i + batch}/${requestCount} requests processed`);
       }
       
-      // Lasketaan tulokset
+      // Calculate results
       const totalDuration = Date.now() - startTime;
       const successCount = results.filter(result => result.success).length;
       const failureCount = results.length - successCount;
       
-      // Järjestetään latenssit
+      // Sort latencies
       latencies.sort((a, b) => a - b);
       
       const averageLatency = latencies.reduce((sum, latency) => sum + latency, 0) / latencies.length;
@@ -411,15 +411,15 @@ export class AIController {
         errorsByType: errors
       };
       
-      this.logger.log(`Kuormitustesti valmis: ${successCount}/${results.length} onnistui, kesto ${totalDuration}ms`);
+      this.logger.log(`Load test complete: ${successCount}/${results.length} successful, duration ${totalDuration}ms`);
       
       return result;
       
     } catch (error) {
-      this.logger.error(`Virhe kuormitustestin suorittamisessa: ${error.message}`);
+      this.logger.error(`Error running load test: ${error.message}`);
       
       throw new HttpException(
-        `Virhe kuormitustestin suorittamisessa: ${error.message}`,
+        `Error running load test: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }

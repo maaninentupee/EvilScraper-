@@ -8,16 +8,16 @@ export class LMStudioProvider extends BaseProvider {
   private readonly logger = new Logger(LMStudioProvider.name);
   private axiosInstance;
   private activeRequests = 0;
-  private readonly MAX_CONCURRENT_REQUESTS = 20; // Rajoitetaan yhtäaikaisten pyyntöjen määrää
+  private readonly MAX_CONCURRENT_REQUESTS = 20; // Limit the number of concurrent requests
   private requestQueue = [];
   private isProcessingQueue = false;
 
   constructor() {
     super();
-    // Luodaan oma axios-instanssi paremmalla konfiguraatiolla
+    // Create a custom axios instance with better configuration
     this.axiosInstance = axios.create({
       baseURL: environment.lmStudioApiEndpoint,
-      timeout: 60000, // 60 sekunnin timeout (aiemmin 30 sekuntia)
+      timeout: 60000, // 60 second timeout (previously 30 seconds)
       headers: {
         'Content-Type': 'application/json'
       }
@@ -25,7 +25,7 @@ export class LMStudioProvider extends BaseProvider {
   }
 
   async generateCompletion(request: CompletionRequest): Promise<CompletionResult> {
-    // Jos yhtäaikaisten pyyntöjen määrä on liian suuri, lisätään pyyntö jonoon
+    // If the number of concurrent requests is too high, add the request to the queue
     if (this.activeRequests >= this.MAX_CONCURRENT_REQUESTS) {
       return new Promise((resolve, reject) => {
         this.logger.log(`Queuing LM Studio request, current queue length: ${this.requestQueue.length}`);
@@ -66,7 +66,7 @@ export class LMStudioProvider extends BaseProvider {
       const duration = Date.now() - startTime;
       this.logger.log(`Received response from LM Studio API in ${duration}ms with status ${response.status}`);
 
-      // Hyväksytään sekä 200 että 201 statukset onnistuneina vastauksina
+      // Accept both 200 and 201 status codes as successful responses
       if (response.status === 200 || response.status === 201) {
         if (response.data && response.data.choices && response.data.choices.length > 0) {
           const text = response.data.choices[0].text;
@@ -148,7 +148,7 @@ export class LMStudioProvider extends BaseProvider {
     } catch (error) {
       this.logger.error(`LM Studio not available: ${error.message}`);
       
-      // Lisätään yksityiskohtaisempaa tietoa virheestä
+      // Add more detailed error information
       if (error.code === 'ECONNREFUSED') {
         this.logger.error('Connection refused: LM Studio server may not be running');
       } else if (error.code === 'ECONNABORTED') {

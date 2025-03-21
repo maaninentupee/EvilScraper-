@@ -52,47 +52,57 @@ describe('API-Provider Integration Tests', () => {
   describe('/evil-bot/decide (POST)', () => {
     it('should make a decision with successful provider response', async () => {
       // Mock AIGateway to return successful response
-      jest.spyOn(aiGateway, 'processAIRequest').mockResolvedValue(JSON.stringify({
-        action: 'Lähetä chatbotti',
-        reason: 'Chatbotti on interaktiivisempi',
-        confidence: 0.85
-      }));
+      jest.spyOn(aiGateway, 'processAIRequest').mockResolvedValue({
+        text: JSON.stringify({
+          action: 'Send chatbot',
+          reason: 'Chatbot is more interactive',
+          confidence: 0.85
+        }),
+        success: true,
+        provider: 'local',
+        model: 'mistral-7b-instruct-q8_0.gguf'
+      });
 
       // Make the API call
       const response = await request(app.getHttpServer())
         .post('/evil-bot/decide')
         .send({
-          situation: 'Käyttäjä on uusi sivustolla',
-          options: ['Lähetä chatbotti', 'Lähetä uutiskirje']
+          situation: 'User is new to the site',
+          options: ['Send chatbot', 'Send newsletter']
         });
 
       // Verify response
       expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('action', 'Lähetä chatbotti');
-      expect(response.body).toHaveProperty('reason', 'Chatbotti on interaktiivisempi');
+      expect(response.body).toHaveProperty('action', 'Send chatbot');
+      expect(response.body).toHaveProperty('reason', 'Chatbot is more interactive');
       expect(response.body).toHaveProperty('confidence', 0.85);
     });
 
     it('should handle provider failures and use fallback', async () => {
       // Mock AIGateway to return successful response from fallback
-      jest.spyOn(aiGateway, 'processAIRequest').mockResolvedValue(JSON.stringify({
-        action: 'Lähetä uutiskirje',
-        reason: 'Uutiskirje on vähemmän tunkeileva',
-        confidence: 0.75
-      }));
+      jest.spyOn(aiGateway, 'processAIRequest').mockResolvedValue({
+        text: JSON.stringify({
+          action: 'Send newsletter',
+          reason: 'Newsletter is less intrusive',
+          confidence: 0.75
+        }),
+        success: true,
+        provider: 'openai',
+        model: 'gpt-4-turbo'
+      });
       
       // Make the API call
       const response = await request(app.getHttpServer())
         .post('/evil-bot/decide')
         .send({
-          situation: 'Käyttäjä on uusi sivustolla',
-          options: ['Lähetä chatbotti', 'Lähetä uutiskirje']
+          situation: 'User is new to the site',
+          options: ['Send chatbot', 'Send newsletter']
         });
 
       // Verify response
       expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('action', 'Lähetä uutiskirje');
-      expect(response.body).toHaveProperty('reason', 'Uutiskirje on vähemmän tunkeileva');
+      expect(response.body).toHaveProperty('action', 'Send newsletter');
+      expect(response.body).toHaveProperty('reason', 'Newsletter is less intrusive');
       expect(response.body).toHaveProperty('confidence', 0.75);
     });
 
@@ -104,15 +114,15 @@ describe('API-Provider Integration Tests', () => {
       const response = await request(app.getHttpServer())
         .post('/evil-bot/decide')
         .send({
-          situation: 'Käyttäjä on uusi sivustolla',
-          options: ['Lähetä chatbotti', 'Lähetä uutiskirje']
+          situation: 'User is new to the site',
+          options: ['Send chatbot', 'Send newsletter']
         });
 
-      // Verify response - EvilBotService palauttaa virheen eikä heitä poikkeusta
+      // Verify response - EvilBotService returns an error and doesn't throw an exception
       expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('action', 'Virhe');
+      expect(response.body).toHaveProperty('action', 'Error');
       expect(response.body).toHaveProperty('reason');
-      expect(response.body.reason).toContain('Päätöksenteko epäonnistui');
+      expect(response.body.reason).toContain('Decision-making failed');
       expect(response.body).toHaveProperty('confidence', 0);
     });
   });

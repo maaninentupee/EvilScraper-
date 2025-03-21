@@ -10,14 +10,14 @@ interface ScrapedDataDto {
   metadata?: Record<string, any>;
 }
 
-// AIGateway:n palauttama virhetyyppi
+// Error type returned by AIGateway
 interface AIErrorResponse {
   error: boolean;
   message: string;
   details?: string;
 }
 
-// Tyypinvarmistukset
+// Type validations
 function isScrapedDataDto(obj: any): obj is ScrapedDataDto {
   return obj 
     && typeof obj === 'object'
@@ -59,9 +59,9 @@ export class ScrapingController {
     
     const analysis = await this.scrapingService.analyzeSEO(scrapedData);
     
-    // Tarkista, onko vastaus virheilmoitus
+    // Check if the response is an error message
     if (isAIErrorResponse(analysis)) {
-      this.logger.error(`AI-palvelun virhe SEO-analyysissa: ${analysis.message}`);
+      this.logger.error(`AI service error in SEO analysis: ${analysis.message}`);
       throw new HttpException({
         status: HttpStatus.SERVICE_UNAVAILABLE,
         error: analysis.message,

@@ -1,140 +1,140 @@
-# Netdata-monitorointi Ollama-malleille
+# Netdata Monitoring for Ollama Models
 
-Tämä dokumentaatio kuvaa, miten voit käyttää Netdata-työkalua Ollama-mallien resurssien käytön monitorointiin.
+This documentation describes how to use the Netdata tool to monitor resource usage of Ollama models.
 
-## Yleiskatsaus
+## Overview
 
-Netdata on tehokas reaaliaikainen monitorointityökalu, joka tarjoaa yksityiskohtaista tietoa järjestelmän suorituskyvystä. Olemme integroineet Ollama-mallien resurssien käytön seurannan Netdata-työkaluun, mikä mahdollistaa mallien suorituskyvyn tarkan analysoinnin.
+Netdata is a powerful real-time monitoring tool that provides detailed information about system performance. We have integrated Ollama model resource usage tracking with the Netdata tool, enabling precise analysis of model performance.
 
-## Asennus
+## Installation
 
-### Netdata-asennus
+### Netdata Installation
 
-Asenna Netdata Homebrew'n avulla:
+Install Netdata using Homebrew:
 
 ```bash
 brew install netdata
 brew services start netdata
 ```
 
-Netdata-käyttöliittymä on saatavilla osoitteessa: [http://localhost:19999](http://localhost:19999)
+The Netdata interface is available at: [http://localhost:19999](http://localhost:19999)
 
-## Ollama-monitorointi
+## Ollama Monitoring
 
-Olemme luoneet skriptin, joka kerää Ollama-mallien resurssien käyttötietoja ja lähettää ne Netdata-palveluun StatsD-protokollan avulla.
+We have created a script that collects resource usage data from Ollama models and sends it to the Netdata service using the StatsD protocol.
 
-### Monitoroinnin käynnistäminen
+### Starting Monitoring
 
-Käynnistä Ollama-monitorointi suorittamalla:
+Start Ollama monitoring by running:
 
 ```bash
 npm run monitor:ollama:netdata
 ```
 
-tai suoraan:
+or directly:
 
 ```bash
 ./scripts/ollama-netdata-collector.sh
 ```
 
-### Kerättävät mittarit
+### Metrics Collected
 
-Skripti kerää seuraavat mittarit:
+The script collects the following metrics:
 
-#### Ollama-palvelu (pääprosessi)
-- `ollama.main.cpu` - CPU-käyttö prosentteina
-- `ollama.main.memory_percent` - Muistin käyttö prosentteina
-- `ollama.main.memory_mb` - Muistin käyttö megatavuina
+#### Ollama Service (Main Process)
+- `ollama.main.cpu` - CPU usage in percentage
+- `ollama.main.memory_percent` - Memory usage in percentage
+- `ollama.main.memory_mb` - Memory usage in megabytes
 
-#### Ollama-mallit (runner-prosessit)
-- `ollama.runners.count` - Aktiivisten mallien määrä
-- `ollama.runners.cpu` - Kaikkien mallien yhteenlaskettu CPU-käyttö
-- `ollama.runners.memory_percent` - Kaikkien mallien yhteenlaskettu muistin käyttö prosentteina
-- `ollama.runners.memory_mb` - Kaikkien mallien yhteenlaskettu muistin käyttö megatavuina
+#### Ollama Models (Runner Processes)
+- `ollama.runners.count` - Number of active models
+- `ollama.runners.cpu` - Total CPU usage of all models
+- `ollama.runners.memory_percent` - Total memory usage of all models in percentage
+- `ollama.runners.memory_mb` - Total memory usage of all models in megabytes
 
-#### Mallikohtaiset mittarit
-- `ollama.model.<mallinimi>.cpu` - Tietyn mallin CPU-käyttö
-- `ollama.model.<mallinimi>.memory_percent` - Tietyn mallin muistin käyttö prosentteina
-- `ollama.model.<mallinimi>.memory_mb` - Tietyn mallin muistin käyttö megatavuina
+#### Model-Specific Metrics
+- `ollama.model.<model_name>.cpu` - CPU usage of a specific model
+- `ollama.model.<model_name>.memory_percent` - Memory usage of a specific model in percentage
+- `ollama.model.<model_name>.memory_mb` - Memory usage of a specific model in megabytes
 
-#### Kokonaiskäyttö
-- `ollama.total.cpu` - Kokonais-CPU-käyttö
-- `ollama.total.memory_percent` - Kokonaismuistin käyttö prosentteina
-- `ollama.total.memory_mb` - Kokonaismuistin käyttö megatavuina
+#### Total Usage
+- `ollama.total.cpu` - Total CPU usage
+- `ollama.total.memory_percent` - Total memory usage in percentage
+- `ollama.total.memory_mb` - Total memory usage in megabytes
 
-#### API-tiedot
-- `ollama.api.models_count` - Saatavilla olevien mallien määrä
+#### API Information
+- `ollama.api.models_count` - Number of available models
 
-## Käyttöesimerkkejä
+## Usage Examples
 
-### Resurssien käytön seuranta kuormitustestien aikana
+### Monitoring Resource Usage During Load Tests
 
-1. Käynnistä Netdata-palvelu:
+1. Start the Netdata service:
    ```bash
    brew services start netdata
    ```
 
-2. Käynnistä Ollama-monitorointi:
+2. Start Ollama monitoring:
    ```bash
    npm run monitor:ollama:netdata
    ```
 
-3. Avaa Netdata-käyttöliittymä selaimessa:
+3. Open the Netdata interface in your browser:
    [http://localhost:19999](http://localhost:19999)
 
-4. Suorita kuormitustestit:
+4. Run load tests:
    ```bash
    npm run test:load
    ```
 
-5. Seuraa resurssien käyttöä Netdata-käyttöliittymässä.
+5. Monitor resource usage in the Netdata interface.
 
-### Eri mallien vertailu
+### Comparing Different Models
 
-1. Käynnistä monitorointi kuten yllä.
-2. Lämmitä mallit:
+1. Start monitoring as above.
+2. Warm up the models:
    ```bash
    npm run warmup:ollama
    ```
-3. Vertaile eri mallien resurssien käyttöä Netdata-käyttöliittymässä.
+3. Compare resource usage of different models in the Netdata interface.
 
-## Dashboardit
+## Dashboards
 
-Netdata-käyttöliittymässä voit luoda mukautettuja dashboardeja, jotka näyttävät sinulle tärkeimmät mittarit. Voit esimerkiksi luoda dashboardin, joka näyttää:
+In the Netdata interface, you can create custom dashboards that display the most important metrics for you. For example, you can create a dashboard that shows:
 
-- CPU-käyttö malleittain
-- Muistin käyttö malleittain
-- Kokonaiskäyttö ajan funktiona
+- CPU usage by model
+- Memory usage by model
+- Total usage over time
 
-## Hälytykset
+## Alerts
 
-Netdata tukee hälytysten määrittämistä. Voit määrittää hälytyksiä, jotka ilmoittavat, kun:
+Netdata supports defining alerts. You can set up alerts that notify you when:
 
-- CPU-käyttö ylittää tietyn rajan
-- Muistin käyttö ylittää tietyn rajan
-- Mallien määrä muuttuu
+- CPU usage exceeds a certain threshold
+- Memory usage exceeds a certain threshold
+- The number of models changes
 
-## Vianmääritys
+## Troubleshooting
 
-Jos kohtaat ongelmia:
+If you encounter problems:
 
-1. Varmista, että Netdata-palvelu on käynnissä:
+1. Make sure the Netdata service is running:
    ```bash
    brew services list | grep netdata
    ```
 
-2. Varmista, että Ollama-palvelu on käynnissä:
+2. Make sure the Ollama service is running:
    ```bash
    curl -s http://localhost:11434/api/tags
    ```
 
-3. Tarkista, että StatsD-portti (8125) on käytettävissä:
+3. Check that the StatsD port (8125) is available:
    ```bash
    lsof -i :8125
    ```
 
-## Lisätietoja
+## Additional Information
 
-- [Netdata-dokumentaatio](https://learn.netdata.cloud/)
-- [StatsD-dokumentaatio](https://github.com/statsd/statsd)
-- [Ollama-dokumentaatio](https://ollama.ai/)
+- [Netdata Documentation](https://learn.netdata.cloud/)
+- [StatsD Documentation](https://github.com/statsd/statsd)
+- [Ollama Documentation](https://ollama.ai/)

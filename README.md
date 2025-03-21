@@ -1,114 +1,114 @@
 # Windsurf Project - AI Fallback System
 
-Tämä projekti toteuttaa älykkään fallback-järjestelmän, joka hyödyntää ensisijaisesti paikallisia tekoälymalleja, mutta tarvittaessa siirtyy käyttämään OpenAI:n tai Anthropic:n API-malleja.
+This project implements an intelligent fallback system that primarily utilizes local AI models, but when necessary, switches to using OpenAI's or Anthropic's API models.
 
-## Ominaisuudet
+## Features
 
-- **ModelSelector**: Valitsee sopivan mallin käyttötapauksen mukaan
-- **AIGateway**: Hallinnoi paikallisten ja pilvipalveluiden mallien käyttöä
-- **AIGatewayEnhancer**: Paranneltu versio AIGateway-luokasta, joka tarjoaa älykkään fallback-mekanismin ja välimuistin
-- **AIControllerEnhanced**: Uusi kontrolleri, joka hyödyntää AIGatewayEnhancer-luokkaa tarjoten monipuolisempia prosessointimahdollisuuksia
-- **ProviderHealthMonitor**: Seuraa palveluntarjoajien suorituskykyä ja saatavuutta
-- **Fallback-mekanismi**: Siirtyy automaattisesti OpenAI:hin ja tarvittaessa Anthropic:iin
-- **ScrapingService**: Web-sivujen SEO-analyysi tekoälyn avulla
-- **EvilBotService**: Tekoälypohjainen päätöksentekojärjestelmä
-- **BotService**: Käyttäjän viestien analyysi ja seuraavan toiminnon päättäminen
-- **RESTful API**: NestJS-pohjainen rajapinta AI-toiminnallisuuksille
+- **ModelSelector**: Selects an appropriate model based on the use case
+- **AIGateway**: Manages the use of local and cloud service models
+- **AIGatewayEnhancer**: Enhanced version of the AIGateway class that provides an intelligent fallback mechanism and caching
+- **AIControllerEnhanced**: New controller that utilizes the AIGatewayEnhancer class offering more versatile processing capabilities
+- **ProviderHealthMonitor**: Monitors the performance and availability of service providers
+- **Fallback mechanism**: Automatically switches to OpenAI and if necessary to Anthropic
+- **ScrapingService**: SEO analysis of web pages using AI
+- **EvilBotService**: AI-based decision-making system
+- **BotService**: Analysis of user messages and deciding the next action
+- **RESTful API**: NestJS-based interface for AI functionalities
 
-## Asennus
+## Installation
 
-1. Kloonaa repo:
+1. Clone the repo:
 ```
 git clone https://github.com/maaninentupee/EvilScraper-.git
 cd windsurf-project
 ```
 
-2. Asenna riippuvuudet:
+2. Install dependencies:
 ```
 npm install
 ```
 
-3. Kopioi ympäristömuuttujat:
+3. Copy environment variables:
 ```
 cp .env.example .env
 ```
 
-4. Muokkaa .env-tiedostoa lisäämällä API-avaimet:
+4. Edit the .env file by adding API keys:
 ```
 OPENAI_API_KEY=your-api-key
 ANTHROPIC_API_KEY=your-api-key
 ```
 
-5. Käynnistä sovellus:
+5. Start the application:
 ```
 npm run start
 ```
 
-## Testaus
+## Testing
 
-Projekti sisältää kattavat testit, jotka varmistavat fallback-mekanismin toimivuuden eri tilanteissa:
+The project includes comprehensive tests that ensure the functionality of the fallback mechanism in different situations:
 
 ```
-# Suorita yksikkötestit
+# Run unit tests
 npm run test
 
-# Suorita e2e-testit
+# Run e2e tests
 npm run test:e2e
 
-# Suorita fallback-testit
+# Run fallback tests
 node test/fallback-test.js
 
-# Suorita parannellut fallback-testit
+# Run enhanced fallback tests
 node test/enhanced-fallback-test.js
 
-# Suorita kontrollerin testit
+# Run controller tests
 node test/enhanced-controller-test.js
 ```
 
-## Kuormitustestaus
+## Load Testing
 
-Projekti sisältää työkaluja kuormitustestaukseen, jotka auttavat arvioimaan järjestelmän suorituskykyä raskaassa käytössä:
+The project includes tools for load testing that help evaluate the system's performance under heavy use:
 
 ```
-# Suorita perus kuormitustesti
+# Run basic load test
 node test/load/load-test.js
 
-# Suorita raskas kuormitustesti
+# Run heavy load test
 node test/load/heavy-load-test.js
 
-# Suorita mallien vertailutesti
+# Run model comparison test
 node test/load/model-comparison-test.js
 ```
 
-## Resurssien monitorointi
+## Resource Monitoring
 
-Projekti sisältää työkalun Ollama-resurssien käytön analysointiin. Tämä auttaa optimoimaan Ollama-mallien suorituskykyä ja tunnistamaan mahdollisia pullonkauloja:
+The project includes a tool for analyzing Ollama resource usage. This helps optimize the performance of Ollama models and identify potential bottlenecks:
 
 ```bash
-# Suorita Ollama-resurssien analyysi
+# Run Ollama resource analysis
 ./scripts/analyze-ollama-resources.sh
 ```
 
-## Viimeisimmät parannukset
+## Latest Improvements
 
-1. Fallback-mekanismin parannukset:
-   - ErrorClassifier-luokan täydentäminen Injectable-dekoraattorilla
-   - isRetryable-metodin korjaaminen AIGateway- ja AIGatewayEnhancer-luokissa
-   - Kattavampi virheidenkäsittely
+1. Fallback mechanism improvements:
+   - Completing the ErrorClassifier class with Injectable decorator
+   - Fixing the isRetryable method in AIGateway and AIGatewayEnhancer classes
+   - More comprehensive error handling
 
-2. Välimuistin optimointi:
-   - Eräkäsittelyn keskimääräinen vasteaika vain 0.68ms
+2. Cache optimization:
+   - Batch processing average response time only 0.68ms
 
-3. Terveysmonitorointi:
-   - ProviderHealthMonitor seuraa palveluntarjoajien suorituskykyä
+3. Health monitoring:
+   - ProviderHealthMonitor tracks service provider performance
 
-## Tulevat kehityskohteet
+## Future Development Areas
 
-1. Rate limiting -mekanismit (korkea prioriteetti)
-2. Llama-binäärin asennus (keskitason prioriteetti)
-3. Vasteaikojen optimointi (keskitason prioriteetti)
-4. Virheiden raportoinnin laajennus (matala prioriteetti)
+1. Rate limiting mechanisms (high priority)
+2. Llama binary installation (medium priority)
+3. Response time optimization (medium priority)
+4. Error reporting expansion (low priority)
 
-## Lisenssi
+## License
 
 MIT

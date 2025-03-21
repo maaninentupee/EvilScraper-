@@ -83,7 +83,7 @@ export const mockOpenAIResponse = {
   choices: [
     {
       message: {
-        content: 'Tämä on OpenAI:n vastaus'
+        content: 'This is OpenAI\'s response'
       }
     }
   ]
@@ -92,7 +92,7 @@ export const mockOpenAIResponse = {
 export const mockAnthropicResponse = {
   content: [
     {
-      text: 'Tämä on Anthropic:in vastaus',
+      text: 'This is Anthropic\'s response',
       type: 'text'
     }
   ]
@@ -101,41 +101,41 @@ export const mockAnthropicResponse = {
 // Mock provider completion results
 export const mockProviderResults = {
   successLocal: (): CompletionResult => ({
-    text: 'Paikallisen mallin vastaus',
+    text: 'Local model response',
     provider: 'local',
     model: 'mistral-7b-instruct-q8_0.gguf',
     success: true,
     qualityScore: 0.8
   }),
   successLMStudio: (): CompletionResult => ({
-    text: 'LM Studio vastaus',
+    text: 'LM Studio response',
     provider: 'lmstudio',
     model: 'mistral-7b-instruct-v0.2',
     success: true,
     qualityScore: 0.9
   }),
   successOllama: (): CompletionResult => ({
-    text: 'Ollama vastaus',
+    text: 'Ollama response',
     provider: 'ollama',
     model: 'mistral',
     success: true,
     qualityScore: 0.85
   }),
   successOpenAI: (): CompletionResult => ({
-    text: 'OpenAI vastaus',
+    text: 'OpenAI response',
     provider: 'openai',
     model: 'gpt-4-turbo',
     success: true,
     qualityScore: 0.95
   }),
   successAnthropic: (): CompletionResult => ({
-    text: 'Anthropic vastaus',
+    text: 'Anthropic response',
     provider: 'anthropic',
     model: 'claude-3-opus-20240229',
     success: true,
     qualityScore: 0.92
   }),
-  failedResult: (provider: string, model: string, error: string = 'Mallin virhe'): CompletionResult => ({
+  failedResult: (provider: string, model: string, error: string = 'Model error'): CompletionResult => ({
     text: '',
     provider,
     model,

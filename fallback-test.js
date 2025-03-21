@@ -1,13 +1,13 @@
 /**
- * Fallback-mekanismin testaukseen tarkoitettu skripti
- * Testaa välimuistia, rate limitingiä ja älykästä mallin valintaa
+ * Script for testing the fallback mechanism
+ * Tests caching, rate limiting, and intelligent model selection
  */
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate, Trend, Counter } from 'k6/metrics';
 
-// Yleiset metriikat
+// General metrics
 const errorRate = new Rate('error_rate');
 const responseTime = new Trend('response_time');
 const successfulRequests = new Counter('successful_requests');
@@ -15,319 +15,259 @@ const failedRequests = new Counter('failed_requests');
 const fallbackUsed = new Counter('fallback_used');
 const cacheHits = new Counter('cache_hits');
 
-// Virhetyyppien metriikat
+// Error type metrics
 const serviceUnavailableErrors = new Counter('service_unavailable_errors');
 const modelNotFoundErrors = new Counter('model_not_found_errors');
 const timeoutErrors = new Counter('timeout_errors');
 const rateLimitErrors = new Counter('rate_limit_errors');
 const unexpectedErrors = new Counter('unexpected_errors');
 
-// Palveluntarjoajakohtaiset metriikat
+// Service provider specific metrics
 const openaiSuccessRate = new Rate('openai_success_rate');
 const anthropicSuccessRate = new Rate('anthropic_success_rate');
 const ollamaSuccessRate = new Rate('ollama_success_rate');
 const localSuccessRate = new Rate('local_success_rate');
 
-// Testin asetukset
+// Test settings
 export const options = {
   stages: [
-    { duration: '5s', target: 5 },    // Lämmittelyvaihe
-    { duration: '15s', target: 30 },  // Keskitason kuorma
-    { duration: '5s', target: 0 },    // Jäähdyttelyvaihe
+    { duration: '5s', target: 5 },    // Warm-up phase
+    { duration: '15s', target: 30 },  // Medium load
+    { duration: '5s', target: 0 },    // Cool-down phase
   ],
   thresholds: {
-    'error_rate': ['rate<0.5'],        // Virheprosentti alle 50%
-    'response_time': ['p(95)<15000'],  // 95% pyynnöistä alle 15s
+    'error_rate': ['rate<0.5'],        // Error rate below 50%
+    'response_time': ['p(95)<15000'],  // 95% of requests under 15s
   },
 };
 
-// Testattavat promptit - käytetään samaa promptia useaan kertaan välimuistin testaamiseksi
+// Test prompts - using the same prompt multiple times to test caching
 const prompts = [
-  "Miten tekoäly toimii?",
-  "Miten tekoäly toimii?", // Sama prompti välimuistin testaamiseksi
-  "Kirjoita lyhyt runo",
-  "Kirjoita lyhyt runo", // Sama prompti välimuistin testaamiseksi
-  "Selitä mitä on koneoppiminen",
-  "Selitä mitä on koneoppiminen", // Sama prompti välimuistin testaamiseksi
-  "Anna kolme SEO-vinkkiä",
-  "Mikä on paras ohjelmointikieli aloittelijalle?",
-  "Kirjoita esimerkki REST API:sta",
-  "Miten voin parantaa verkkosivuni suorituskykyä?"
+  "How does AI work?",
+  "How does AI work?", // Same prompt to test caching
+  "Write a short poem",
+  "Write a short poem", // Same prompt to test caching
+  "Explain what machine learning is",
+  "Explain what machine learning is", // Same prompt to test caching
+  "Give three SEO tips",
+  "What is the best programming language for beginners?",
+  "What is the best programming language for beginners?",
+  "How can I improve my website performance?"
 ];
 
-// Testattavat palveluntarjoajat
-const providers = ['openai', 'anthropic', 'ollama', 'local'];
-
-// Virhetilanteiden simulointi
+// Error simulation types and their weights
 const errorSimulations = [
-  { type: 'none', weight: 0.7 },                  // Ei simuloitua virhettä (70%)
-  { type: 'service_unavailable', weight: 0.1 },   // Palvelu ei saatavilla (10%)
-  { type: 'model_not_found', weight: 0.05 },      // Mallia ei löydy (5%)
-  { type: 'timeout', weight: 0.1 },               // Aikakatkaisu (10%)
+  { type: 'none', weight: 0.7 },                  // No simulated error (70%)
+  { type: 'service_unavailable', weight: 0.1 },   // Service unavailable (10%)
+  { type: 'model_not_found', weight: 0.05 },      // Model not found (5%)
+  { type: 'timeout', weight: 0.1 },               // Timeout (10%)
   { type: 'rate_limit', weight: 0.05 }            // Rate limit (5%)
 ];
 
-// Valitse virhetilanne painotusten mukaan
+// Select error simulation based on weights
 function selectErrorSimulation() {
-  const random = Math.random();
-  let cumulativeWeight = 0;
+  const totalWeight = errorSimulations.reduce((sum, sim) => sum + sim.weight, 0);
+  let random = Math.random() * totalWeight;
   
-  for (const error of errorSimulations) {
-    cumulativeWeight += error.weight;
-    if (random < cumulativeWeight) {
-      return error.type;
+  for (const simulation of errorSimulations) {
+    if (random < simulation.weight) {
+      return simulation.type;
     }
+    random -= simulation.weight;
   }
   
-  return 'none';
+  return 'none'; // Default fallback
 }
 
-// Testaa fallback-mekanismia
+// Test the fallback mechanism
 export default function () {
-  // Valitaan satunnainen prompti
+  // Select a random prompt
   const promptIndex = Math.floor(Math.random() * prompts.length);
   const prompt = prompts[promptIndex];
   
-  // Valitaan satunnainen palveluntarjoaja
-  const providerIndex = Math.floor(Math.random() * providers.length);
-  const provider = providers[providerIndex];
-  
-  // Valitaan satunnainen virhetilanne
+  // Select a random error simulation
   const errorType = selectErrorSimulation();
   
-  // Luodaan pyyntö
-  const url = 'http://localhost:3001/ai/process';
-  
-  const payload = JSON.stringify({
-    taskType: 'seo',
-    input: prompt,
-    primaryModel: provider,
-    testMode: errorType !== 'none' ? true : false,
-    testError: errorType !== 'none' ? errorType : undefined
-  });
+  // Create request
+  const payload = {
+    prompt: prompt,
+    modelName: 'gpt-3.5-turbo',
+    maxTokens: 100,
+    temperature: 0.7,
+    simulateError: errorType !== 'none' ? errorType : undefined
+  };
   
   const params = {
     headers: {
       'Content-Type': 'application/json',
-      'X-Test-Mode': errorType !== 'none' ? 'true' : 'false',
-      'X-Test-Error': errorType !== 'none' ? errorType : ''
     },
-    timeout: 15000 // 15 sekunnin timeout
+    timeout: '30s'
   };
-
-  // Mitataan vasteaika
-  const startTime = Date.now();
-  const response = http.post(url, payload, params);
-  const duration = Date.now() - startTime;
   
-  // Lisätään vasteaika yleiseen metriikkaan
+  const startTime = new Date().getTime();
+  
+  // Make the API request
+  const response = http.post('http://localhost:3000/api/ai/completion-with-fallback', 
+                           JSON.stringify(payload), 
+                           params);
+  
+  const endTime = new Date().getTime();
+  const duration = endTime - startTime;
+  
+  // Add response time to general metrics
   responseTime.add(duration);
-
-  // Tarkistetaan vastauksen status
+  
+  // Check if the request was successful
   const success = response.status === 200;
+  
+  // Record success/failure
+  errorRate.add(!success);
   
   if (success) {
     successfulRequests.add(1);
     
     try {
-      const data = response.json();
+      const responseData = JSON.parse(response.body);
       
-      // Tarkistetaan, käytettiinkö fallbackia
-      if (data.usedFallback) {
+      // Check if fallback was used
+      if (responseData.wasFailover) {
         fallbackUsed.add(1);
-        console.log(`Fallback käytössä: ${data.provider} (alkuperäinen: ${provider})`);
       }
       
-      // Tarkistetaan, käytettiinkö välimuistia
-      if (data.fromCache) {
+      // Check if cache was used
+      if (responseData.fromCache) {
         cacheHits.add(1);
-        console.log(`Välimuistiosuma: ${prompt.substring(0, 20)}...`);
       }
       
-      // Päivitetään palveluntarjoajakohtaiset metriikat
-      if (data.provider === 'openai') {
+      // Record provider-specific success
+      if (responseData.provider === 'openai') {
         openaiSuccessRate.add(1);
-      } else if (data.provider === 'anthropic') {
+      } else if (responseData.provider === 'anthropic') {
         anthropicSuccessRate.add(1);
-      } else if (data.provider === 'ollama') {
+      } else if (responseData.provider === 'ollama') {
         ollamaSuccessRate.add(1);
-      } else if (data.provider === 'local') {
+      } else if (responseData.provider === 'local') {
         localSuccessRate.add(1);
       }
       
-      console.log(`Onnistunut pyyntö: ${data.provider} | ${duration}ms | ${prompt.substring(0, 20)}... | Simuloitu virhe: ${errorType}`);
-      
     } catch (e) {
-      console.log(`Vastauksen jäsennysvirhe: ${e.message}`);
+      console.error('Error parsing response:', e);
     }
   } else {
     failedRequests.add(1);
-    errorRate.add(1);
     
-    // Päivitetään palveluntarjoajakohtaiset virheet
-    if (provider === 'openai') {
-      openaiSuccessRate.add(0);
-    } else if (provider === 'anthropic') {
-      anthropicSuccessRate.add(0);
-    } else if (provider === 'ollama') {
-      ollamaSuccessRate.add(0);
-    } else if (provider === 'local') {
-      localSuccessRate.add(0);
-    }
-    
-    console.log(`Epäonnistunut pyyntö: ${response.status} | ${duration}ms | ${prompt.substring(0, 20)}... | Simuloitu virhe: ${errorType}`);
-    
+    // Record error types
     try {
-      const errorData = response.json();
+      const responseData = JSON.parse(response.body);
       
-      // Luokitellaan virhetyyppi
-      if (errorData.errorType === 'service_unavailable') {
+      if (responseData.errorType === 'service_unavailable') {
         serviceUnavailableErrors.add(1);
-        console.log(`Palvelu ei ole saatavilla: ${errorData.error}`);
-      } else if (errorData.errorType === 'model_not_found') {
+      } else if (responseData.errorType === 'model_not_found') {
         modelNotFoundErrors.add(1);
-        console.log(`Mallia ei löydy: ${errorData.error}`);
-      } else if (errorData.errorType === 'timeout') {
+      } else if (responseData.errorType === 'timeout') {
         timeoutErrors.add(1);
-        console.log(`Aikakatkaisu: ${errorData.error}`);
-      } else if (errorData.errorType === 'rate_limit') {
+      } else if (responseData.errorType === 'rate_limit') {
         rateLimitErrors.add(1);
-        console.log(`Rate limit ylitetty: ${errorData.error}`);
       } else {
         unexpectedErrors.add(1);
-        console.log(`Odottamaton virhe: ${errorData.error}`);
       }
     } catch (e) {
-      // Jos vastaus ei ole JSON-muodossa
-      if (response.status === 429) {
-        rateLimitErrors.add(1);
-        console.log('Rate limit ylitetty');
-      } else if (response.status === 504) {
-        timeoutErrors.add(1);
-        console.log('Aikakatkaisu');
-      } else if (response.status >= 500) {
-        serviceUnavailableErrors.add(1);
-        console.log('Palvelinvirhe');
-      } else {
-        unexpectedErrors.add(1);
-        console.log(`Muu virhe: ${response.status}`);
-      }
+      unexpectedErrors.add(1);
     }
   }
-
-  // Satunnainen viive pyyntöjen välillä (100-500ms)
-  sleep(Math.random() * 0.4 + 0.1);
+  
+  // Add a small delay between requests
+  sleep(1);
 }
 
-// Testin lopussa tulostetaan yhteenveto
+// Print summary at the end of the test
 export function handleSummary(data) {
-  // Lasketaan yleiset metriikat
-  const totalRequests = data.metrics.successful_requests ? data.metrics.successful_requests.values.count : 0;
-  const failedCount = data.metrics.failed_requests ? data.metrics.failed_requests.values.count : 0;
-  const fallbackCount = data.metrics.fallback_used ? data.metrics.fallback_used.values.count : 0;
-  const cacheHitCount = data.metrics.cache_hits ? data.metrics.cache_hits.values.count : 0;
+  const summary = {
+    "Test Summary": {
+      "Total Requests": data.metrics.iterations.values.count,
+      "Successful Requests": data.metrics.successful_requests.values.count,
+      "Failed Requests": data.metrics.failed_requests.values.count,
+      "Error Rate": `${(data.metrics.error_rate.values.rate * 100).toFixed(2)}%`,
+      "Response Time (avg)": `${(data.metrics.response_time.values.avg / 1000).toFixed(2)}s`,
+      "Response Time (p95)": `${(data.metrics.response_time.values.p(95) / 1000).toFixed(2)}s`,
+      "Fallback Used": data.metrics.fallback_used?.values.count || 0,
+      "Cache Hits": data.metrics.cache_hits?.values.count || 0,
+    },
+    "Error Types": {
+      "Service Unavailable": data.metrics.service_unavailable_errors?.values.count || 0,
+      "Model Not Found": data.metrics.model_not_found_errors?.values.count || 0,
+      "Timeout": data.metrics.timeout_errors?.values.count || 0,
+      "Rate Limit": data.metrics.rate_limit_errors?.values.count || 0,
+      "Unexpected Errors": data.metrics.unexpected_errors?.values.count || 0,
+    },
+    "Provider Success Rates": {
+      "OpenAI": `${((data.metrics.openai_success_rate?.values.rate || 0) * 100).toFixed(2)}%`,
+      "Anthropic": `${((data.metrics.anthropic_success_rate?.values.rate || 0) * 100).toFixed(2)}%`,
+      "Ollama": `${((data.metrics.ollama_success_rate?.values.rate || 0) * 100).toFixed(2)}%`,
+      "Local": `${((data.metrics.local_success_rate?.values.rate || 0) * 100).toFixed(2)}%`,
+    }
+  };
   
-  const avgResponseTime = data.metrics.response_time ? data.metrics.response_time.values.avg : 0;
-  const p95ResponseTime = data.metrics.response_time ? data.metrics.response_time.values['p(95)'] : 0;
+  // Calculate fallback usage percentage
+  const totalRequests = data.metrics.iterations.values.count;
+  const fallbackUsed = data.metrics.fallback_used?.values.count || 0;
+  const fallbackPercentage = totalRequests > 0 ? (fallbackUsed / totalRequests * 100).toFixed(2) : '0.00';
   
-  const errorRateValue = data.metrics.error_rate ? data.metrics.error_rate.values.rate * 100 : 0;
+  // Calculate cache hit percentage
+  const cacheHits = data.metrics.cache_hits?.values.count || 0;
+  const cacheHitPercentage = totalRequests > 0 ? (cacheHits / totalRequests * 100).toFixed(2) : '0.00';
   
-  // Lasketaan virhetyyppien määrät
-  const serviceUnavailableCount = data.metrics.service_unavailable_errors ? data.metrics.service_unavailable_errors.values.count : 0;
-  const modelNotFoundCount = data.metrics.model_not_found_errors ? data.metrics.model_not_found_errors.values.count : 0;
-  const timeoutCount = data.metrics.timeout_errors ? data.metrics.timeout_errors.values.count : 0;
-  const rateLimitCount = data.metrics.rate_limit_errors ? data.metrics.rate_limit_errors.values.count : 0;
-  const unexpectedCount = data.metrics.unexpected_errors ? data.metrics.unexpected_errors.values.count : 0;
+  // Add derived metrics
+  summary["Key Performance Indicators"] = {
+    "Fallback Usage": `${fallbackPercentage}%`,
+    "Cache Hit Rate": `${cacheHitPercentage}%`,
+    "Average Response Time": `${(data.metrics.response_time.values.avg / 1000).toFixed(2)}s`,
+  };
   
-  // Lasketaan palveluntarjoajakohtaiset metriikat
-  const openaiSuccess = data.metrics.openai_success_rate ? data.metrics.openai_success_rate.values.rate * 100 : 0;
-  const anthropicSuccess = data.metrics.anthropic_success_rate ? data.metrics.anthropic_success_rate.values.rate * 100 : 0;
-  const ollamaSuccess = data.metrics.ollama_success_rate ? data.metrics.ollama_success_rate.values.rate * 100 : 0;
-  const localSuccess = data.metrics.local_success_rate ? data.metrics.local_success_rate.values.rate * 100 : 0;
-  
-  // Lasketaan prosentit
-  const fallbackRate = totalRequests > 0 ? (fallbackCount / totalRequests) * 100 : 0;
-  const cacheHitRate = totalRequests > 0 ? (cacheHitCount / totalRequests) * 100 : 0;
-  
-  // Tulostetaan yhteenveto
-  console.log(`Yhteenveto:`);
-  console.log(`- Yhteensä pyyntöjä: ${totalRequests + failedCount}`);
-  console.log(`- Onnistuneet pyynnöt: ${totalRequests} (${100 - errorRateValue}%)`);
-  console.log(`- Epäonnistuneet pyynnöt: ${failedCount} (${errorRateValue}%)`);
-  console.log(`- Fallback käytössä: ${fallbackCount} (${fallbackRate.toFixed(2)}% onnistuneista)`);
-  console.log(`- Välimuistiosumat: ${cacheHitCount} (${cacheHitRate.toFixed(2)}% onnistuneista)`);
-  console.log(`- Keskimääräinen vasteaika: ${avgResponseTime.toFixed(2)}ms`);
-  console.log(`- 95% vasteaika: ${p95ResponseTime.toFixed(2)}ms`);
-  
-  console.log(`\nVirhetyypit:`);
-  console.log(`- Palvelu ei saatavilla: ${serviceUnavailableCount}`);
-  console.log(`- Mallia ei löydy: ${modelNotFoundCount}`);
-  console.log(`- Aikakatkaisu: ${timeoutCount}`);
-  console.log(`- Rate limit: ${rateLimitCount}`);
-  console.log(`- Odottamattomat virheet: ${unexpectedCount}`);
-  
-  console.log(`\nPalveluntarjoajien onnistumisprosentit:`);
-  console.log(`- OpenAI: ${openaiSuccess.toFixed(2)}%`);
-  console.log(`- Anthropic: ${anthropicSuccess.toFixed(2)}%`);
-  console.log(`- Ollama: ${ollamaSuccess.toFixed(2)}%`);
-  console.log(`- Local: ${localSuccess.toFixed(2)}%`);
+  // Add analysis and recommendations
+  summary["Analysis"] = {
+    "Fallback Mechanism": fallbackPercentage > 30 
+      ? "The fallback mechanism is being used frequently. Consider improving the primary service reliability."
+      : "The fallback mechanism is working as expected with moderate usage.",
+    
+    "Caching Efficiency": cacheHitPercentage < 10
+      ? "Cache hit rate is low. Consider adjusting cache settings or TTL values."
+      : "Cache is working effectively with good hit rates.",
+    
+    "Response Time": (data.metrics.response_time.values.avg / 1000) > 5
+      ? "Average response time is high. Consider performance optimizations."
+      : "Response times are within acceptable ranges.",
+    
+    "Error Handling": (data.metrics.error_rate.values.rate) > 0.3
+      ? "Error rate is high. Review error logs and improve error handling."
+      : "Error handling is working effectively with acceptable error rates.",
+  };
   
   return {
-    'stdout': JSON.stringify({
-      timestamp: new Date().toISOString(),
-      metrics: {
-        totalRequests: totalRequests + failedCount,
-        successfulRequests: totalRequests,
-        failedRequests: failedCount,
-        fallbackUsed: fallbackCount,
-        cacheHits: cacheHitCount,
-        avgResponseTime: avgResponseTime,
-        p95ResponseTime: p95ResponseTime,
-        errorRate: errorRateValue,
-        fallbackRate: fallbackRate,
-        cacheHitRate: cacheHitRate,
-        errorTypes: {
-          serviceUnavailable: serviceUnavailableCount,
-          modelNotFound: modelNotFoundCount,
-          timeout: timeoutCount,
-          rateLimit: rateLimitCount,
-          unexpected: unexpectedCount
-        },
-        providerSuccess: {
-          openai: openaiSuccess,
-          anthropic: anthropicSuccess,
-          ollama: ollamaSuccess,
-          local: localSuccess
-        }
-      }
-    }, null, 2),
-    'fallback-test-results.json': JSON.stringify({
-      timestamp: new Date().toISOString(),
-      metrics: {
-        totalRequests: totalRequests + failedCount,
-        successfulRequests: totalRequests,
-        failedRequests: failedCount,
-        fallbackUsed: fallbackCount,
-        cacheHits: cacheHitCount,
-        avgResponseTime: avgResponseTime,
-        p95ResponseTime: p95ResponseTime,
-        errorRate: errorRateValue,
-        fallbackRate: fallbackRate,
-        cacheHitRate: cacheHitRate,
-        errorTypes: {
-          serviceUnavailable: serviceUnavailableCount,
-          modelNotFound: modelNotFoundCount,
-          timeout: timeoutCount,
-          rateLimit: rateLimitCount,
-          unexpected: unexpectedCount
-        },
-        providerSuccess: {
-          openai: openaiSuccess,
-          anthropic: anthropicSuccess,
-          ollama: ollamaSuccess,
-          local: localSuccess
-        }
-      }
-    }, null, 2)
+    'summary.json': JSON.stringify(summary, null, 2),
+    'summary.txt': textSummary(summary, { indent: ' ' }),
   };
+}
+
+function textSummary(summary, options = {}) {
+  const indent = options.indent || '  ';
+  let text = 'Fallback Mechanism Test Summary\n';
+  text += '==============================\n\n';
+  
+  for (const [section, data] of Object.entries(summary)) {
+    text += `${section}:\n`;
+    for (const [key, value] of Object.entries(data)) {
+      if (typeof value === 'object') {
+        text += `${indent}${key}:\n`;
+        for (const [subKey, subValue] of Object.entries(value)) {
+          text += `${indent}${indent}${subKey}: ${subValue}\n`;
+        }
+      } else {
+        text += `${indent}${key}: ${value}\n`;
+      }
+    }
+    text += '\n';
+  }
+  
+  return text;
 }

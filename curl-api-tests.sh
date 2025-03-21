@@ -1,6 +1,6 @@
 #!/bin/bash
 # Windsurf API Test Script using curl
-# Suorita tämä skripti terminaalista: bash curl-api-tests.sh
+# Run this script from terminal: bash curl-api-tests.sh
 
 BASE_URL="http://localhost:3001"
 GREEN='\033[0;32m'
@@ -9,22 +9,22 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 echo -e "${YELLOW}=== Windsurf API Test Script ===${NC}"
-echo "Testaamme API:n toimivuutta ja virheiden käsittelyä"
+echo "Testing API functionality and error handling"
 echo
 
-# Tarkistetaan ensin, onko palvelin käynnissä
-echo -e "${YELLOW}Tarkistetaan API:n tila...${NC}"
+# First check if the server is running
+echo -e "${YELLOW}Checking API status...${NC}"
 if curl -s "$BASE_URL" > /dev/null; then
-  echo -e "${GREEN}API on käynnissä osoitteessa $BASE_URL${NC}"
+  echo -e "${GREEN}API is running at $BASE_URL${NC}"
 else
-  echo -e "${RED}API ei vastaa osoitteessa $BASE_URL${NC}"
-  echo "Varmista, että sovellus on käynnissä: npm start"
+  echo -e "${RED}API is not responding at $BASE_URL${NC}"
+  echo "Make sure the application is running: npm start"
   exit 1
 fi
 
 echo
 
-# Funktio API-pyynnön tekemiseksi
+# Function to make API requests
 run_test() {
   local description=$1
   local endpoint=$2
@@ -32,7 +32,7 @@ run_test() {
   local payload=$4
   local expected_status=$5
 
-  echo -e "${YELLOW}Testataan: $description${NC}"
+  echo -e "${YELLOW}Testing: $description${NC}"
   echo "Endpoint: $endpoint, Method: $method"
   
   if [ -n "$payload" ]; then
@@ -43,12 +43,12 @@ run_test() {
   fi
   
   if [ "$status_code" = "$expected_status" ]; then
-    echo -e "${GREEN}Onnistui! Status: $status_code${NC}"
+    echo -e "${GREEN}Success! Status: $status_code${NC}"
   else
-    echo -e "${RED}Epäonnistui! Odotettu status: $expected_status, Saatu status: $status_code${NC}"
+    echo -e "${RED}Failed! Expected status: $expected_status, Received status: $status_code${NC}"
   fi
   
-  echo "Täydellinen vastaus:"
+  echo "Complete response:"
   if [ -n "$payload" ]; then
     curl -s -X $method -H "Content-Type: application/json" -d "$payload" "$BASE_URL$endpoint" | json_pp
   else
@@ -128,4 +128,4 @@ run_test "Error Simulation - Malformed Response" "/evil-bot/decide" "POST" '{
   "options": ["Option 1", "Option 2"]
 }' "500"
 
-echo -e "${GREEN}Kaikki testit suoritettu!${NC}"
+echo -e "${GREEN}All tests completed!${NC}"

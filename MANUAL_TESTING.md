@@ -1,126 +1,126 @@
-# Manuaalinen testaus
+# Manual Testing
 
-Tämä dokumentti sisältää ohjeita Windsurf-projektin manuaaliseen testaukseen, erityisesti virhetilanteiden simulointiin.
+This document contains instructions for manual testing of the Windsurf project, especially for simulating error conditions.
 
-## Virhetilanteiden testaus
+## Testing Error Conditions
 
-Järjestelmän vikasietoisuuden testaaminen on tärkeä osa laadunvarmistusta. Tässä on ohjeita erilaisten virhetilanteiden simulointiin.
+Testing the system's fault tolerance is an important part of quality assurance. Here are instructions for simulating various error conditions.
 
-### API-avaimen virhetilanne
+### API Key Error Condition
 
-OpenAI API-avaimen virhetilanne voidaan simuloida asettamalla virheellinen API-avain:
+An OpenAI API key error condition can be simulated by setting an invalid API key:
 
 ```bash
-# Manuaalinen tapa
+# Manual method
 export OPENAI_API_KEY=invalid_key
 npm run test
 
-# Tai käyttämällä testiskriptiä
+# Or using the test script
 ./scripts/test-api-key-failure.sh
 ```
 
-Tämän testin pitäisi osoittaa, että:
+This test should demonstrate that:
 
-1. Järjestelmä tunnistaa virheellisen API-avaimen
-2. OpenAIProvider raportoi olevansa poissa käytöstä (isAvailable palauttaa false)
-3. Virhetilanteessa järjestelmä siirtyy käyttämään muita saatavilla olevia palveluntarjoajia
-4. Virheet kirjataan asianmukaisesti lokiin
+1. The system recognizes an invalid API key
+2. OpenAIProvider reports being unavailable (isAvailable returns false)
+3. In case of an error, the system switches to using other available service providers
+4. Errors are properly logged
 
-### Verkkoviiveiden ja aikakatkojen testaus
+### Testing Network Delays and Timeouts
 
-Verkkoviiveitä ja aikakatkoja voidaan testata käyttämällä testiskriptiä, joka simuloi erilaisia verkko-ongelmia:
+Network delays and timeouts can be tested using a test script that simulates various network problems:
 
 ```bash
-# Verkkoviiveiden testaaminen
+# Testing network delays
 npm run test:network-delay
 
-# Tai käyttämällä laajempaa testiskriptiä
+# Or using a more comprehensive test script
 ./scripts/test-network-delay.sh
 ```
 
-Tämä testi simuloi seuraavia verkko-ongelmia:
+This test simulates the following network problems:
 
-1. Lyhyet viiveet (500ms)
-2. Keskipitkät viiveet (2000ms)
-3. Pitkät viiveet (8000ms)
-4. Aikakatkaisut (15000ms)
-5. Yhteyden katkaisut
-6. Virheelliset vastaukset
-7. Palvelinvirheet
+1. Short delays (500ms)
+2. Medium delays (2000ms)
+3. Long delays (8000ms)
+4. Timeouts (15000ms)
+5. Connection interruptions
+6. Invalid responses
+7. Server errors
 
-Testit osoittavat, että järjestelmä:
+The tests demonstrate that the system:
 
-1. Käsittelee verkkoviiveet asianmukaisesti
-2. Tunnistaa aikakatkaisut ja raportoi niistä
-3. Toipuu yhteyden katkaisuista
-4. Käsittelee virheelliset vastaukset oikein
-5. Siirtyy käyttämään vaihtoehtoisia palveluntarjoajia tarvittaessa
+1. Handles network delays appropriately
+2. Identifies timeouts and reports them
+3. Recovers from connection interruptions
+4. Handles invalid responses correctly
+5. Switches to alternative service providers when necessary
 
-### Palveluntarjoajan saatavuuden testaus
+### Testing Service Provider Availability
 
-Voit testata, miten järjestelmä käyttäytyy, kun tietty palveluntarjoaja ei ole saatavilla:
+You can test how the system behaves when a specific service provider is not available:
 
 ```bash
-# Poista OpenAI käytöstä
+# Disable OpenAI
 export USE_OPENAI=false
 npm run test
 
-# Poista Ollama käytöstä
+# Disable Ollama
 export USE_OLLAMA=false
 npm run test
 
-# Poista LMStudio käytöstä
+# Disable LMStudio
 export USE_LM_STUDIO=false
 npm run test
 ```
 
-### Palveluntarjoajan prioriteetin muuttaminen
+### Changing Service Provider Priority
 
-Voit testata palveluntarjoajien prioriteettijärjestystä muuttamalla prioriteettiarvoja:
+You can test the priority order of service providers by changing the priority values:
 
 ```bash
-# Aseta Ollama korkeimmalle prioriteetille
+# Set Ollama to highest priority
 export OLLAMA_PRIORITY=1
 export LMSTUDIO_PRIORITY=2
 export OPENAI_PRIORITY=3
 npm run test
 ```
 
-### Verkkoyhteyden katkeamisen simulointi
+### Simulating Network Connection Loss
 
-Voit simuloida verkkoyhteyden katkeamista käyttämällä työkaluja kuten `iptables` (Linux) tai Network Link Conditioner (macOS):
+You can simulate network connection loss using tools such as `iptables` (Linux) or Network Link Conditioner (macOS):
 
 ```bash
-# macOS: Käytä Network Link Conditioner -työkalua
-# Linux: Estä yhteydet tiettyyn porttiin
+# macOS: Use the Network Link Conditioner tool
+# Linux: Block connections to a specific port
 sudo iptables -A OUTPUT -p tcp --dport 443 -j DROP
 npm run test
 sudo iptables -D OUTPUT -p tcp --dport 443 -j DROP
 ```
 
-### Muistin loppumisen simulointi
+### Simulating Out of Memory
 
-Voit testata järjestelmän käyttäytymistä muistin loppuessa käyttämällä Node.js:n muistirajoitusta:
+You can test the system's behavior when running out of memory by using Node.js memory limitation:
 
 ```bash
 NODE_OPTIONS="--max-old-space-size=100" npm run test
 ```
 
-## Testitulosten tulkinta
+## Interpreting Test Results
 
-Manuaalisten testien tuloksia tulkittaessa kiinnitä huomiota seuraaviin asioihin:
+When interpreting the results of manual tests, pay attention to the following:
 
-1. Virheviestien selkeys ja informatiivisuus
-2. Järjestelmän kyky palautua virhetilanteista
-3. Vaihtoehtoisten palveluntarjoajien käyttöönotto
-4. Lokitietojen kattavuus ja hyödyllisyys
+1. Clarity and informativeness of error messages
+2. The system's ability to recover from error conditions
+3. Activation of alternative service providers
+4. Coverage and usefulness of log information
 
-## Testitulosten raportointi
+## Reporting Test Results
 
-Raportoi testien tulokset seuraavasti:
+Report test results as follows:
 
-1. Testin kuvaus ja suoritustapa
-2. Odotettu käyttäytyminen
-3. Havaittu käyttäytyminen
-4. Mahdolliset poikkeamat ja ongelmat
-5. Ehdotukset järjestelmän parantamiseksi
+1. Test description and execution method
+2. Expected behavior
+3. Observed behavior
+4. Possible deviations and issues
+5. Suggestions for system improvement
