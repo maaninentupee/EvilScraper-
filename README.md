@@ -14,6 +14,7 @@ This project implements an intelligent fallback system that primarily utilizes l
 - **EvilBotService**: AI-based decision-making system
 - **BotService**: Analysis of user messages and deciding the next action
 - **RESTful API**: NestJS-based interface for AI functionalities
+- **Internationalization**: All code comments and messages are in English for better accessibility
 
 ## Installation
 
