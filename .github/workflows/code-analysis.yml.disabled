@@ -1,0 +1,96 @@
+name: Code Analysis and Optimization
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  analyze:
+    name: Code Analysis
+    runs-on: macOS-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Ensures that all history is available for SonarQube analysis
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests with coverage
+        run: npm test -- --coverage --coverageReporters=lcov --coverageReporters=text --coverageReporters=cobertura
+        continue-on-error: true  # Continue even if tests fail
+
+      - name: Convert test reports
+        run: |
+          mkdir -p coverage
+          if [ -f "coverage/cobertura-coverage.xml" ]; then
+            cp coverage/cobertura-coverage.xml coverage/sonar-report.xml
+          fi
+        continue-on-error: true
+
+      - name: Run SonarCloud analysis
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=maaninentupee_EvilScraper-
+            -Dsonar.organization=maaninentupee
+            -Dsonar.sources=src
+            -Dsonar.tests=test
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.projectName="AI Fallback System"
+            -Dsonar.projectVersion=1.0
+            -Dsonar.sourceEncoding=UTF-8
+            -Dsonar.verbose=true
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.exclusions=node_modules/**,test/**,dist/**
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+            -Dsonar.coverage.exclusions=test/**,**/*.test.js,**/*.spec.js
+            -Dsonar.cpd.exclusions=test/**
+            -Dsonar.javascript.coveragePlugin=lcov
+
+      - name: Fetch SonarQube Quality Gate Status
+        run: |
+          # Get the quality gate status
+          curl -X GET "https://sonarcloud.io/api/qualitygates/project_status?projectKey=maaninentupee_EvilScraper-" \
+          -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}" \
+          -o quality-gate-status.json
+
+      - name: Optimize code using AI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # Check if required API keys are defined
+          if [ -n "$ANTHROPIC_API_KEY" ] || [ -n "$OPENAI_API_KEY" ]; then
+            echo "AI optimization enabled"
+            
+            # Get SonarQube results
+            SONAR_ISSUES=$(curl -s -X GET "https://sonarcloud.io/api/issues/search?componentKeys=maaninentupee_EvilScraper-&resolved=false" \
+              -H "Authorization: Bearer ${{ secrets.SONAR_TOKEN }}")
+            
+            # Save results to file
+            echo "$SONAR_ISSUES" > sonar-issues.json
+            
+            # Run AI optimization
+            node src/test-ai-optimization.js
+          else
+            echo "AI optimization skipped because API keys are not defined"
+          fi
+        continue-on-error: true
