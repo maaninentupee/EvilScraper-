@@ -90,6 +90,11 @@ export class ErrorClassifier {
             return ErrorClassifier.ERROR_TYPES.UNKNOWN;
         }
 
+        // Check for provider-specific errors first
+        if (error.provider) {
+            return this.classifyProviderSpecificError(error);
+        }
+
         // Check HTTP errors
         if (error.response && error.response.status) {
             return this.classifyHttpError(error);
@@ -98,11 +103,6 @@ export class ErrorClassifier {
         // Check network errors
         if (error.code || (error.message && typeof error.message === 'string')) {
             return this.classifyNetworkError(error);
-        }
-
-        // Check provider-specific errors
-        if (error.provider) {
-            return this.classifyProviderSpecificError(error);
         }
 
         return ErrorClassifier.ERROR_TYPES.UNKNOWN;
@@ -220,14 +220,17 @@ export class ErrorClassifier {
                 return ErrorClassifier.ERROR_TYPES.AUTHENTICATION_ERROR;
             }
             if (errorType === 'invalid_request_error') {
-                if (errorMessage.includes('model')) {
-                    return ErrorClassifier.ERROR_TYPES.MODEL_NOT_FOUND;
-                }
-                if (errorMessage.includes('content filter')) {
+                // Check for content filter first
+                if (errorMessage.includes('content filter') || errorMessage.includes('safety') || errorMessage.includes('rejected')) {
                     return ErrorClassifier.ERROR_TYPES.CONTENT_FILTER;
                 }
-                if (errorMessage.includes('context length') || errorMessage.includes('token')) {
+                // Then check for context length
+                if (errorMessage.includes('context length') || errorMessage.includes('token') || errorMessage.includes('maximum context')) {
                     return ErrorClassifier.ERROR_TYPES.CONTEXT_LENGTH;
+                }
+                // Finally check for model not found
+                if (errorMessage.includes('model')) {
+                    return ErrorClassifier.ERROR_TYPES.MODEL_NOT_FOUND;
                 }
                 return ErrorClassifier.ERROR_TYPES.INVALID_REQUEST;
             }

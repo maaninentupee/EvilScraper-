@@ -137,7 +137,7 @@ export class ModelSelector {
      * @param taskType Task type (seo, code, decision)
      * @param provider Desired service provider (null = use default priority)
      */
-    public getModel(taskType: string, provider?: ProviderType): string {
+    public getModel(taskType: string, provider?: ProviderType): string | null {
         // If provider is specified, use it
         if (provider) {
             switch (provider) {
@@ -157,20 +157,29 @@ export class ModelSelector {
             }
         }
         
-        // If not specified, use priority order
-        const providerPriority = environment.providerPriorityArray;
+        // Check if taskType is valid
+        if (!this.localModels[taskType] && !this.lmStudioModels[taskType] && 
+            !this.ollamaModels[taskType] && !this.fallbackModels[taskType]) {
+            this.logger.warn(`Unknown task type: ${taskType}`);
+            return null;
+        }
         
-        for (const priorityProvider of providerPriority) {
-            if (priorityProvider === 'local' && environment.useLocalModels) {
-                return this.localModels[taskType] || this.localModels["seo"];
-            } else if (priorityProvider === 'lmstudio' && environment.useLMStudio) {
-                return this.lmStudioModels[taskType] || this.lmStudioModels["seo"];
-            } else if (priorityProvider === 'ollama' && environment.useOllama) {
-                return this.ollamaModels[taskType] || this.ollamaModels["seo"];
-            } else if (priorityProvider === 'openai' && environment.useOpenAI) {
-                return "gpt-4-turbo";
-            } else if (priorityProvider === 'anthropic' && environment.useAnthropic) {
-                return "claude-3-opus-20240229";
+        // If not specified, use priority order
+        const providerPriority = environment.providerPriorityArray || ['local', 'lmstudio', 'ollama', 'openai', 'anthropic'];
+        
+        if (Array.isArray(providerPriority)) {
+            for (const priorityProvider of providerPriority) {
+                if (priorityProvider === 'local' && environment.useLocalModels) {
+                    return this.localModels[taskType] || this.localModels["seo"];
+                } else if (priorityProvider === 'lmstudio' && environment.useLMStudio) {
+                    return this.lmStudioModels[taskType] || this.lmStudioModels["seo"];
+                } else if (priorityProvider === 'ollama' && environment.useOllama) {
+                    return this.ollamaModels[taskType] || this.ollamaModels["seo"];
+                } else if (priorityProvider === 'openai' && environment.useOpenAI) {
+                    return "gpt-4-turbo";
+                } else if (priorityProvider === 'anthropic' && environment.useAnthropic) {
+                    return "claude-3-opus-20240229";
+                }
             }
         }
         
@@ -200,8 +209,8 @@ export class ModelSelector {
      * Gets model information by name
      * @param modelName Model name
      */
-    public getModelInfo(modelName: string): ModelInfo | null {
-        return this.modelCapabilities[modelName] || null;
+    public getModelInfo(modelName: string): ModelInfo | undefined {
+        return this.modelCapabilities[modelName] || undefined;
     }
 
     /**
@@ -324,11 +333,59 @@ export class ModelSelector {
     }
 
     /**
+     * Returns all available providers based on environment settings
+     * @returns Array of available provider names
+     */
+    public getAvailableProviders(): string[] {
+        const providers: string[] = [];
+        
+        if (environment.useLocalModels) {
+            providers.push('local');
+        }
+        
+        if (environment.useLMStudio) {
+            providers.push('lmstudio');
+        }
+        
+        // For test environment, check environment variables directly
+        if (environment.useOllama || process.env.OLLAMA_ENABLED === 'true') {
+            providers.push('ollama');
+        }
+        
+        if (environment.useOpenAI || process.env.OPENAI_API_KEY) {
+            providers.push('openai');
+        }
+        
+        if (environment.useAnthropic || process.env.ANTHROPIC_API_KEY) {
+            providers.push('anthropic');
+        }
+        
+        return providers;
+    }
+
+    /**
      * Returns all available models and their information
      */
-    public getAvailableModels() {
+    public getAvailableModels(): {
+        models: {
+            [taskType: string]: {
+                [provider: string]: string;
+            };
+        };
+        modelDetails: {
+            [modelName: string]: ModelInfo;
+        };
+        environmentConfig: {
+            useLocalModels: boolean;
+            useLMStudio: boolean;
+            useOllama: boolean;
+            useOpenAI: boolean;
+            useAnthropic: boolean;
+            providerPriority: string[];
+        };
+    } {
         const modelTypes: ModelType[] = ['seo', 'code', 'decision'];
-        const models = {};
+        const models: { [taskType: string]: { [provider: string]: string } } = {};
         
         // Add provider-specific models
         for (const type of modelTypes) {
@@ -336,28 +393,28 @@ export class ModelSelector {
             
             // Only add providers that are in use
             if (environment.useLocalModels) {
-                models[type]['local'] = this.getModel(type, 'local');
+                models[type]['local'] = this.getModel(type, 'local') as string;
             }
             
             if (environment.useLMStudio) {
-                models[type]['lmstudio'] = this.getModel(type, 'lmstudio');
+                models[type]['lmstudio'] = this.getModel(type, 'lmstudio') as string;
             }
             
             if (environment.useOllama) {
-                models[type]['ollama'] = this.getModel(type, 'ollama');
+                models[type]['ollama'] = this.getModel(type, 'ollama') as string;
             }
             
             if (environment.useOpenAI) {
-                models[type]['openai'] = this.getModel(type, 'openai');
+                models[type]['openai'] = this.getModel(type, 'openai') as string;
             }
             
             if (environment.useAnthropic) {
-                models[type]['anthropic'] = this.getModel(type, 'anthropic');
+                models[type]['anthropic'] = this.getModel(type, 'anthropic') as string;
             }
         }
         
         // Add model details
-        const modelDetails = {};
+        const modelDetails: { [modelName: string]: ModelInfo } = {};
         Object.values(this.modelCapabilities).forEach(modelInfo => {
             modelDetails[modelInfo.name] = modelInfo;
         });

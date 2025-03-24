@@ -1,7 +1,8 @@
-import { Controller, Post, Body, Logger, HttpException, HttpStatus, Ip } from '@nestjs/common';
+import { Controller, Post, Body, Logger, HttpException, HttpStatus, Ip, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { AIGatewayEnhancer } from '../services/AIGatewayEnhancer';
 import { SelectionStrategy } from '../services/utils/ProviderSelectionStrategy';
 import { EnhancedProcessingOptions } from '../services/AIGatewayEnhancer';
+import { FallbackAIRequestDto } from './dto/fallback.dto';
 
 /**
  * Request for AI processing
@@ -17,7 +18,7 @@ interface EnhancedProcessingRequest {
   strategy?: string;
   
   // Preferred service provider
-  preferredProvider?: string;
+  providerName?: string;
   
   // Whether to use cache
   cacheResults?: boolean;
@@ -43,7 +44,7 @@ interface BatchProcessingRequest {
   strategy?: string;
   
   // Preferred service provider
-  preferredProvider?: string;
+  providerName?: string;
   
   // Whether to use cache
   cacheResults?: boolean;
@@ -83,7 +84,7 @@ export class AIControllerEnhanced {
         input, 
         taskType = 'text-generation',
         strategy,
-        preferredProvider,
+        providerName,
         cacheResults = true,
         testMode = false,
         testError 
@@ -121,7 +122,7 @@ export class AIControllerEnhanced {
         input,
         {
           strategy: selectionStrategy,
-          preferredProvider,
+          providerName,
           cacheResults,
           testMode,
           testError
@@ -158,7 +159,7 @@ export class AIControllerEnhanced {
         inputs, 
         taskType = 'text-generation',
         strategy,
-        preferredProvider,
+        providerName,
         cacheResults = true,
         testMode = false,
         testError 
@@ -196,7 +197,7 @@ export class AIControllerEnhanced {
         inputs,
         {
           strategy: selectionStrategy,
-          preferredProvider,
+          providerName,
           cacheResults,
           testMode,
           testError
@@ -213,6 +214,151 @@ export class AIControllerEnhanced {
         `Error processing AI batch request: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
       );
+    }
+  }
+
+  /**
+   * Process a request with fallback mechanism
+   * @param input User input
+   * @param taskType Type of AI task
+   * @param providerName Optional preferred provider name
+   * @returns AI processing result with fallback information
+   */
+  @Post('fallback')
+  async processWithFallback(
+    @Body('input') input: string,
+    @Body('taskType') taskType: string,
+    @Body('providerName') providerName?: string
+  ) {
+    try {
+      if (!input || !taskType) {
+        throw new BadRequestException('Input and task type are required');
+      }
+      
+      // Create options object if providerName is specified
+      const options: EnhancedProcessingOptions = providerName 
+        ? { providerName } 
+        : {};
+      
+      const result = await this.aiGatewayEnhancer.processWithFallback(
+        taskType,
+        input,
+        options
+      );
+      
+      return result;
+    } catch (error) {
+      this.logger.error(`Error processing fallback AI request: ${error.message}`);
+      throw new InternalServerErrorException('Failed to process request with fallback');
+    }
+  }
+
+  /**
+   * Process a request using the performance strategy with fallback
+   * @param input User input
+   * @param taskType Type of AI task
+   * @param providerName Optional preferred provider
+   * @returns AI processing result
+   */
+  @Post('performance')
+  async processWithPerformanceStrategy(
+    @Body('input') input: string,
+    @Body('taskType') taskType: string,
+    @Body('providerName') providerName?: string
+  ) {
+    if (!input || !taskType) {
+      throw new BadRequestException('Input and task type are required');
+    }
+
+    try {
+      const options: EnhancedProcessingOptions = {};
+      
+      if (providerName) {
+        options.providerName = providerName;
+      }
+      
+      const result = await this.aiGatewayEnhancer.processWithStrategy(
+        taskType,
+        input,
+        'performance',
+        options
+      );
+
+      return result;
+    } catch (error) {
+      this.logger.error(`Error processing with performance strategy: ${error.message}`);
+      throw new InternalServerErrorException('Failed to process request');
+    }
+  }
+
+  /**
+   * Process a batch of inputs using the performance strategy with fallback
+   * @param inputs Array of input prompts to process
+   * @param taskType Type of AI task
+   * @param providerName Optional preferred provider
+   * @returns Array of AI processing results
+   */
+  @Post('batch/performance')
+  async processBatchWithPerformanceStrategy(
+    @Body('inputs') inputs: string[],
+    @Body('taskType') taskType: string,
+    @Body('providerName') providerName?: string
+  ) {
+    if (!inputs || !inputs.length || !taskType) {
+      throw new BadRequestException('Inputs array and task type are required');
+    }
+
+    try {
+      const options: EnhancedProcessingOptions = {};
+      
+      if (providerName) {
+        options.providerName = providerName;
+      }
+      
+      const results = await this.aiGatewayEnhancer.processBatchWithStrategy(
+        inputs,
+        taskType,
+        'performance',
+        options
+      );
+
+      return results;
+    } catch (error) {
+      this.logger.error(`Error processing batch with performance strategy: ${error.message}`);
+      throw new InternalServerErrorException('Failed to process batch');
+    }
+  }
+
+  /**
+   * Process a request with a specific provider
+   * @param input User input
+   * @param taskType Type of AI task
+   * @param providerName Name of the provider to use
+   * @returns AI processing result
+   */
+  @Post('provider')
+  async processWithProvider(
+    @Body('input') input: string,
+    @Body('taskType') taskType: string,
+    @Body('providerName') providerName: string
+  ) {
+    if (!input || !taskType || !providerName) {
+      throw new BadRequestException('Input, task type, and provider name are required');
+    }
+
+    try {
+      const options: EnhancedProcessingOptions = { providerName };
+      
+      const result = await this.aiGatewayEnhancer.process(
+        taskType,
+        input,
+        options
+      );
+
+      return result;
+    } catch (error) {
+      this.logger.error(`Error processing with provider ${providerName}: ${error.message}`);
+      throw new InternalServerErrorException('Failed to process request');
     }
   }
 }

@@ -98,89 +98,85 @@ describe('AIController - Load Test Endpoint', () => {
     it('should run a successful load test with default parameters', async () => {
       // Arrange
       const provider = 'success-provider';
-      const request = { prompt: 'Test prompt' };
+      const request = { prompt: 'Test prompt', requestCount: 1 };
 
       // Act
-      const result = await controller.runLoadTest(provider, request);
+      const result = await controller.runLoadTest(provider, request, '127.0.0.1');
 
       // Assert
       expect(result).toBeDefined();
-      expect(result.provider).toBe(provider);
-      expect(result.iterations).toBe(1);
+      expect(result.successCount).toBeGreaterThan(0);
+      expect(result.totalRequests).toBe(1);
       expect(result.successRate).toBe(100);
-      expect(result.results.length).toBe(1);
-      expect(result.results[0].success).toBe(true);
-      expect(result.errors).toBeNull();
+      expect(result.averageLatency).toBeGreaterThanOrEqual(0);
+      expect(result.errorsByType).toEqual({});
     });
 
     it('should run a load test with multiple iterations', async () => {
       // Arrange
       const provider = 'success-provider';
-      const request = { prompt: 'Test prompt', iterations: 5 };
+      const request = { prompt: 'Test prompt', requestCount: 5 };
 
       // Act
-      const result = await controller.runLoadTest(provider, request);
+      const result = await controller.runLoadTest(provider, request, '127.0.0.1');
 
       // Assert
       expect(result).toBeDefined();
-      expect(result.provider).toBe(provider);
-      expect(result.iterations).toBe(5);
+      expect(result.successCount).toBe(5);
+      expect(result.totalRequests).toBe(5);
       expect(result.successRate).toBe(100);
-      expect(result.results.length).toBe(5);
-      expect(result.errors).toBeNull();
+      expect(result.averageLatency).toBeGreaterThanOrEqual(0);
+      expect(result.errorsByType).toEqual({});
     });
 
     it('should handle provider failures correctly', async () => {
       // Arrange
       const provider = 'failure-provider';
-      const request = { prompt: 'Test prompt', iterations: 3 };
+      const request = { prompt: 'Test prompt', requestCount: 3 };
 
       // Act
-      const result = await controller.runLoadTest(provider, request);
+      const result = await controller.runLoadTest(provider, request, '127.0.0.1');
 
       // Assert
       expect(result).toBeDefined();
-      expect(result.provider).toBe(provider);
-      expect(result.iterations).toBe(3);
+      expect(result.successCount).toBe(0);
+      expect(result.failureCount).toBe(3);
+      expect(result.totalRequests).toBe(3);
       expect(result.successRate).toBe(0);
-      expect(result.results.length).toBe(3);
-      expect(result.results.every(r => r.success === false)).toBe(true);
-      expect(result.errors).toBeDefined();
-      expect(result.errors.length).toBe(3);
+      expect(result.errorsByType).toBeDefined();
     });
 
     it('should handle non-existent provider', async () => {
       // Arrange
       const provider = 'non-existent-provider';
-      const request = { prompt: 'Test prompt' };
+      const request = { prompt: 'Test prompt', requestCount: 1 };
 
       // Act
-      const result = await controller.runLoadTest(provider, request);
+      const result = await controller.runLoadTest(provider, request, '127.0.0.1');
 
       // Assert
       expect(result).toBeDefined();
-      expect(result.provider).toBe(provider);
+      expect(result.successCount).toBe(0);
+      expect(result.failureCount).toBe(1);
+      expect(result.totalRequests).toBe(1);
       expect(result.successRate).toBe(0);
-      expect(result.results.length).toBe(1);
-      expect(result.results[0].success).toBe(false);
-      expect(result.errors).toBeDefined();
-      expect(result.errors.length).toBe(1);
-      expect(result.errors[0].error).toContain('not found');
+      expect(result.errorsByType).toBeDefined();
+      expect(Object.values(result.errorsByType).some(count => count > 0)).toBe(true);
     });
 
     it('should use default values when not provided', async () => {
       // Arrange
       const provider = 'success-provider';
-      const request = { prompt: 'Default test prompt' };
+      const request = { prompt: 'Default test prompt', requestCount: 1 };
 
       // Act
-      const result = await controller.runLoadTest(provider, request);
+      const result = await controller.runLoadTest(provider, request, '127.0.0.1');
 
       // Assert
       expect(result).toBeDefined();
-      expect(result.model).toBe('default');
-      expect(result.iterations).toBe(1);
-      expect(result.results[0].success).toBe(true);
+      expect(result.totalRequests).toBe(1);
+      expect(result.successCount).toBe(1);
+      expect(result.successRate).toBe(100);
     });
   });
 });

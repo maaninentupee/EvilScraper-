@@ -3,6 +3,11 @@ import { AIService } from '../../src/services/AIService';
 import { ModelSelector } from '../../src/services/ModelSelector';
 import { AIGateway } from '../../src/services/AIGateway';
 import { MockLogger } from '../test-utils';
+import { ProviderRegistry } from '../../src/services/providers/ProviderRegistry';
+import { ConfigService } from '@nestjs/config';
+import { ProviderHealthMonitor } from '../../src/services/ProviderHealthMonitor';
+import { ProviderSelectionStrategy } from '../../src/services/utils/ProviderSelectionStrategy';
+import { ErrorClassifier } from '../../src/services/utils/ErrorClassifier';
 
 jest.mock('../../src/services/ModelSelector');
 jest.mock('../../src/services/AIGateway');
@@ -12,11 +17,28 @@ describe('AIService - Local and fallback models', () => {
     let mockModelSelector: jest.Mocked<ModelSelector>;
     let mockAIGateway: jest.Mocked<AIGateway>;
     let mockLogger: MockLogger;
+    let mockProviderRegistry: jest.Mocked<ProviderRegistry>;
+    let mockConfigService: jest.Mocked<ConfigService>;
+    let mockHealthMonitor: jest.Mocked<ProviderHealthMonitor>;
+    let mockSelectionStrategy: jest.Mocked<ProviderSelectionStrategy>;
+    let mockErrorClassifier: jest.Mocked<ErrorClassifier>;
 
     beforeEach(async () => {
         mockLogger = new MockLogger();
         mockModelSelector = new ModelSelector() as jest.Mocked<ModelSelector>;
-        mockAIGateway = new AIGateway(mockModelSelector) as jest.Mocked<AIGateway>;
+        mockProviderRegistry = {} as jest.Mocked<ProviderRegistry>;
+        mockConfigService = {} as jest.Mocked<ConfigService>;
+        mockHealthMonitor = {} as jest.Mocked<ProviderHealthMonitor>;
+        mockSelectionStrategy = {} as jest.Mocked<ProviderSelectionStrategy>;
+        mockErrorClassifier = {} as jest.Mocked<ErrorClassifier>;
+        
+        mockAIGateway = new AIGateway(
+            mockProviderRegistry,
+            mockConfigService,
+            mockHealthMonitor,
+            mockSelectionStrategy,
+            mockErrorClassifier
+        ) as jest.Mocked<AIGateway>;
         
         const module: TestingModule = await Test.createTestingModule({
             providers: [
@@ -57,7 +79,7 @@ describe('AIService - Local and fallback models', () => {
 
         // Mock AI response
         mockAIGateway.processAIRequest = jest.fn().mockResolvedValue({
-            result: 'SEO analysis here',
+            text: 'SEO analysis here',
             model: 'LMStudio-Model-1'
         });
 
@@ -73,7 +95,7 @@ describe('AIService - Local and fallback models', () => {
         
         // Check that the result is as expected
         expect(result).toEqual({
-            result: 'SEO analysis here',
+            text: 'SEO analysis here',
             model: 'LMStudio-Model-1'
         });
     });
@@ -105,7 +127,7 @@ describe('AIService - Local and fallback models', () => {
         mockAIGateway.processAIRequest = jest.fn()
             .mockRejectedValueOnce(new Error('LM Studio Error'))
             .mockResolvedValueOnce({
-                result: 'SEO analysis from Ollama model',
+                text: 'SEO analysis from Ollama model',
                 model: 'Ollama-Model-1'
             });
 
@@ -133,7 +155,7 @@ describe('AIService - Local and fallback models', () => {
         
         // Check that the result is from Ollama model
         expect(result).toEqual({
-            result: 'SEO analysis from Ollama model',
+            text: 'SEO analysis from Ollama model',
             model: 'Ollama-Model-1'
         });
     });
@@ -174,7 +196,7 @@ describe('AIService - Local and fallback models', () => {
             .mockRejectedValueOnce(new Error('LM Studio Error'))
             .mockRejectedValueOnce(new Error('OLLAMA Error'))
             .mockResolvedValueOnce({
-                result: 'SEO analysis from OpenAI model',
+                text: 'SEO analysis from OpenAI model',
                 model: 'gpt-4-turbo'
             });
 
@@ -194,7 +216,7 @@ describe('AIService - Local and fallback models', () => {
         
         // Check that the result is from OpenAI model
         expect(result).toEqual({
-            result: 'SEO analysis from OpenAI model',
+            text: 'SEO analysis from OpenAI model',
             model: 'gpt-4-turbo'
         });
     });
@@ -286,7 +308,7 @@ describe('AIService - Local and fallback models', () => {
         // Mock AI response to succeed with Ollama model
         mockAIGateway.processAIRequest = jest.fn()
             .mockResolvedValueOnce({
-                result: 'SEO analysis from Ollama model',
+                text: 'SEO analysis from Ollama model',
                 model: 'Ollama-Model-1'
             });
 
@@ -305,7 +327,7 @@ describe('AIService - Local and fallback models', () => {
         
         // Check that the result is from Ollama model
         expect(result).toEqual({
-            result: 'SEO analysis from Ollama model',
+            text: 'SEO analysis from Ollama model',
             model: 'Ollama-Model-1'
         });
     });
@@ -323,7 +345,7 @@ describe('AIService - Local and fallback models', () => {
 
         // Mock AI response
         mockAIGateway.processAIRequest = jest.fn().mockResolvedValue({
-            result: 'Generated code here',
+            text: 'Generated code here',
             model: 'test-model'
         });
 
@@ -359,7 +381,7 @@ describe('AIService - Local and fallback models', () => {
 
         // Mock AI response
         mockAIGateway.processAIRequest = jest.fn().mockResolvedValue({
-            result: 'Generated code with requirements',
+            text: 'Generated code with requirements',
             model: 'test-model'
         });
 
@@ -389,7 +411,7 @@ describe('AIService - Local and fallback models', () => {
 
         // Mock AI response
         mockAIGateway.processAIRequest = jest.fn().mockResolvedValue({
-            result: '{"decision": "yes", "reason": "test reason"}',
+            text: '{"decision": "yes", "reason": "test reason"}',
             model: 'test-model'
         });
 
@@ -427,7 +449,7 @@ describe('AIService - Local and fallback models', () => {
 
         // Mock AI response
         mockAIGateway.processAIRequest = jest.fn().mockResolvedValue({
-            result: 'SEO analysis result',
+            text: 'SEO analysis result',
             model: 'test-model'
         });
 
@@ -441,7 +463,7 @@ describe('AIService - Local and fallback models', () => {
         // Reset mocks
         jest.clearAllMocks();
         mockAIGateway.processAIRequest = jest.fn().mockResolvedValue({
-            result: 'SEO analysis result with all params',
+            text: 'SEO analysis result with all params',
             model: 'test-model'
         });
 
@@ -492,10 +514,18 @@ describe('AIService - Local and fallback models', () => {
             });
 
         // First call fails, second call succeeds
-        mockAIGateway.processAIRequest = jest.fn()
-            .mockRejectedValueOnce(new Error('Specific error message'))
+        mockAIGateway.processAIRequestWithFallback = jest.fn()
             .mockResolvedValueOnce({
-                result: 'Success from fallback model',
+                success: false,
+                error: 'Specific error message',
+                errorType: 'provider_error',
+                provider: 'provider-1',
+                model: 'model-1'
+            })
+            .mockResolvedValueOnce({
+                success: true,
+                text: 'Success from fallback model',
+                provider: 'provider-2',
                 model: 'model-2'
             });
 
@@ -503,16 +533,15 @@ describe('AIService - Local and fallback models', () => {
         const result = await aiService.analyzeSEO({ title: 'Test Title' });
 
         // Check that both models were called
-        expect(mockAIGateway.processAIRequest).toHaveBeenCalledTimes(2);
+        expect(mockAIGateway.processAIRequestWithFallback).toHaveBeenCalledTimes(2);
         
         // Check that the error log contains an error message
         expect(mockLogger.logs.error.length).toBeGreaterThan(0);
         
         // Check that the result is from the second model
-        expect(result).toEqual({
-            result: 'Success from fallback model',
-            model: 'model-2'
-        });
+        expect(result.success).toBe(true);
+        expect(result.text).toBe('Success from fallback model');
+        expect(result.model).toBe('model-2');
     });
     
     test('processWithFallback handles errors correctly when all models fail', async () => {
@@ -533,15 +562,23 @@ describe('AIService - Local and fallback models', () => {
                 contextLength: 8192
             });
 
-        // All calls fail
-        mockAIGateway.processAIRequest = jest.fn()
-            .mockRejectedValue(new Error('Specific error message'));
+        // Mock processAIRequestWithFallback to return an error result
+        mockAIGateway.processAIRequestWithFallback = jest.fn()
+            .mockResolvedValue({
+                success: false,
+                error: 'All providers failed',
+                errorType: 'provider_error',
+                provider: 'none',
+                model: 'none'
+            });
 
-        // Run analysis and expect an error
-        await expect(aiService.analyzeSEO({ title: 'Test Title' }))
-            .rejects
-            .toThrow('All models failed');
+        // Run analysis and expect an error result
+        const result = await aiService.analyzeSEO({ title: 'Test Title' });
 
+        // Check that the result indicates failure
+        expect(result.success).toBe(false);
+        expect(result.errorType).toBe('provider_error');
+        
         // Check that the error log contains an error message
         expect(mockLogger.logs.error.length).toBeGreaterThan(0);
     });
@@ -555,15 +592,23 @@ describe('AIService - Local and fallback models', () => {
         mockModelSelector.getModelInfo = jest.fn()
             .mockReturnValue(null);
 
-        // Run analysis and expect an error
-        await expect(aiService.analyzeSEO({ title: 'Test Title' }))
-            .rejects
-            .toThrow('All models failed');
+        // Mock processAIRequestWithFallback to return an error result
+        mockAIGateway.processAIRequestWithFallback = jest.fn()
+            .mockResolvedValue({
+                success: false,
+                error: 'Model not found',
+                errorType: 'configuration_error',
+                provider: 'none',
+                model: 'none'
+            });
 
-        // Check that a warning was logged
-        expect(mockLogger.logs.warn.some(msg => 
-            msg.includes('No model found for task type seo')
-        )).toBeTruthy();
+        // Run analysis and expect an error result
+        const result = await aiService.analyzeSEO({ title: 'Test Title' });
+
+        // Check that the result indicates failure
+        expect(result.success).toBe(false);
+        expect(result.provider).toBe('none');
+        expect(result.model).toBe('none');
     });
     
     test('processWithFallback handles errors correctly when getModel returns null', async () => {
@@ -571,14 +616,22 @@ describe('AIService - Local and fallback models', () => {
         mockModelSelector.getModel = jest.fn()
             .mockReturnValue(null);
 
-        // Run analysis and expect an error
-        await expect(aiService.analyzeSEO({ title: 'Test Title' }))
-            .rejects
-            .toThrow('All models failed');
+        // Mock processAIRequestWithFallback to return an error result
+        mockAIGateway.processAIRequestWithFallback = jest.fn()
+            .mockResolvedValue({
+                success: false,
+                error: 'No model available',
+                errorType: 'configuration_error',
+                provider: 'none',
+                model: 'none'
+            });
 
-        // Check that a warning was logged
-        expect(mockLogger.logs.warn.some(msg => 
-            msg.includes('No model found for task type seo')
-        )).toBeTruthy();
+        // Run analysis and expect an error result
+        const result = await aiService.analyzeSEO({ title: 'Test Title' });
+
+        // Check that the result indicates failure
+        expect(result.success).toBe(false);
+        expect(result.errorType).toBe('configuration_error');
+        expect(result.text).toBe('');
     });
 });

@@ -1,46 +1,57 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AIController } from '../../src/controllers/ai.controller';
-import { AIGateway } from '../../src/services/AIGateway';
-import { AIService } from '../../src/services/AIService';
-import { ModelSelector } from '../../src/services/ModelSelector';
-import { ProviderRegistry } from '../../src/services/providers/ProviderRegistry';
+import { AIGateway, AIResponse } from '../../src/services/AIGateway';
+import { EvilBotService } from '../../src/services/EvilBotService';
+import { ConfigService } from '@nestjs/config';
 import { MockLogger } from '../test-utils';
+
+// Define mock interfaces to match the actual implementations
+interface MockAIGateway {
+  processAIRequest: jest.Mock;
+  processAIRequestWithFallback: jest.Mock;
+  getAvailableProviders: jest.Mock;
+  getModels: jest.Mock;
+  processBatch: jest.Mock;
+  process: jest.Mock;
+  logger: any;
+}
+
+interface MockEvilBotService {
+  generateResponse: jest.Mock;
+}
 
 describe('AIController', () => {
   let controller: AIController;
-  let mockAIGateway: jest.Mocked<AIGateway>;
-  let mockAIService: jest.Mocked<AIService>;
-  let mockModelSelector: jest.Mocked<ModelSelector>;
-  let mockProviderRegistry: jest.Mocked<ProviderRegistry>;
+  let mockAIGateway: MockAIGateway;
+  let mockEvilBotService: MockEvilBotService;
+  let mockConfigService: Partial<ConfigService>;
 
   beforeEach(async () => {
+    // Create mock implementations
     mockAIGateway = {
       processAIRequest: jest.fn(),
-      processAIRequestWithFallback: jest.fn()
-    } as any;
+      processAIRequestWithFallback: jest.fn(),
+      getAvailableProviders: jest.fn(),
+      getModels: jest.fn(),
+      processBatch: jest.fn(),
+      process: jest.fn(),
+      logger: new MockLogger()
+    };
 
-    mockAIService = {
-      analyzeSEO: jest.fn(),
-      generateCode: jest.fn(),
-      makeDecision: jest.fn()
-    } as any;
+    mockEvilBotService = {
+      generateResponse: jest.fn()
+    };
 
-    mockModelSelector = {
-      getModel: jest.fn()
-    } as any;
-
-    mockProviderRegistry = {
-      getProviderByName: jest.fn(),
-      getAvailableProviders: jest.fn()
-    } as any;
+    mockConfigService = {
+      get: jest.fn()
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AIController],
       providers: [
         { provide: AIGateway, useValue: mockAIGateway },
-        { provide: AIService, useValue: mockAIService },
-        { provide: ModelSelector, useValue: mockModelSelector },
-        { provide: ProviderRegistry, useValue: mockProviderRegistry }
+        { provide: EvilBotService, useValue: mockEvilBotService },
+        { provide: ConfigService, useValue: mockConfigService }
       ],
     }).compile();
 
@@ -54,296 +65,142 @@ describe('AIController', () => {
   });
 
   describe('generateCompletion', () => {
-    it('should call AIGateway.processAIRequest with correct parameters', async () => {
-      mockAIGateway.processAIRequest.mockResolvedValue('Generated text');
+    it('should call AIGateway.process with correct parameters', async () => {
+      const mockResponse: AIResponse = {
+        success: true,
+        provider: 'openai',
+        model: 'gpt-4',
+        result: 'Generated text'
+      };
+      
+      mockAIGateway.process.mockResolvedValue(mockResponse);
 
       const result = await controller.generateCompletion({
-        prompt: 'Test prompt',
-        modelType: 'seo'
-      });
+        input: 'Test prompt',
+        taskType: 'seo'
+      }, '127.0.0.1');
 
-      expect(mockAIGateway.processAIRequest).toHaveBeenCalledWith(
-        'seo',
-        'Test prompt'
+      expect(mockAIGateway.process).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: 'Test prompt',
+          taskType: 'seo'
+        })
       );
-      expect(result).toEqual({
-        result: 'Generated text',
-        success: true
-      });
-    });
-
-    it('should use default model type if not provided', async () => {
-      mockAIGateway.processAIRequest.mockResolvedValue('Generated text');
-
-      await controller.generateCompletion({
-        prompt: 'Test prompt'
-      });
-
-      expect(mockAIGateway.processAIRequest).toHaveBeenCalledWith(
-        'seo',
-        'Test prompt'
-      );
-    });
-  });
-
-  describe('processAIRequest', () => {
-    it('should call AIGateway.processAIRequestWithFallback with correct parameters', async () => {
-      mockAIGateway.processAIRequestWithFallback.mockResolvedValue('AI result');
-
-      const result = await controller.processAIRequest({
-        input: 'Test input',
-        taskType: 'code'
-      });
-
-      expect(mockAIGateway.processAIRequestWithFallback).toHaveBeenCalledWith(
-        'code',
-        'Test input'
-      );
-      expect(result).toEqual({
-        result: 'AI result',
-        success: true
-      });
+      
+      expect(result).toEqual(mockResponse);
     });
 
     it('should use default task type if not provided', async () => {
-      mockAIGateway.processAIRequestWithFallback.mockResolvedValue('AI result');
+      const mockResponse: AIResponse = {
+        success: true,
+        provider: 'openai',
+        model: 'gpt-4',
+        result: 'Generated text'
+      };
+      
+      mockAIGateway.process.mockResolvedValue(mockResponse);
 
-      await controller.processAIRequest({
-        input: 'Test input'
-      });
+      await controller.generateCompletion({
+        input: 'Test prompt'
+      }, '127.0.0.1');
 
-      expect(mockAIGateway.processAIRequestWithFallback).toHaveBeenCalledWith(
-        'seo',
-        'Test input'
+      expect(mockAIGateway.process).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: 'Test prompt'
+        })
       );
     });
   });
 
-  describe('analyzeSEO', () => {
-    it('should call AIService.analyzeSEO with correct parameters', async () => {
-      mockAIService.analyzeSEO.mockResolvedValue({
-        result: 'SEO analysis',
-        model: 'test-model'
-      });
+  describe('generateEvilBotResponse', () => {
+    it('should call EvilBotService.generateResponse with correct parameters', async () => {
+      mockEvilBotService.generateResponse.mockResolvedValue('Evil response');
 
-      const result = await controller.analyzeSEO({
-        title: 'Test title',
-        description: 'Test description',
-        content: 'Test content'
-      });
+      const result = await controller.generateEvilBotResponse({
+        input: 'Test prompt'
+      }, '127.0.0.1');
 
-      expect(mockAIService.analyzeSEO).toHaveBeenCalledWith({
-        title: 'Test title',
-        description: 'Test description',
-        content: 'Test content'
-      });
+      expect(mockEvilBotService.generateResponse).toHaveBeenCalledWith('Test prompt');
       expect(result).toEqual({
-        result: {
-          result: 'SEO analysis',
-          model: 'test-model'
-        },
-        success: true
-      });
-    });
-
-    it('should handle errors from AIService.analyzeSEO', async () => {
-      mockAIService.analyzeSEO.mockRejectedValue(new Error('SEO error'));
-
-      const result = await controller.analyzeSEO({
-        title: 'Test title'
-      });
-
-      expect(result).toEqual({
-        result: null,
-        success: false,
-        error: 'SEO error'
+        result: 'Evil response',
+        success: true,
+        provider: 'evilbot',
+        model: 'evilbot-v1'
       });
     });
   });
 
-  describe('generateCode', () => {
-    it('should call AIService.generateCode with correct parameters', async () => {
-      mockAIService.generateCode.mockResolvedValue({
-        result: 'Generated code',
-        model: 'test-model'
-      });
-
-      const result = await controller.generateCode({
-        language: 'typescript',
-        description: 'Test function',
-        requirements: ['Fast', 'Secure']
-      });
-
-      expect(mockAIService.generateCode).toHaveBeenCalledWith({
-        language: 'typescript',
-        description: 'Test function',
-        requirements: ['Fast', 'Secure']
-      });
-      expect(result).toEqual({
-        result: {
-          result: 'Generated code',
-          model: 'test-model'
+  describe('processBatch', () => {
+    it('should call AIGateway.processBatch with correct parameters', async () => {
+      const mockResponses: AIResponse[] = [
+        {
+          success: true,
+          provider: 'openai',
+          model: 'gpt-4',
+          result: 'Result 1'
         },
-        success: true
-      });
-    });
+        {
+          success: true,
+          provider: 'openai',
+          model: 'gpt-4',
+          result: 'Result 2'
+        }
+      ];
+      
+      mockAIGateway.processBatch.mockResolvedValue(mockResponses);
 
-    it('should handle errors from AIService.generateCode', async () => {
-      mockAIService.generateCode.mockRejectedValue(new Error('Code generation error'));
+      const result = await controller.processBatch({
+        inputs: ['Input 1', 'Input 2'],
+        taskType: 'code'
+      }, '127.0.0.1');
 
-      const result = await controller.generateCode({
-        language: 'typescript',
-        description: 'Test function'
-      });
-
-      expect(result).toEqual({
-        result: null,
-        success: false,
-        error: 'Code generation error'
-      });
+      expect(mockAIGateway.processBatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          inputs: ['Input 1', 'Input 2'],
+          taskType: 'code'
+        })
+      );
+      
+      expect(result).toEqual(mockResponses);
     });
   });
 
-  describe('makeDecision', () => {
-    it('should call AIService.makeDecision with correct parameters', async () => {
-      mockAIService.makeDecision.mockResolvedValue({
-        result: 'Decision result',
-        model: 'test-model'
-      });
+  describe('getProviders', () => {
+    it('should return available providers', async () => {
+      const providers = [
+        { name: 'openai', available: true },
+        { name: 'anthropic', available: true },
+        { name: 'ollama', available: false }
+      ];
+      
+      mockAIGateway.getAvailableProviders.mockResolvedValue(providers);
 
-      const result = await controller.makeDecision({
-        situation: 'Test situation',
-        options: ['Option A', 'Option B']
-      });
+      const result = await controller.getProviders();
 
-      expect(mockAIService.makeDecision).toHaveBeenCalledWith({
-        situation: 'Test situation',
-        options: ['Option A', 'Option B']
-      });
-      expect(result).toEqual({
-        result: {
-          result: 'Decision result',
-          model: 'test-model'
-        },
-        success: true
-      });
-    });
-
-    it('should handle errors from AIService.makeDecision', async () => {
-      mockAIService.makeDecision.mockRejectedValue(new Error('Decision error'));
-
-      const result = await controller.makeDecision({
-        situation: 'Test situation',
-        options: ['Option A', 'Option B']
-      });
-
-      expect(result).toEqual({
-        result: null,
-        success: false,
-        error: 'Decision error'
-      });
+      expect(result).toEqual(providers);
     });
   });
 
   describe('getModels', () => {
     it('should return models for all task types and providers', () => {
-      // Mock ModelSelector.getAvailableModels
-      mockModelSelector.getModel = jest.fn()
-        // SEO models
-        .mockReturnValueOnce('local-seo-model')
-        .mockReturnValueOnce('lmstudio-seo-model')
-        .mockReturnValueOnce('ollama-seo-model')
-        .mockReturnValueOnce('openai-seo-model')
-        .mockReturnValueOnce('anthropic-seo-model')
-        
-        // Code models
-        .mockReturnValueOnce('local-code-model')
-        .mockReturnValueOnce('lmstudio-code-model')
-        .mockReturnValueOnce('ollama-code-model')
-        .mockReturnValueOnce('openai-code-model')
-        .mockReturnValueOnce('anthropic-code-model')
-        
-        // Decision models
-        .mockReturnValueOnce('local-decision-model')
-        .mockReturnValueOnce('lmstudio-decision-model')
-        .mockReturnValueOnce('ollama-decision-model')
-        .mockReturnValueOnce('openai-decision-model')
-        .mockReturnValueOnce('anthropic-decision-model');
-
-      // Mock environment settings
-      const mockEnvironment = {
-        useLocalModels: true,
-        useLMStudio: true,
-        useOllama: true,
-        useOpenAI: true,
-        useAnthropic: true
+      const models = {
+        seo: {
+          openai: 'openai:gpt-4',
+          anthropic: 'anthropic:claude-2',
+          ollama: 'ollama:llama2'
+        },
+        code: {
+          openai: 'openai:gpt-3.5-turbo',
+          anthropic: 'anthropic:claude-instant',
+          ollama: 'ollama:mistral'
+        }
       };
 
-      // Create a mock implementation for getAvailableModels
-      mockModelSelector.getAvailableModels = jest.fn().mockImplementation(() => {
-        const modelTypes = ['seo', 'code', 'decision'];
-        const models = {};
-        
-        for (const type of modelTypes) {
-          models[type] = {};
-          
-          if (mockEnvironment.useLocalModels) {
-            models[type]['local'] = mockModelSelector.getModel(type, 'local');
-          }
-          
-          if (mockEnvironment.useLMStudio) {
-            models[type]['lmstudio'] = mockModelSelector.getModel(type, 'lmstudio');
-          }
-          
-          if (mockEnvironment.useOllama) {
-            models[type]['ollama'] = mockModelSelector.getModel(type, 'ollama');
-          }
-          
-          if (mockEnvironment.useOpenAI) {
-            models[type]['openai'] = mockModelSelector.getModel(type, 'openai');
-          }
-          
-          if (mockEnvironment.useAnthropic) {
-            models[type]['anthropic'] = mockModelSelector.getModel(type, 'anthropic');
-          }
-        }
-        
-        return { 
-          models,
-          modelDetails: {},
-          environmentConfig: mockEnvironment
-        };
-      });
+      mockAIGateway.getModels.mockReturnValue(models);
 
       const result = controller.getModels();
 
-      expect(result).toEqual({
-        models: {
-          seo: {
-            local: 'local-seo-model',
-            lmstudio: 'lmstudio-seo-model',
-            ollama: 'ollama-seo-model',
-            openai: 'openai-seo-model',
-            anthropic: 'anthropic-seo-model'
-          },
-          code: {
-            local: 'local-code-model',
-            lmstudio: 'lmstudio-code-model',
-            ollama: 'ollama-code-model',
-            openai: 'openai-code-model',
-            anthropic: 'anthropic-code-model'
-          },
-          decision: {
-            local: 'local-decision-model',
-            lmstudio: 'lmstudio-decision-model',
-            ollama: 'ollama-decision-model',
-            openai: 'openai-decision-model',
-            anthropic: 'anthropic-decision-model'
-          }
-        },
-        modelDetails: {},
-        environmentConfig: mockEnvironment
-      });
+      expect(result).toEqual(models);
     });
   });
 });

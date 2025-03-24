@@ -1,5 +1,5 @@
 /**
- * AI-vastauksen tyyppi
+ * AI response type
  */
 export interface AIResponse {
     success: boolean;
@@ -18,7 +18,7 @@ export interface AIResponse {
 }
 
 /**
- * Batch-vastauksen tyyppi
+ * Batch response type
  */
 export interface AIBatchResponse {
     success: boolean;
