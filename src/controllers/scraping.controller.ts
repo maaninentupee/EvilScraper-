@@ -47,7 +47,7 @@ function isAIErrorResponse(obj: any): obj is AIErrorResponse {
 export class ScrapingController {
   private readonly logger = new Logger(ScrapingController.name);
 
-  constructor(private scrapingService: ScrapingService) {}
+  constructor(private readonly scrapingService: ScrapingService) {}
 
   @Post('analyze-seo')
   async analyzeSEO(@Body() scrapedData: ScrapedDataDto) {

@@ -36,7 +36,7 @@ function isDecision(obj: any): obj is Decision {
 export class EvilBotController {
   private readonly logger = new Logger(EvilBotController.name);
 
-  constructor(private evilBotService: EvilBotService) {}
+  constructor(private readonly evilBotService: EvilBotService) {}
 
   @Post('decide')
   async makeDecision(@Body() request: DecisionRequestDto): Promise<Decision> {

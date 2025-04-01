@@ -1,5 +1,5 @@
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import { sleep } from 'k6';
 import { Rate, Trend, Counter } from 'k6/metrics';
 
 // General metrics
@@ -58,9 +58,9 @@ const providers = [
 ];
 
 // Write to log
-function log(message, model, status, duration) {
+function log(message, status, duration) {
   const timestamp = new Date().toISOString();
-  const logEntry = `${timestamp} | Model: ${model} | Status: ${status} | Duration: ${duration}ms | ${message}`;
+  const logEntry = `${timestamp} | Status: ${status} | Duration: ${duration}ms | ${message}`;
   console.log(logEntry);
 }
 
@@ -80,94 +80,80 @@ function selectProvider() {
   return providers[0];
 }
 
+// Update model-specific metrics
+function updateModelMetrics(modelName, duration, success) {
+  const metrics = {
+    openai: { time: openaiTime, rate: openaiSuccessRate },
+    anthropic: { time: anthropicTime, rate: anthropicSuccessRate },
+    ollama: { time: ollamaTime, rate: ollamaSuccessRate }
+  };
+
+  if (metrics[modelName]) {
+    if (success) {
+      metrics[modelName].time.add(duration);
+    }
+    metrics[modelName].rate.add(success ? 1 : 0);
+  }
+}
+
+// Handle error response
+function handleError(response, provider, duration) {
+  failedRequests.add(1);
+  errorRate.add(1);
+  
+  if (response.error_code === 'ETIMEDOUT' || response.error_code === 'ESOCKETTIMEDOUT') {
+    timeoutErrors.add(1);
+    log(`Timeout error`, 'timeout', duration);
+  } else if (response.status >= 500) {
+    serverErrors.add(1);
+    log(`Server error: ${response.status}`, 'server_error', duration);
+  } else if (response.status >= 400) {
+    clientErrors.add(1);
+    log(`Client error: ${response.status}`, 'client_error', duration);
+  } else {
+    log(`Other error: ${response.status}`, 'other_error', duration);
+  }
+  
+  updateModelMetrics(provider.name, duration, false);
+}
+
 export default function () {
-  // Select service provider based on weights
   const provider = selectProvider();
-  const model = provider.models[Math.floor(Math.random() * provider.models.length)];
   const prompt = prompts[Math.floor(Math.random() * prompts.length)];
   
-  // Use the /ai/process endpoint, which utilizes the AIGateway class fallback mechanism
   const url = 'http://localhost:3001/ai/process';
-  
   const payload = JSON.stringify({
     taskType: 'seo',
     input: prompt,
-    primaryModel: provider.name,  // Define primary model
+    primaryModel: provider.name,
   });
   
   const params = {
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    timeout: 30000  // 30 second timeout
+    headers: { 'Content-Type': 'application/json' },
+    timeout: 30000
   };
 
-  // Measure response time
   const startTime = Date.now();
   const response = http.post(url, payload, params);
   const duration = Date.now() - startTime;
   
-  // Add response time to general metrics
   responseTime.add(duration);
 
-  // Check response status
-  const success = response.status === 200;
-  
-  if (success) {
+  if (response.status === 200) {
     successfulRequests.add(1);
-    
     try {
       const data = response.json();
+      const modelUsed = data.model || data.provider || provider.name;
       
-      // Logging
-      log(`Request successful, model used: ${data.model || provider.name}`, 
-          data.model || provider.name, 'success', duration);
-      
-      // Update model-specific metrics
-      if (data.model === 'openai' || data.provider === 'openai' || provider.name === 'openai') {
-        openaiTime.add(duration);
-        openaiSuccessRate.add(1);
-      } else if (data.model === 'anthropic' || data.provider === 'anthropic' || provider.name === 'anthropic') {
-        anthropicTime.add(duration);
-        anthropicSuccessRate.add(1);
-      } else if (data.model === 'ollama' || data.provider === 'ollama' || provider.name === 'ollama') {
-        ollamaTime.add(duration);
-        ollamaSuccessRate.add(1);
-      }
-      
+      log(`Request successful, model used: ${modelUsed}`, 'success', duration);
+      updateModelMetrics(modelUsed, duration, true);
     } catch (e) {
-      // JSON parsing error
-      log(`Response parsing error: ${e.message}`, provider.name, 'error', duration);
+      log(`Response parsing error: ${e.message}`, 'error', duration);
     }
   } else {
-    failedRequests.add(1);
-    errorRate.add(1);
-    
-    // Classify error type
-    if (response.error_code === 'ETIMEDOUT' || response.error_code === 'ESOCKETTIMEDOUT') {
-      timeoutErrors.add(1);
-      log(`Timeout error`, provider.name, 'timeout', duration);
-    } else if (response.status >= 500) {
-      serverErrors.add(1);
-      log(`Server error: ${response.status}`, provider.name, 'server_error', duration);
-    } else if (response.status >= 400) {
-      clientErrors.add(1);
-      log(`Client error: ${response.status}`, provider.name, 'client_error', duration);
-    } else {
-      log(`Other error: ${response.status}`, provider.name, 'other_error', duration);
-    }
-    
-    // Update model-specific errors
-    if (provider.name === 'openai') {
-      openaiSuccessRate.add(0);
-    } else if (provider.name === 'anthropic') {
-      anthropicSuccessRate.add(0);
-    } else if (provider.name === 'ollama') {
-      ollamaSuccessRate.add(0);
-    }
+    handleError(response, provider, duration);
   }
 
-  // Random delay between requests (100-500ms)
   sleep(Math.random() * 0.4 + 0.1);
 }
 

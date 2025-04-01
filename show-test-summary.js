@@ -48,115 +48,103 @@ function findLatestResultFile() {
 // Analyze the results file produced by k6
 function analyzeResults(filePath) {
   console.log(`${colors.bright}${colors.blue}Analyzing file: ${filePath}${colors.reset}\n`);
-  
-  // Read the file
   const content = fs.readFileSync(filePath, 'utf8');
   const lines = content.split('\n');
-  
-  // Initialize counters
   const metrics = {
     openai: { count: 0, success: 0, totalTime: 0, times: [] },
     anthropic: { count: 0, success: 0, totalTime: 0, times: [] },
     ollama: { count: 0, success: 0, totalTime: 0, times: [] },
     total: { count: 0, success: 0, failed: 0, totalTime: 0, times: [] }
   };
-  
-  // Find metric data
+
+  // Helper functions to process each metric type
+  const processHttpReq = (data) => {
+    if (data.metric !== 'http_reqs' || data.type !== 'Point') return;
+    const url = data.data.tags.url || '';
+    const status = data.data.tags.status || '';
+    const isSuccess = status.startsWith('2');
+    metrics.total.count++;
+    if (isSuccess) {
+      metrics.total.success++;
+    } else {
+      metrics.total.failed++;
+    }
+    if (url.includes('/openai')) {
+      metrics.openai.count++;
+      if (isSuccess) metrics.openai.success++;
+    } else if (url.includes('/anthropic')) {
+      metrics.anthropic.count++;
+      if (isSuccess) metrics.anthropic.success++;
+    } else if (url.includes('/ollama')) {
+      metrics.ollama.count++;
+      if (isSuccess) metrics.ollama.success++;
+    }
+  };
+
+  const processHttpReqDuration = (data) => {
+    if (data.metric !== 'http_req_duration' || data.type !== 'Point') return;
+    const duration = data.data.value || 0;
+    metrics.total.totalTime += duration;
+    metrics.total.times.push(duration);
+    const url = data.data.tags.url || '';
+    if (url.includes('/openai')) {
+      metrics.openai.totalTime += duration;
+      metrics.openai.times.push(duration);
+    } else if (url.includes('/anthropic')) {
+      metrics.anthropic.totalTime += duration;
+      metrics.anthropic.times.push(duration);
+    } else if (url.includes('/ollama')) {
+      metrics.ollama.totalTime += duration;
+      metrics.ollama.times.push(duration);
+    }
+  };
+
+  const processProcessingTime = (data) => {
+    const procMap = {
+      'openai_processing_time': 'openai',
+      'anthropic_processing_time': 'anthropic',
+      'ollama_processing_time': 'ollama'
+    };
+    if (!(data.metric in procMap) || data.type !== 'Point') return;
+    const provider = procMap[data.metric];
+    metrics[provider].totalTime += data.data.value || 0;
+  };
+
   for (const line of lines) {
+    if (!line.trim()) continue;
     try {
-      if (!line.trim()) continue;
-      
       const data = JSON.parse(line);
-      
-      // Collect HTTP request data
-      if (data.metric === 'http_reqs' && data.type === 'Point') {
-        metrics.total.count++;
-        
-        const url = data.data.tags.url || '';
-        const status = data.data.tags.status || '';
-        const isSuccess = status.startsWith('2');
-        
-        if (isSuccess) {
-          metrics.total.success++;
-        } else {
-          metrics.total.failed++;
-        }
-        
-        // Identify service provider based on URL
-        if (url.includes('/openai')) {
-          metrics.openai.count++;
-          if (isSuccess) metrics.openai.success++;
-        } else if (url.includes('/anthropic')) {
-          metrics.anthropic.count++;
-          if (isSuccess) metrics.anthropic.success++;
-        } else if (url.includes('/ollama')) {
-          metrics.ollama.count++;
-          if (isSuccess) metrics.ollama.success++;
-        }
-      }
-      
-      // Collect response time data
-      if (data.metric === 'http_req_duration' && data.type === 'Point') {
-        const duration = data.data.value || 0;
-        metrics.total.totalTime += duration;
-        metrics.total.times.push(duration);
-        
-        const url = data.data.tags.url || '';
-        
-        if (url.includes('/openai')) {
-          metrics.openai.totalTime += duration;
-          metrics.openai.times.push(duration);
-        } else if (url.includes('/anthropic')) {
-          metrics.anthropic.totalTime += duration;
-          metrics.anthropic.times.push(duration);
-        } else if (url.includes('/ollama')) {
-          metrics.ollama.totalTime += duration;
-          metrics.ollama.times.push(duration);
-        }
-      }
-      
-      // Collect model-specific processing times
-      if (data.metric === 'openai_processing_time' && data.type === 'Point') {
-        metrics.openai.totalTime += data.data.value || 0;
-      }
-      
-      if (data.metric === 'anthropic_processing_time' && data.type === 'Point') {
-        metrics.anthropic.totalTime += data.data.value || 0;
-      }
-      
-      if (data.metric === 'ollama_processing_time' && data.type === 'Point') {
-        metrics.ollama.totalTime += data.data.value || 0;
-      }
+      processHttpReq(data);
+      processHttpReqDuration(data);
+      processProcessingTime(data);
     } catch (e) {
-      // Skip invalid lines
       continue;
     }
   }
-  
-  // Calculate averages and other statistics
-  const calculateAvg = (arr) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+
+  const calculateAvg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
   const calculateP95 = (arr) => {
-    if (arr.length === 0) return 0;
+    if (!arr.length) return 0;
     const sorted = [...arr].sort((a, b) => a - b);
     const idx = Math.floor(sorted.length * 0.95);
     return sorted[idx] || sorted[sorted.length - 1];
   };
-  
+
   metrics.openai.avgTime = calculateAvg(metrics.openai.times);
   metrics.anthropic.avgTime = calculateAvg(metrics.anthropic.times);
   metrics.ollama.avgTime = calculateAvg(metrics.ollama.times);
   metrics.total.avgTime = calculateAvg(metrics.total.times);
-  
+
   metrics.openai.p95Time = calculateP95(metrics.openai.times);
   metrics.anthropic.p95Time = calculateP95(metrics.anthropic.times);
   metrics.ollama.p95Time = calculateP95(metrics.ollama.times);
   metrics.total.p95Time = calculateP95(metrics.total.times);
-  
-  metrics.openai.successRate = metrics.openai.count > 0 ? (metrics.openai.success / metrics.openai.count) * 100 : 0;
-  metrics.anthropic.successRate = metrics.anthropic.count > 0 ? (metrics.anthropic.success / metrics.anthropic.count) * 100 : 0;
-  metrics.ollama.successRate = metrics.ollama.count > 0 ? (metrics.ollama.success / metrics.ollama.count) * 100 : 0;
-  metrics.total.successRate = metrics.total.count > 0 ? (metrics.total.success / metrics.total.count) * 100 : 0;
-  
+
+  metrics.openai.successRate = metrics.openai.count ? (metrics.openai.success / metrics.openai.count) * 100 : 0;
+  metrics.anthropic.successRate = metrics.anthropic.count ? (metrics.anthropic.success / metrics.anthropic.count) * 100 : 0;
+  metrics.ollama.successRate = metrics.ollama.count ? (metrics.ollama.success / metrics.ollama.count) * 100 : 0;
+  metrics.total.successRate = metrics.total.count ? (metrics.total.success / metrics.total.count) * 100 : 0;
+
   return metrics;
 }
 

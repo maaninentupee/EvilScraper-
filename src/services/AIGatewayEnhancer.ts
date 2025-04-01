@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AIGateway, AIResponse as AIGatewayResponse } from './AIGateway';
+import { AIGateway } from './AIGateway';
 import { ProviderSelectionStrategy, SelectionStrategy } from './utils/ProviderSelectionStrategy';
 import { ProviderHealthMonitor, ProviderHealth } from './ProviderHealthMonitor';
 import { ErrorClassifier } from './utils/ErrorClassifier';
@@ -70,7 +70,7 @@ export class AIGatewayEnhancer {
     private readonly RETRY_DELAY_MS = 500;
     
     // Default timeout
-    private defaultTimeout = 30000; // 30 seconds default timeout
+    private readonly defaultTimeout = 30000; // 30 seconds default timeout
     
     constructor(
         private readonly aiGateway: AIGateway,
@@ -94,146 +94,26 @@ export class AIGatewayEnhancer {
         input: string,
         options: EnhancedProcessingOptions = {}
     ): Promise<AIResponse> {
+        const { strategy = SelectionStrategy.PRIORITY, retryCount = 0, timeout = this.defaultTimeout } = options;
+        const override = this.getOverrideResponse(taskType, input, options);
+        if (override) return override;
+    
+        const providerModel = this.determineProviderAndModel(taskType, options);
+        if ('success' in providerModel && providerModel.success === false) {
+            return providerModel;
+        }
+        const { provider: selectedProvider, model } = providerModel as { provider: string, model: string };
+    
+        const startTime = Date.now();
         try {
-            const {
-                strategy = SelectionStrategy.PRIORITY,
-                providerName,
-                modelName,
-                cacheResults = true,
-                testMode = false,
-                testError = null,
-                timeout = this.defaultTimeout,
-                retryCount = 0
-            } = options;
-            
-            // Simulate errors in test mode
-            if (testMode && testError) {
-                this.logger.log(`Test mode: simulating error type ${testError}`);
-                return this.simulateError(testError, taskType);
-            }
-            
-            // Check cache if caching is enabled
-            if (cacheResults) {
-                const cachedResult = this.aiGateway.getCachedResult(taskType, input);
-                if (cachedResult) {
-                    this.logger.log(`Found result in cache for request "${input.substring(0, 30)}..."`);
-                    return {
-                        ...cachedResult,
-                        fromCache: true
-                    };
-                }
-            }
-            
-            // Select a service provider
-            let selectedProvider = providerName;
-            
-            if (!selectedProvider) {
-                // Use the selection strategy to select the best provider
-                selectedProvider = this.selectionStrategy.selectBestProvider(taskType, strategy);
-                
-                if (!selectedProvider) {
-                    this.logger.error('No service providers are available');
-                    return {
-                        success: false,
-                        error: 'No service providers are available',
-                        errorType: ErrorClassifier.ERROR_TYPES.PROVIDER_UNAVAILABLE,
-                        provider: 'none',
-                        model: 'none'
-                    };
-                }
-            }
-            
-            // Get the model name
-            const model = modelName || this.aiGateway.getModelNameForProvider(selectedProvider, taskType);
-            
-            if (!model) {
-                this.logger.error(`No model found for provider ${selectedProvider} and task type ${taskType}`);
-                return {
-                    success: false,
-                    error: `No model found for provider ${selectedProvider} and task type ${taskType}`,
-                    errorType: ErrorClassifier.ERROR_TYPES.MODEL_UNAVAILABLE,
-                    provider: selectedProvider,
-                    model: 'none'
-                };
-            }
-            
-            // Process the request
-            const startTime = Date.now();
-            
-            try {
-                const result = await Promise.race([
-                    this.aiGateway.processAIRequest(taskType, input, model),
-                    new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Request timed out')), timeout)
-                    )
-                ]);
-
-                const endTime = Date.now();
-                const latency = endTime - startTime;
-                
-                // Add type guard to safely check the result
-                if (result && typeof result === 'object') {
-                    // Check if the result has a success property that is a boolean
-                    if ('success' in result && typeof (result as any).success === 'boolean') {
-                        if ((result as any).success) {
-                            // Success case
-                            return {
-                                success: true,
-                                result: (result as any).result,
-                                provider: selectedProvider,
-                                model,
-                                latency
-                            };
-                        } else {
-                            // Error case with proper error handling
-                            const errorType = 'errorType' in result ? String((result as any).errorType) : 'unknown';
-                            const errorMessage = 'error' in result ? String((result as any).error) : 'Unknown error';
-                            
-                            return {
-                                success: false,
-                                error: errorMessage,
-                                errorType: errorType,
-                                provider: selectedProvider,
-                                model
-                            };
-                        }
-                    }
-                }
-                
-                // If we get here, the result doesn't have the expected structure
-                return {
-                    success: false,
-                    error: 'Invalid response format from provider',
-                    errorType: 'format_error',
-                    provider: selectedProvider,
-                    model
-                };
-                
-            } catch (error) {
-                // If retries are available, try again
-                if (retryCount > 0) {
-                    return this.processWithSmartFallback(taskType, input, {
-                        ...options,
-                        retryCount: retryCount - 1
-                    });
-                }
-                
-                // Handle unexpected errors
-                this.logger.error(`Unexpected error: ${error.message}`);
-                
-                return {
-                    success: false,
-                    error: `Unexpected error: ${error.message}`,
-                    errorType: ErrorClassifier.ERROR_TYPES.UNKNOWN,
-                    provider: 'none',
-                    model: 'none'
-                };
-            }
-            
+            const response = await this.executeRequestWithTimeout(taskType, input, model, selectedProvider, timeout);
+            const latency = Date.now() - startTime;
+            return { ...response, provider: selectedProvider, model, latency };
         } catch (error) {
-            // Handle unexpected errors
+            if (retryCount > 0) {
+                return this.processWithSmartFallback(taskType, input, { ...options, retryCount: retryCount - 1 });
+            }
             this.logger.error(`Unexpected error: ${error.message}`);
-            
             return {
                 success: false,
                 error: `Unexpected error: ${error.message}`,
@@ -241,6 +121,75 @@ export class AIGatewayEnhancer {
                 provider: 'none',
                 model: 'none'
             };
+        }
+    }
+    
+    private determineProviderAndModel(taskType: string, options: EnhancedProcessingOptions): { provider: string, model: string } | AIResponse {
+        const { modelName, strategy = SelectionStrategy.PRIORITY } = options;
+        const selectedProvider = this.selectionStrategy.selectBestProvider(taskType, strategy);
+        if (!selectedProvider) {
+            this.logger.error('No service providers are available');
+            return {
+                success: false,
+                error: 'No service providers are available',
+                errorType: ErrorClassifier.ERROR_TYPES.PROVIDER_UNAVAILABLE,
+                provider: 'none',
+                model: 'none'
+            };
+        }
+        const model = modelName || this.aiGateway.getModelNameForProvider(selectedProvider, taskType);
+        if (!model) {
+            this.logger.error(`No model found for provider ${selectedProvider} and task type ${taskType}`);
+            return {
+                success: false,
+                error: `No model found for provider ${selectedProvider} and task type ${taskType}`,
+                errorType: ErrorClassifier.ERROR_TYPES.MODEL_UNAVAILABLE,
+                provider: selectedProvider,
+                model: 'none'
+            };
+        }
+        return { provider: selectedProvider, model };
+    }
+    
+    private async executeRequestWithTimeout(taskType: string, input: string, model: string, provider: string, timeout: number): Promise<AIResponse> {
+        try {
+            const result = await Promise.race([
+                this.aiGateway.processAIRequest(taskType, input, model),
+                new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error('Request timed out')), timeout)
+                )
+            ]);
+            
+            if (result && typeof result === 'object' && 'success' in result) {
+                if (result.success) {
+                    return {
+                        success: true,
+                        result: (result as any).result,
+                        provider,
+                        model,
+                        latency: 0
+                    };
+                } else {
+                    const errorType = 'errorType' in result ? String((result as any).errorType) : 'unknown';
+                    const errorMessage = 'error' in result ? String((result as any).error) : 'Unknown error';
+                    return {
+                        success: false,
+                        error: errorMessage,
+                        errorType: errorType,
+                        provider,
+                        model
+                    };
+                }
+            }
+            return {
+                success: false,
+                error: 'Invalid response format from provider',
+                errorType: 'format_error',
+                provider,
+                model
+            };
+        } catch (error) {
+            throw error;
         }
     }
     
@@ -283,9 +232,83 @@ export class AIGatewayEnhancer {
         // Sort the results in the original order
         processedResults.sort((a, b) => a.index - b.index);
         
-        // Return the results
         return processedResults.map(item => item.result);
-    }
+        }
+        
+        /**
+         * Helper method for test mode and cache checks.
+         */
+        private getOverrideResponse(taskType: string, input: string, options: EnhancedProcessingOptions): AIResponse | null {
+            const { testMode = false, testError = null, cacheResults = true } = options;
+            if (testMode && testError) {
+                this.logger.log(`Test mode: simulating error type ${testError}`);
+                return this.simulateError(testError, taskType);
+            }
+            if (cacheResults) {
+                const cached = this.aiGateway.getCachedResult(taskType, input);
+                if (cached) {
+                    this.logger.log(`Found cached result for request "${input.substring(0,30)}..."`);
+                    return { ...cached, fromCache: true };
+                }
+            }
+            return null;
+        }
+        
+        private async attemptFallbackRequest(
+            taskType: string,
+            input: string,
+            provider: string,
+            timeout: number,
+            modelName?: string
+        ): Promise<AIResponse | null> {
+            const model = modelName || this.aiGateway.getModelNameForProvider(provider, taskType);
+            if (!model) {
+                this.logger.warn(`No model found for provider ${provider} and task type ${taskType}`);
+                return null;
+            }
+            const startTime = Date.now();
+            try {
+                const result = await Promise.race([
+                    this.aiGateway.processAIRequest(taskType, input, model),
+                    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out')), timeout))
+                ]);
+                const latency = Date.now() - startTime;
+                if (result && typeof result === 'object' && 'success' in result) {
+                    if ((result as any).success) {
+                        return {
+                            success: true,
+                            result: (result as any).result,
+                            provider,
+                            model,
+                            latency,
+                            wasFailover: true
+                        };
+                    } else {
+                        const errorType = 'errorType' in result ? String((result as any).errorType) : 'unknown';
+                        const errorMessage = 'error' in result ? String((result as any).error) : 'Unknown error';
+                        return {
+                            success: false,
+                            error: errorMessage,
+                            errorType: errorType,
+                            provider,
+                            model,
+                            wasFailover: true
+                        };
+                    }
+                }
+                return {
+                    success: false,
+                    error: 'Invalid response format from provider',
+                    errorType: 'format_error',
+                    provider,
+                    model,
+                    wasFailover: true
+                };
+            } catch (error) {
+                this.logger.warn(`Error on provider ${provider}: ${error.message}`);
+                return null;
+            }
+        }
     
     /**
      * Handles the fallback mechanism
@@ -295,136 +318,86 @@ export class AIGatewayEnhancer {
      * @param options Options
      * @returns AI response
      */
+    private async attemptFallbackRequest(
+        taskType: string,
+        input: string,
+        provider: string,
+        timeout: number,
+        modelName?: string
+    ): Promise<AIResponse | null> {
+        const model = modelName || this.aiGateway.getModelNameForProvider(provider, taskType);
+        if (!model) {
+            this.logger.warn(`No model found for provider ${provider} and task type ${taskType}`);
+            return null;
+        }
+
+        try {
+            const result = await Promise.race([
+                this.aiGateway.processAIRequest(taskType, input, model),
+                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out')), timeout))
+            ]);
+
+            if (result && typeof result === 'object' && 'success' in result) {
+                if ((result as any).success) {
+                    return {
+                        success: true,
+                        result: (result as any).result,
+                        provider,
+                        model,
+                        latency: 0,
+                        wasFailover: true
+                    };
+                }
+                const errorType = 'errorType' in result ? String((result as any).errorType) : 'unknown';
+                const errorMessage = 'error' in result ? String((result as any).error) : 'Unknown error';
+                return {
+                    success: false,
+                    error: errorMessage,
+                    errorType: errorType,
+                    provider,
+                    model,
+                    wasFailover: true
+                };
+            }
+            return {
+                success: false,
+                error: 'Invalid response format from provider',
+                errorType: 'format_error',
+                provider,
+                model,
+                wasFailover: true
+            };
+        } catch (error) {
+            this.logger.warn(`Error on provider ${provider}: ${error.message}`);
+            return null;
+        }
+    }
+
     private async handleFallback(
         taskType: string,
         input: string,
         excludeProvider: string,
         options: EnhancedProcessingOptions
     ): Promise<AIResponse> {
-        const {
-            strategy = SelectionStrategy.FALLBACK,
-            cacheResults = true,
-            providerName,
-            timeout = this.defaultTimeout,
-            retryCount = 0,
-            modelName
-        } = options;
-        
-        // Try again with different providers
-        for (let retryCount = 0; retryCount < this.MAX_RETRIES; retryCount++) {
-            // Wait before retrying
-            if (retryCount > 0) {
+        const { strategy = SelectionStrategy.FALLBACK, timeout = this.defaultTimeout, modelName } = options;
+
+        for (let attempt = 0; attempt < this.MAX_RETRIES; attempt++) {
+            if (attempt > 0) {
                 await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY_MS));
             }
-            
-            this.logger.log(`Trying fallback mechanism, attempt ${retryCount + 1}/${this.MAX_RETRIES}`);
-            
-            // Select the next provider
-            const providerName = this.selectionStrategy.selectNextProvider(
-                taskType,
-                excludeProvider,
-                strategy
-            );
-            
-            if (!providerName) {
-                this.logger.error(`No alternative providers found for retry ${retryCount + 1}`);
+
+            const nextProvider = this.selectionStrategy.selectNextProvider(taskType, excludeProvider, strategy);
+            if (!nextProvider) {
+                this.logger.error(`No alternative providers found for attempt ${attempt + 1}`);
                 continue;
             }
-            
-            this.logger.log(`Selected alternative provider: ${providerName}`);
-            
-            try {
-                // Get the model name
-                const model = modelName || this.aiGateway.getModelNameForProvider(providerName, taskType);
-                
-                if (!model) {
-                    this.logger.warn(`No model found for provider ${providerName} and task type ${taskType}`);
-                    continue;
-                }
-                
-                // Process the request
-                const startTime = Date.now();
-                
-                try {
-                    const result = await Promise.race([
-                        this.aiGateway.processAIRequest(taskType, input, model),
-                        new Promise((_, reject) => 
-                            setTimeout(() => reject(new Error('Request timed out')), timeout)
-                        )
-                    ]);
 
-                    const endTime = Date.now();
-                    const latency = endTime - startTime;
-                    
-                    // Add type guard to safely check the result
-                    if (result && typeof result === 'object') {
-                        // Check if the result has a success property that is a boolean
-                        if ('success' in result && typeof (result as any).success === 'boolean') {
-                            if ((result as any).success) {
-                                // Success case
-                                return {
-                                    success: true,
-                                    result: (result as any).result,
-                                    provider: providerName,
-                                    model,
-                                    latency,
-                                    wasFailover: true
-                                };
-                            } else {
-                                // Error case with proper error handling
-                                const errorType = 'errorType' in result ? String((result as any).errorType) : 'unknown';
-                                const errorMessage = 'error' in result ? String((result as any).error) : 'Unknown error';
-                                
-                                return {
-                                    success: false,
-                                    error: errorMessage,
-                                    errorType: errorType,
-                                    provider: providerName,
-                                    model,
-                                    wasFailover: true
-                                };
-                            }
-                        }
-                    }
-                    
-                    // If we get here, the result doesn't have the expected structure
-                    return {
-                        success: false,
-                        error: 'Invalid response format from provider',
-                        errorType: 'format_error',
-                        provider: providerName,
-                        model,
-                        wasFailover: true
-                    };
-                } catch (error) {
-                    // If retries are available, try again
-                    if (retryCount > 0) {
-                        return this.handleFallback(taskType, input, excludeProvider, {
-                            ...options,
-                            retryCount: retryCount - 1
-                        });
-                    }
-                    
-                    // Handle errors
-                    this.logger.warn(`Error on provider ${providerName}: ${error.message}`);
-                }
-            } catch (error) {
-                // Handle unexpected errors
-                this.logger.error(`Unexpected error: ${error.message}`);
-                
-                return {
-                    success: false,
-                    error: `Unexpected error: ${error.message}`,
-                    errorType: ErrorClassifier.ERROR_TYPES.UNKNOWN,
-                    provider: 'none',
-                    model: 'none'
-                };
+            const response = await this.attemptFallbackRequest(taskType, input, nextProvider, timeout, modelName);
+            if (response) {
+                return response;
             }
         }
-        
-        // If all retries fail, return an error
-        this.logger.error(`All ${this.MAX_RETRIES} retries failed`);
-        
+
         return {
             success: false,
             error: `All AI services failed for task type ${taskType}`,
@@ -453,6 +426,62 @@ export class AIGatewayEnhancer {
             model: 'test',
             message: `Simulated error for task type ${taskType}`
         };
+   
+   private async attemptFallbackRequest(
+       taskType: string,
+       input: string,
+       provider: string,
+       timeout: number,
+       modelName?: string
+   ): Promise<AIResponse | null> {
+       const model = modelName || this.aiGateway.getModelNameForProvider(provider, taskType);
+       if (!model) {
+           this.logger.warn(`No model found for provider ${provider} and task type ${taskType}`);
+           return null;
+       }
+       const startTime = Date.now();
+       try {
+           const result = await Promise.race([
+               this.aiGateway.processAIRequest(taskType, input, model),
+               new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out')), timeout))
+           ]);
+           const latency = Date.now() - startTime;
+           if (result && typeof result === 'object' && 'success' in result && typeof (result as any).success === 'boolean') {
+               if ((result as any).success) {
+                   return {
+                       success: true,
+                       result: (result as any).result,
+                       provider,
+                       model,
+                       latency,
+                       wasFailover: true
+                   };
+               } else {
+                   const errorType = 'errorType' in result ? String((result as any).errorType) : 'unknown';
+                   const errorMessage = 'error' in result ? String((result as any).error) : 'Unknown error';
+                   return {
+                       success: false,
+                       error: errorMessage,
+                       errorType: errorType,
+                       provider,
+                       model,
+                       wasFailover: true
+                   };
+               }
+           }
+           return {
+               success: false,
+               error: 'Invalid response format from provider',
+               errorType: 'format_error',
+               provider,
+               model,
+               wasFailover: true
+           };
+       } catch (error) {
+           this.logger.warn(`Error on provider ${provider}: ${error.message}`);
+           return null;
+       }
+   }
     }
     
     /**
@@ -464,7 +493,7 @@ export class AIGatewayEnhancer {
      */
     async processWithFallback(taskType: string, input: string, options: EnhancedProcessingOptions = {}) {
         const startTime = Date.now();
-        const cacheResults = options.cacheResults !== false;
+        // (Removed useless assignment to cacheResults)
         const timeout = options.timeout || this.defaultTimeout;
         
         // Define the type for the AI response

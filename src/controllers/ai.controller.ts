@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Logger, HttpException, HttpStatus, Get, Param, Query, Ip } from '@nestjs/common';
+import { Controller, Post, Body, Logger, HttpException, HttpStatus, Get, Param, Ip } from '@nestjs/common';
 import { AIGateway, AIResponse } from '../services/AIGateway';
 import { EvilBotService } from '../services/EvilBotService';
 import { ConfigService } from '@nestjs/config';
@@ -121,7 +121,7 @@ export class AIController {
     try {
       this.logger.log(`Processing AI request from IP address ${ip}`);
       
-      const { input, taskType = 'text-generation', modelName, provider, useFallback = false } = requestDto;
+      const { input, taskType = 'text-generation', modelName, useFallback = false } = requestDto;
       
       if (!input || input.trim() === '') {
         throw new HttpException('Input is required', HttpStatus.BAD_REQUEST);

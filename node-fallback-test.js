@@ -58,108 +58,86 @@ function log(message, model, status, duration) {
   });
 }
 
+// Helper functions to reduce complexity
+
+function classifyError(error, index, duration, model) {
+  if (error.code === 'ECONNABORTED') {
+    incrementErrorCount('timeout', index, duration, model, 'timeout');
+  } else if (error.response) {
+    handleHttpError(error, index, duration, model);
+  } else if (error.request) {
+    incrementErrorCount('server', index, duration, model, 'no_response');
+  } else {
+    incrementErrorCount('unknown', index, duration, model, 'unknown_error', error.message);
+  }
+}
+
+function incrementErrorCount(type, index, duration, model, logType, message = '') {
+  metrics.errors[type]++;
+  log(`Request ${index} failed: ${message}`, model, logType, duration);
+}
+
+function handleHttpError(error, index, duration, model) {
+  const errorMessage = error.response.data?.message || error.message;
+  if (error.response.status >= 500) {
+    incrementErrorCount('server', index, duration, model, 'server_error', errorMessage);
+  } else if (error.response.status >= 400) {
+    incrementErrorCount('client', index, duration, model, 'client_error', errorMessage);
+  } else {
+    incrementErrorCount('unknown', index, duration, model, 'unknown_error', errorMessage);
+  }
+}
+
+function updateMetricsOnSuccess(response, duration, model, provider) {
+  metrics.successfulRequests++;
+  metrics.totalLatency += duration;
+  if (metrics.providerUsage[provider]) {
+    const providerMetrics = metrics.providerUsage[provider];
+    providerMetrics.count++;
+    providerMetrics.success++;
+    providerMetrics.totalLatency += duration;
+  }
+}
+
+function processResponse(response, index, duration) {
+  const { success, result } = response.data || {};
+  const model = result?.model || 'unknown';
+  const provider = result?.provider || 'unknown';
+  if (success) {
+    updateMetricsOnSuccess(response, duration, model, provider);
+    log(`Request ${index} successful`, model, 'success', duration);
+  } else {
+    handleFailedResponse(response, index, duration, model);
+  }
+  return { success, duration, model, provider };
+}
+
+function handleFailedResponse(response, index, duration, model) {
+  metrics.failedRequests++;
+  const errorMessage = response.data?.error || 'Unknown error';
+  const logType = errorMessage.includes('All AI services failed') ? 'all_providers_failed' : 'failed_response';
+  log(`Request ${index} failed: ${errorMessage}`, model, logType, duration);
+}
+
 // Sends one AI request
 async function sendRequest(prompt, index) {
   const startTime = Date.now();
-  let status = 'failed';
-  let model = 'unknown';
-  let provider = 'unknown';
-  
+  metrics.totalRequests++;
+
   try {
-    metrics.totalRequests++;
-    
     const response = await axios.post(`${config.baseUrl}/ai/process`, {
       taskType: 'seo',
       input: prompt
     }, {
-      timeout: 30000 // 30s timeout
+      timeout: 30000
     });
-    
-    const endTime = Date.now();
-    const duration = endTime - startTime;
-    
-    // Check response structure
-    if (response.data && response.data.success) {
-      status = 'success';
-      metrics.successfulRequests++;
-      metrics.totalLatency += duration;
-      
-      // Save the model and provider used
-      if (response.data.result && typeof response.data.result === 'object') {
-        // New response format where result is an object
-        model = response.data.result.model || 'unknown';
-        provider = response.data.result.provider || 'unknown';
-      } else {
-        // Old response format where result is directly text
-        model = 'unknown';
-        provider = 'unknown';
-      }
-      
-      // Update provider metrics
-      if (metrics.providerUsage[provider]) {
-        metrics.providerUsage[provider].count++;
-        metrics.providerUsage[provider].success++;
-        metrics.providerUsage[provider].totalLatency += duration;
-      }
-      
-      log(`Request ${index} successful`, model, status, duration);
-    } else {
-      status = 'failed';
-      metrics.failedRequests++;
-      
-      // Check if there's an error message in the response
-      const errorMessage = response.data.error || 'Unknown error';
-      
-      // Identify error type from the message
-      if (errorMessage.includes('All AI services failed')) {
-        log(`Request ${index} failed with all providers: ${errorMessage}`, model, 'all_providers_failed', duration);
-      } else {
-        log(`Request ${index} failed with response: ${JSON.stringify(response.data)}`, model, status, duration);
-      }
-    }
-    
-    return { success: response.data.success, duration, model, provider };
+
+    const duration = Date.now() - startTime;
+    return processResponse(response, index, duration);
   } catch (error) {
-    const endTime = Date.now();
-    const duration = endTime - startTime;
+    const duration = Date.now() - startTime;
     metrics.failedRequests++;
-    
-    // Classify error
-    if (error.code === 'ECONNABORTED') {
-      metrics.errors.timeout++;
-      log(`Request ${index} timed out after ${duration}ms`, model, 'timeout', duration);
-    } else if (error.response) {
-      // HTTP errors
-      if (error.response.status >= 500) {
-        metrics.errors.server++;
-        
-        // Check if it's a fallback error
-        const errorMessage = error.response.data && error.response.data.message 
-          ? error.response.data.message 
-          : error.message;
-          
-        if (errorMessage.includes('All AI services failed')) {
-          log(`Request ${index} failed with fallback error: ${errorMessage}`, model, 'fallback_error', duration);
-        } else {
-          log(`Request ${index} failed with server error ${error.response.status}: ${errorMessage}`, model, 'server_error', duration);
-        }
-      } else if (error.response.status >= 400) {
-        metrics.errors.client++;
-        log(`Request ${index} failed with client error ${error.response.status}: ${error.response.data.message || error.message}`, model, 'client_error', duration);
-      } else {
-        metrics.errors.unknown++;
-        log(`Request ${index} failed with unknown status ${error.response.status}`, model, 'unknown_error', duration);
-      }
-    } else if (error.request) {
-      // Request was made but no response received
-      metrics.errors.server++;
-      log(`Request ${index} failed: no response received`, model, 'no_response', duration);
-    } else {
-      // Error in preparing the request
-      metrics.errors.unknown++;
-      log(`Request ${index} failed with error: ${error.message}`, model, 'unknown_error', duration);
-    }
-    
+    classifyError(error, index, duration, 'unknown');
     return { success: false, duration, error: error.message };
   }
 }

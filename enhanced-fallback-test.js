@@ -6,7 +6,6 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate, Trend, Counter } from 'k6/metrics';
-import { SharedArray } from 'k6/data';
 import { htmlReport } from "https://raw.githubusercontent.com/benc-uk/k6-reporter/main/dist/bundle.js";
 import { textSummary } from "https://jslib.k6.io/k6-summary/0.0.1/index.js";
 
@@ -105,26 +104,86 @@ function selectErrorSimulation() {
   return 'none';
 }
 
+// Update strategy-specific response time metrics
+function updateStrategyMetrics(strategy, duration) {
+  const strategyMetrics = {
+    performance: performanceStrategyTime,
+    cost: costStrategyTime,
+    quality: qualityStrategyTime,
+    fallback: fallbackStrategyTime
+  };
+  
+  if (strategyMetrics[strategy]) {
+    strategyMetrics[strategy].add(duration);
+  }
+}
+
+// Update provider-specific success metrics
+function updateProviderMetrics(provider, success) {
+  const providerMetrics = {
+    openai: openaiSuccessRate,
+    anthropic: anthropicSuccessRate,
+    ollama: ollamaSuccessRate,
+    local: localSuccessRate
+  };
+  
+  if (providerMetrics[provider]) {
+    providerMetrics[provider].add(success ? 1 : 0);
+  }
+}
+
+// Process successful response
+function handleSuccessfulResponse(data, provider, duration, promptObj, strategy, errorType) {
+  if (data.usedFallback) {
+    fallbackUsed.add(1);
+    console.log(`Fallback used: ${data.provider} (original: ${provider})`);
+  }
+  
+  if (data.fromCache) {
+    cacheHits.add(1);
+    console.log(`Cache hit: ${promptObj.text.substring(0, 20)}...`);
+  }
+  
+  updateProviderMetrics(data.provider, true);
+  
+  console.log(`Successful request: ${data.provider} | ${duration}ms | ${promptObj.text.substring(0, 20)}... | Strategy: ${strategy} | Simulated error: ${errorType}`);
+  
+  check(data, {
+    'Response contains text': (r) => r.text && r.text.length > 0,
+    'Response contains provider': (r) => r.provider && r.provider.length > 0,
+    'Response contains model': (r) => r.model && r.model.length > 0,
+    'Response contains processing time': (r) => r.processingTime && r.processingTime > 0
+  });
+}
+
+// Process error response
+function handleErrorResponse(errorData) {
+  const errorTypes = {
+    service_unavailable: serviceUnavailableErrors,
+    model_not_found: modelNotFoundErrors,
+    timeout: timeoutErrors,
+    rate_limit: rateLimitErrors,
+    invalid_request: invalidRequestErrors
+  };
+
+  const errorCounter = errorTypes[errorData.errorType] || unexpectedErrors;
+  errorCounter.add(1);
+  
+  const errorMessage = errorData.errorType === undefined ?
+    `Unexpected error: ${errorData.error}` :
+    `${errorData.errorType}: ${errorData.error}`;
+  
+  console.log(errorMessage);
+}
+
 // Test enhanced fallback mechanism
 export default function () {
-  // Select a random prompt
-  const promptIndex = Math.floor(Math.random() * prompts.length);
-  const promptObj = prompts[promptIndex];
-  
-  // Select a random service provider
-  const providerIndex = Math.floor(Math.random() * providers.length);
-  const provider = providers[providerIndex];
-  
-  // Select a random strategy
-  const strategyIndex = Math.floor(Math.random() * strategies.length);
-  const strategy = strategies[strategyIndex];
-  
-  // Select a random error situation
+  const promptObj = prompts[Math.floor(Math.random() * prompts.length)];
+  const provider = providers[Math.floor(Math.random() * providers.length)];
+  const strategy = strategies[Math.floor(Math.random() * strategies.length)];
   const errorType = selectErrorSimulation();
   
-  // Create request
   const url = 'http://localhost:3001/ai-enhanced/process';
-  
   const payload = JSON.stringify({
     taskType: promptObj.taskType,
     input: promptObj.text,
@@ -135,124 +194,39 @@ export default function () {
   });
   
   const params = {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    timeout: 15000 // 15 second timeout
+    headers: { 'Content-Type': 'application/json' },
+    timeout: 15000
   };
 
-  // Measure response time
   const startTime = Date.now();
   const response = http.post(url, payload, params);
   const duration = Date.now() - startTime;
   
-  // Add response time to general metrics
   responseTime.add(duration);
   totalRequests.add(1);
-  
-  // Add response time to strategy-specific metrics
-  if (strategy === 'performance') {
-    performanceStrategyTime.add(duration);
-  } else if (strategy === 'cost') {
-    costStrategyTime.add(duration);
-  } else if (strategy === 'quality') {
-    qualityStrategyTime.add(duration);
-  } else if (strategy === 'fallback') {
-    fallbackStrategyTime.add(duration);
-  }
+  updateStrategyMetrics(strategy, duration);
 
-  // Check response status
-  const success = response.status === 200;
-  
-  if (success) {
+  if (response.status === 200) {
     successfulRequests.add(1);
-    
     try {
-      const data = response.json();
-      
-      // Check if fallback was used
-      if (data.usedFallback) {
-        fallbackUsed.add(1);
-        console.log(`Fallback used: ${data.provider} (original: ${provider})`);
-      }
-      
-      // Check if cache was used
-      if (data.fromCache) {
-        cacheHits.add(1);
-        console.log(`Cache hit: ${promptObj.text.substring(0, 20)}...`);
-      }
-      
-      // Update service provider specific metrics
-      if (data.provider === 'openai') {
-        openaiSuccessRate.add(1);
-      } else if (data.provider === 'anthropic') {
-        anthropicSuccessRate.add(1);
-      } else if (data.provider === 'ollama') {
-        ollamaSuccessRate.add(1);
-      } else if (data.provider === 'local') {
-        localSuccessRate.add(1);
-      }
-      
-      console.log(`Successful request: ${data.provider} | ${duration}ms | ${promptObj.text.substring(0, 20)}... | Strategy: ${strategy} | Simulated error: ${errorType}`);
-      
-      // Check response validity
-      check(data, {
-        'Response contains text': (r) => r.text && r.text.length > 0,
-        'Response contains provider': (r) => r.provider && r.provider.length > 0,
-        'Response contains model': (r) => r.model && r.model.length > 0,
-        'Response contains processing time': (r) => r.processingTime && r.processingTime > 0
-      });
-      
+      handleSuccessfulResponse(response.json(), provider, duration, promptObj, strategy, errorType);
     } catch (e) {
       console.log(`Response parsing error: ${e.message}`);
     }
   } else {
     failedRequests.add(1);
     errorRate.add(1);
-    
-    // Update service provider specific errors
-    if (provider === 'openai') {
-      openaiSuccessRate.add(0);
-    } else if (provider === 'anthropic') {
-      anthropicSuccessRate.add(0);
-    } else if (provider === 'ollama') {
-      ollamaSuccessRate.add(0);
-    } else if (provider === 'local') {
-      localSuccessRate.add(0);
-    }
+    updateProviderMetrics(provider, false);
     
     console.log(`Failed request: ${response.status} | ${duration}ms | ${promptObj.text.substring(0, 20)}... | Strategy: ${strategy} | Simulated error: ${errorType}`);
     
     try {
-      const errorData = response.json();
-      
-      // Classify error type
-      if (errorData.errorType === 'service_unavailable') {
-        serviceUnavailableErrors.add(1);
-        console.log(`Service unavailable: ${errorData.error}`);
-      } else if (errorData.errorType === 'model_not_found') {
-        modelNotFoundErrors.add(1);
-        console.log(`Model not found: ${errorData.error}`);
-      } else if (errorData.errorType === 'timeout') {
-        timeoutErrors.add(1);
-        console.log(`Timeout: ${errorData.error}`);
-      } else if (errorData.errorType === 'rate_limit') {
-        rateLimitErrors.add(1);
-        console.log(`Rate limit exceeded: ${errorData.error}`);
-      } else if (errorData.errorType === 'invalid_request') {
-        invalidRequestErrors.add(1);
-        console.log(`Invalid request: ${errorData.error}`);
-      } else {
-        unexpectedErrors.add(1);
-        console.log(`Unexpected error: ${errorData.error}`);
-      }
+      handleErrorResponse(response.json());
     } catch (e) {
-      // If response is not in JSON format
       console.log(`Invalid response: ${response.body}`);
     }
   }
   
-  // Small delay between requests
   sleep(Math.random() * 0.5 + 0.2); // 200-700ms
 }
 

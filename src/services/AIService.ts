@@ -100,20 +100,30 @@ export class AIService {
      * @returns Formatted prompt
      */
     private buildSEOPrompt(content: { title: string, description?: string, content?: string }): string {
-        return `Analyze the following content for SEO optimization:
+        const promptParts = [
+            'Analyze the following content for SEO optimization:\n',
+            `TITLE: ${content.title}`
+        ];
 
-TITLE: ${content.title}
-${content.description ? `DESCRIPTION: ${content.description}\n` : ''}
-${content.content ? `CONTENT: ${content.content}\n` : ''}
+        if (content.description) {
+            promptParts.push(`DESCRIPTION: ${content.description}`);
+        }
 
-Provide a comprehensive SEO analysis including:
-1. Keyword analysis
-2. Title optimization suggestions
-3. Meta description evaluation
-4. Content structure recommendations
-5. Overall SEO score (0-100)
+        if (content.content) {
+            promptParts.push(`CONTENT: ${content.content}`);
+        }
 
-Format your response in a structured way with clear sections.`;
+        promptParts.push(
+            '\nProvide a comprehensive SEO analysis including:',
+            '1. Keyword analysis',
+            '2. Title optimization suggestions',
+            '3. Meta description evaluation',
+            '4. Content structure recommendations',
+            '5. Overall SEO score (0-100)',
+            '\nFormat your response in a structured way with clear sections.'
+        );
+
+        return promptParts.join('\n');
     }
 
     /**
@@ -122,12 +132,23 @@ Format your response in a structured way with clear sections.`;
      * @returns Formatted prompt
      */
     private buildCodePrompt(content: { language: string, description: string, requirements?: string[] }): string {
-        return `Generate code in ${content.language} based on the following requirements:
+        const promptParts = [
+            `Generate code in ${content.language} based on the following requirements:\n`,
+            `DESCRIPTION: ${content.description}`
+        ];
 
-DESCRIPTION: ${content.description}
-${content.requirements ? `REQUIREMENTS:\n${content.requirements.map(req => `- ${req}`).join('\n')}\n` : ''}
+        if (content.requirements?.length) {
+            promptParts.push(
+                'REQUIREMENTS:',
+                ...content.requirements.map(req => `- ${req}`)
+            );
+        }
 
-Provide clean, well-documented, and efficient code. Include comments explaining complex parts.`;
+        promptParts.push(
+            '\nProvide clean, well-documented, and efficient code. Include comments explaining complex parts.'
+        );
+
+        return promptParts.join('\n');
     }
 
     /**
@@ -136,13 +157,22 @@ Provide clean, well-documented, and efficient code. Include comments explaining 
      * @returns Formatted prompt
      */
     private buildDecisionPrompt(content: { situation: string, options: string[] }): string {
-        return `Help make a decision for the following situation:
+        const promptParts = [
+            'Help make a decision for the following situation:\n',
+            `SITUATION: ${content.situation}\n`,
+            'OPTIONS:'
+        ];
 
-SITUATION: ${content.situation}
+        // Add numbered options
+        const numberedOptions = content.options.map((option, index) =>
+            `${index + 1}. ${option}`
+        );
+        promptParts.push(...numberedOptions);
 
-OPTIONS:
-${content.options.map((option, index) => `${index + 1}. ${option}`).join('\n')}
+        promptParts.push(
+            '\nAnalyze each option considering pros and cons. Recommend the best option and explain your reasoning.'
+        );
 
-Analyze each option considering pros and cons. Recommend the best option and explain your reasoning.`;
+        return promptParts.join('\n');
     }
 }

@@ -296,8 +296,7 @@ async function analyzeFallbackResults(filePath) {
     models.forEach(model => {
       const modelSuccessRate = getMetricValue(metrics, `${model}_success_rate`, 'rate', 0) * 100;
       const modelPasses = getMetricValue(metrics, `${model}_success_rate`, 'passes', 0);
-      const modelColor = model === 'openai' ? colors.green : (model === 'anthropic' ? colors.magenta : colors.blue);
-      
+      const modelColor = getModelColor(model);
       console.log(`  ${model.charAt(0).toUpperCase() + model.slice(1)}: ${createBar(modelSuccessRate, 40, modelColor)} (${modelPasses} passes)`);
     });
     
@@ -321,8 +320,7 @@ async function analyzeFallbackResults(filePath) {
     
     models.forEach(model => {
       const processingTime = getMetricValue(metrics, `${model}_processing_time`, 'avg', 0);
-      const modelColor = model === 'openai' ? colors.green : (model === 'anthropic' ? colors.magenta : colors.blue);
-      
+      const modelColor = getModelColor(model);
       console.log(`  ${model.charAt(0).toUpperCase() + model.slice(1)}: ${modelColor}${formatTime(processingTime)}${colors.reset}`);
     });
     
@@ -401,6 +399,21 @@ function formatDuration(ms) {
     const seconds = Math.floor((ms % 60000) / 1000);
     return `${hours}h ${minutes}m ${seconds}s`;
   }
+}
+
+/**
+ * Gets the color for a specific model
+ * @param {string} model - Model name ('openai', 'anthropic', or 'ollama')
+ * @returns {string} - Color code for the model
+ */
+function getModelColor(model) {
+  if (model === 'openai') {
+    return colors.green;
+  }
+  if (model === 'anthropic') {
+    return colors.magenta;
+  }
+  return colors.blue;
 }
 
 // Process command line arguments

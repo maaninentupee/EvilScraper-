@@ -6,11 +6,11 @@ import axios from 'axios';
 @Injectable()
 export class LMStudioProvider extends BaseProvider {
   private readonly logger = new Logger(LMStudioProvider.name);
-  private axiosInstance;
+  private readonly axiosInstance;
   private activeRequests = 0;
   private readonly MAX_CONCURRENT_REQUESTS = 20; // Limit the number of concurrent requests
-  private requestQueue = [];
-  private isProcessingQueue = false;
+  private readonly requestQueue = [];
+  private readonly isProcessingQueue = false;
 
   constructor() {
     super();
@@ -68,16 +68,16 @@ export class LMStudioProvider extends BaseProvider {
 
       // Accept both 200 and 201 status codes as successful responses
       if (response.status === 200 || response.status === 201) {
-        if (response.data && response.data.choices && response.data.choices.length > 0) {
-          const text = response.data.choices[0].text;
+        if (response.data?.choices?.length > 0) {
+          const text = response.data?.choices?.[0]?.text;
           const qualityScore = this.calculateQualityScore(text);
           
           return {
             text,
-            totalTokens: response.data.usage?.total_tokens || 0,
+            totalTokens: response.data?.usage?.total_tokens || 0,
             provider: this.getName(),
             model: request.modelName,
-            finishReason: response.data.choices[0].finish_reason || 'unknown',
+            finishReason: response.data?.choices?.[0]?.finish_reason ?? 'unknown',
             success: true,
             qualityScore
           };

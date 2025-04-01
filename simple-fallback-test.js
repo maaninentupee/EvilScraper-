@@ -79,114 +79,107 @@ async function sleep(ms) {
 
 async function sendRequest(prompt, provider, errorType = 'none') {
   const startTime = Date.now();
-  
   try {
-    const response = await axios.post(`${BASE_URL}/ai/process`, {
+    const { data } = await axios.post(`${BASE_URL}/ai/process`, {
       taskType: 'seo',
       input: prompt,
       primaryModel: provider,
-      testMode: errorType !== 'none' ? true : false,
-      testError: errorType !== 'none' ? errorType : undefined
+      testMode: errorType !== 'none',
+      testError: errorType !== 'none' ? errorType : undefined,
     }, {
       headers: {
         'Content-Type': 'application/json',
-        'X-Test-Mode': errorType !== 'none' ? 'true' : 'false',
+        'X-Test-Mode': String(errorType !== 'none'),
         'X-Test-Error': errorType !== 'none' ? errorType : ''
       },
-      timeout: 10000 // 10 second timeout
+      timeout: 10000,
     });
-
     const duration = Date.now() - startTime;
     responseTimes.push(duration);
-    
     successCount++;
-    const data = response.data;
-
-    // Check if fallback was used
     if (data.usedFallback) {
       fallbackCount++;
-      
-      // Update provider-specific statistics
       if (data.provider && providerStats[data.provider]) {
         providerStats[data.provider].fallback++;
       }
-      
       console.log(`Fallback used: ${data.provider} (original: ${provider}) | ${duration}ms`);
     }
-
-    // Check if cache was used
     if (data.fromCache) {
       cacheHitCount++;
-      console.log(`Cache hit: ${prompt.substring(0, 20)}... | ${duration}ms`);
+      console.log(`Cache hit: ${prompt.substring(0,20)}... | ${duration}ms`);
     }
-    
-    // Update provider-specific statistics
     if (data.provider && providerStats[data.provider]) {
       providerStats[data.provider].success++;
     }
-
-    console.log(`Successful request: ${data.provider || 'unknown'} | ${prompt.substring(0, 20)}... | ${duration}ms | Simulated error: ${errorType}`);
+    console.log(`Successful request: ${data.provider || 'unknown'} | ${prompt.substring(0,20)}... | ${duration}ms | Simulated error: ${errorType}`);
     return { success: true, data, duration };
-  } catch (error) {
+  } catch (err) {
     const duration = Date.now() - startTime;
     responseTimes.push(duration);
-    
-    // Update provider-specific statistics
-    if (providerStats[provider]) {
-      providerStats[provider].failure++;
-    }
-    
-    if (error.response) {
-      // Server responded with an error
-      try {
-        const errorData = error.response.data;
-        
-        // Classify error type
-        if (errorData.errorType === 'service_unavailable') {
-          serviceUnavailableCount++;
-          console.log(`Service unavailable: ${errorData.error} | ${duration}ms`);
-        } else if (errorData.errorType === 'model_not_found') {
-          modelNotFoundCount++;
-          console.log(`Model not found: ${errorData.error} | ${duration}ms`);
-        } else if (errorData.errorType === 'timeout') {
-          timeoutCount++;
-          console.log(`Timeout: ${errorData.error} | ${duration}ms`);
-        } else if (errorData.errorType === 'rate_limit') {
-          rateLimitCount++;
-          console.log(`Rate limit exceeded: ${errorData.error} | ${duration}ms`);
-        } else {
-          unexpectedErrorCount++;
-          console.log(`Unexpected error: ${errorData.error} | ${duration}ms`);
-        }
-      } catch (e) {
-        // If response is not in JSON format or doesn't contain errorType field
-        if (error.response.status === 429) {
-          rateLimitCount++;
-          console.log(`Rate limit exceeded: ${error.response.statusText} | ${duration}ms`);
-        } else if (error.response.status === 504) {
-          timeoutCount++;
-          console.log(`Timeout: ${error.response.statusText} | ${duration}ms`);
-        } else if (error.response.status >= 500) {
-          serviceUnavailableCount++;
-          console.log(`Server error: ${error.response.status} - ${error.response.statusText} | ${duration}ms`);
-        } else {
-          unexpectedErrorCount++;
-          console.log(`Other error: ${error.response.status} - ${error.response.statusText} | ${duration}ms`);
-        }
-      }
-    } else if (error.code === 'ECONNABORTED') {
-      timeoutCount++;
-      console.log(`Request timed out: ${error.message} | ${duration}ms`);
-    } else if (error.code === 'ECONNREFUSED') {
-      serviceUnavailableCount++;
-      console.log(`Server not responding: ${error.message} | ${duration}ms`);
-    } else {
-      unexpectedErrorCount++;
-      console.log(`Error in request: ${error.message} | ${duration}ms`);
-    }
-    
+    if (providerStats[provider]) providerStats[provider].failure++;
+    handleRequestError(err, duration);
     errorCount++;
-    return { success: false, error: error.message, duration };
+    return { success: false, error: err.message, duration };
+  }
+}
+
+function handleRequestError(error, duration) {
+  if (error.response) {
+    try {
+      classifyError(error.response.data, duration);
+    } catch (e) {
+      classifyStatusError(error.response, duration);
+    }
+  } else if (error.code === 'ECONNABORTED') {
+    timeoutCount++;
+    console.log(`Request timed out: ${error.message} | ${duration}ms`);
+  } else if (error.code === 'ECONNREFUSED') {
+    serviceUnavailableCount++;
+    console.log(`Server not responding: ${error.message} | ${duration}ms`);
+  } else {
+    unexpectedErrorCount++;
+    console.log(`Error in request: ${error.message} | ${duration}ms`);
+  }
+}
+
+function classifyError(errorData, duration) {
+  switch (errorData.errorType) {
+    case 'service_unavailable':
+      serviceUnavailableCount++;
+      console.log(`Service unavailable: ${errorData.error} | ${duration}ms`);
+      break;
+    case 'model_not_found':
+      modelNotFoundCount++;
+      console.log(`Model not found: ${errorData.error} | ${duration}ms`);
+      break;
+    case 'timeout':
+      timeoutCount++;
+      console.log(`Timeout: ${errorData.error} | ${duration}ms`);
+      break;
+    case 'rate_limit':
+      rateLimitCount++;
+      console.log(`Rate limit exceeded: ${errorData.error} | ${duration}ms`);
+      break;
+    default:
+      unexpectedErrorCount++;
+      console.log(`Unexpected error: ${errorData.error} | ${duration}ms`);
+      break;
+  }
+}
+
+function classifyStatusError(response, duration) {
+  if (response.status === 429) {
+    rateLimitCount++;
+    console.log(`Rate limit exceeded: ${response.statusText} | ${duration}ms`);
+  } else if (response.status === 504) {
+    timeoutCount++;
+    console.log(`Timeout: ${response.statusText} | ${duration}ms`);
+  } else if (response.status >= 500) {
+    serviceUnavailableCount++;
+    console.log(`Server error: ${response.status} - ${response.statusText} | ${duration}ms`);
+  } else {
+    unexpectedErrorCount++;
+    console.log(`Other error: ${response.status} - ${response.statusText} | ${duration}ms`);
   }
 }
 

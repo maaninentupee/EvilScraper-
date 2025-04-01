@@ -88,11 +88,7 @@ export abstract class BaseProvider implements AIProvider {
   abstract generateCompletion(request: CompletionRequest): Promise<CompletionResult>;
 
   async isAvailable(): Promise<boolean> {
-    try {
-      return true;
-    } catch (error: any) {
-      return this.handleAvailabilityError(error);
-    }
+    return true;
   }
 
   protected handleAvailabilityError(error: any): boolean {

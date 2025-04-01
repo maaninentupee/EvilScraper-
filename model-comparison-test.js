@@ -1,7 +1,6 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend, Rate, Counter } from 'k6/metrics';
-import { SharedArray } from 'k6/data';
 
 // Define general metrics
 const errorRate = new Rate('error_rate');
@@ -71,154 +70,182 @@ function saveResults(results) {
   console.log(`RESULTS_JSON:${JSON.stringify(resultsWithTimestamp)}`);
 }
 
-// API request implementation
-export default function () {
-  // Select a random provider and model
-  const provider = providers[Math.floor(Math.random() * providers.length)];
-  const model = provider.models[Math.floor(Math.random() * provider.models.length)];
-  const prompt = prompts[Math.floor(Math.random() * prompts.length)];
-  
-  // Use the load-test endpoint optimized for load testing
-  const url = `http://localhost:3001/ai/load-test/${provider.name}`;
-  
-  const payload = JSON.stringify({
-    prompt: prompt,
-    model: model,
-    maxTokens: 30,  // Reduced response length to speed up the test
-    temperature: 0.5, // Lower temperature = more deterministic response
-    iterations: 1   // Only one iteration per request
+// Helper functions to reduce complexity
+
+function getRandomItem(array) {
+  return array[Math.floor(Math.random() * array.length)];
+}
+
+function createRequestPayload(prompt, model) {
+  return JSON.stringify({
+    prompt,
+    model,
+    maxTokens: 30,
+    temperature: 0.5,
+    iterations: 1
   });
+}
+
+function updateProviderMetrics(providerName, duration, success) {
+  // Update processing time
+  aiProcessingTime.add(duration);
   
+  switch(providerName) {
+    case 'openai':
+      openaiTime.add(duration);
+      openaiSuccessRate.add(success ? 1 : 0);
+      break;
+    case 'anthropic':
+      anthropicTime.add(duration);
+      anthropicSuccessRate.add(success ? 1 : 0);
+      break;
+    case 'ollama':
+      ollamaTime.add(duration);
+      ollamaSuccessRate.add(success ? 1 : 0);
+      break;
+  }
+}
+
+function handleRequestError(provider, model, error) {
+  console.error(`Exception in request to ${provider}/${model}: ${error.message}`);
+  errorRate.add(1);
+  failedRequests.add(1);
+  timeoutErrors.add(1);
+  updateProviderMetrics(provider, 0, false);
+}
+
+function processErrorResponse(response, provider, model, duration) {
+  errorRate.add(1);
+  failedRequests.add(1);
+
+  const bodyPreview = response.body ? response.body.substring(0, 100) : 'No response body';
+  
+  if (response.error?.includes('timeout')) {
+    timeoutErrors.add(1);
+    console.error(`Timeout error with model ${model} (${provider}): ${duration}ms`);
+  } else if (response.status >= 500) {
+    serverErrors.add(1);
+    console.error(`Server error with model ${model} (${provider}): ${response.status}, ${bodyPreview}`);
+  } else if (response.status >= 400) {
+    clientErrors.add(1);
+    console.error(`Client error with model ${model} (${provider}): ${response.status}, ${bodyPreview}`);
+  } else {
+    console.error(`Unknown error with model ${model} (${provider}): ${response.status}, ${bodyPreview}`);
+  }
+}
+
+function processSuccessResponse(response, provider, model, duration) {
+  successfulRequests.add(1);
+  
+  try {
+    const data = response.json();
+    logSuccessDetails(data, provider, model, duration);
+    
+    if (__ITER === __ENV.iterations - 1) {
+      saveTestResults();
+    }
+  } catch (e) {
+    console.error(`Error processing response: ${e.message}`);
+  }
+}
+
+function logSuccessDetails(data, provider, model, duration) {
+  const providerInfo = data.provider || provider;
+  const modelInfo = data.model || model;
+  const successRate = data.successRate ? `${data.successRate.toFixed(2)}%` : 'N/A';
+  
+  console.log(`✓ ${providerInfo}/${modelInfo}, duration: ${duration}ms, success rate: ${successRate}`);
+  
+  if (data.results?.length > 0) {
+    logResultsDetails(data.results);
+  }
+}
+
+function logResultsDetails(results) {
+  const avgDuration = results.reduce((sum, r) => sum + (r.duration || 0), 0) / results.length;
+  
+  const textLengths = results.filter(r => r.textLength).map(r => r.textLength);
+  if (textLengths.length > 0) {
+    const avgTextLength = textLengths.reduce((sum, len) => sum + len, 0) / textLengths.length;
+    console.log(`  - Response length: ${avgTextLength.toFixed(0)} characters, response time: ${avgDuration.toFixed(0)}ms`);
+  }
+}
+
+function saveTestResults() {
+  saveResults({
+    totalRequests: successfulRequests.count + failedRequests.count,
+    successfulRequests: successfulRequests.count,
+    failedRequests: failedRequests.count,
+    errorRate: errorRate.rate,
+    avgProcessingTime: aiProcessingTime.avg,
+    providers: {
+      openai: {
+        successRate: openaiSuccessRate.rate,
+        avgTime: openaiTime.avg
+      },
+      anthropic: {
+        successRate: anthropicSuccessRate.rate,
+        avgTime: anthropicTime.avg
+      },
+      ollama: {
+        successRate: ollamaSuccessRate.rate,
+        avgTime: ollamaTime.avg
+      }
+    }
+  });
+}
+
+function calculateDelay() {
+  const currentVUs = __VU || 1;
+  const baseDelay = Math.max(2, 6 - (currentVUs * 0.3));
+  return baseDelay + Math.random() * 2;
+}
+
+// Main test function with reduced complexity
+export default function () {
+  const provider = getRandomItem(providers);
+  const model = getRandomItem(provider.models);
+  const prompt = getRandomItem(prompts);
+  
+  const url = `http://localhost:3001/ai/load-test/${provider.name}`;
+  const payload = createRequestPayload(prompt, model);
   const params = {
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    timeout: 60000  // 60 second timeout
+    headers: { 'Content-Type': 'application/json' },
+    timeout: 60000
   };
   
-  // Measure response time
   const startTime = Date.now();
   let response;
   
   try {
     response = http.post(url, payload, params);
   } catch (error) {
-    // Handle exceptions, such as connection issues
-    console.error(`Exception in request to ${provider.name}/${model}: ${error.message}`);
-    errorRate.add(1);
-    failedRequests.add(1);
-    timeoutErrors.add(1);
-    
-    // Update model-specific success rate
-    if (provider.name === 'openai') openaiSuccessRate.add(0);
-    if (provider.name === 'anthropic') anthropicSuccessRate.add(0);
-    if (provider.name === 'ollama') ollamaSuccessRate.add(0);
-    
-    // Add a delay and continue to the next request
+    handleRequestError(provider.name, model, error);
     sleep(5);
     return;
   }
   
   const duration = Date.now() - startTime;
   
-  // Save response time to general metric
-  aiProcessingTime.add(duration);
-  
-  // Save response time to provider-specific metric
-  if (provider.name === 'openai') openaiTime.add(duration);
-  if (provider.name === 'anthropic') anthropicTime.add(duration);
-  if (provider.name === 'ollama') ollamaTime.add(duration);
-  
-  // Check if the response was successful
   const success = check(response, {
     'status is 201 or 200': (r) => r.status === 201 || r.status === 200,
     'response has valid data': (r) => {
       try {
         const data = r.json();
         return data && (data.results || data.results === null);
-      } catch (e) {
+      } catch {
         return false;
       }
     }
   });
   
-  // Update model-specific success rate
-  if (provider.name === 'openai') openaiSuccessRate.add(success ? 1 : 0);
-  if (provider.name === 'anthropic') anthropicSuccessRate.add(success ? 1 : 0);
-  if (provider.name === 'ollama') ollamaSuccessRate.add(success ? 1 : 0);
+  updateProviderMetrics(provider.name, duration, success);
   
-  // Update success and error statistics
-  if (!success) {
-    errorRate.add(1);
-    failedRequests.add(1);
-    
-    // Classify errors
-    if (response.error && response.error.includes('timeout')) {
-      timeoutErrors.add(1);
-      console.error(`Timeout error with model ${model} (${provider.name}): ${duration}ms`);
-    } else if (response.status >= 500) {
-      serverErrors.add(1);
-      console.error(`Server error with model ${model} (${provider.name}): ${response.status}, ${response.body ? response.body.substring(0, 100) : 'No response body'}`);
-    } else if (response.status >= 400) {
-      clientErrors.add(1);
-      console.error(`Client error with model ${model} (${provider.name}): ${response.status}, ${response.body ? response.body.substring(0, 100) : 'No response body'}`);
-    } else {
-      console.error(`Unknown error with model ${model} (${provider.name}): ${response.status}, ${response.body ? response.body.substring(0, 100) : 'No response body'}`);
-    }
+  if (success) {
+    processSuccessResponse(response, provider.name, model, duration);
   } else {
-    successfulRequests.add(1);
-    
-    try {
-      const data = response.json();
-      const providerInfo = data.provider ? `${data.provider}` : provider.name;
-      const modelInfo = data.model ? `${data.model}` : model;
-      
-      console.log(`✓ ${providerInfo}/${modelInfo}, duration: ${duration}ms, success rate: ${data.successRate ? data.successRate.toFixed(2) + '%' : 'N/A'}`);
-      
-      // If the response contains detailed results, display them
-      if (data.results && data.results.length > 0) {
-        const avgDuration = data.results.reduce((sum, r) => sum + (r.duration || 0), 0) / data.results.length;
-        
-        // Display text length if available
-        const textLengths = data.results.filter(r => r.textLength).map(r => r.textLength);
-        if (textLengths.length > 0) {
-          const avgTextLength = textLengths.reduce((sum, len) => sum + len, 0) / textLengths.length;
-          console.log(`  - Response length: ${avgTextLength.toFixed(0)} characters, response time: ${avgDuration.toFixed(0)}ms`);
-        }
-      }
-      
-      // Save data in the last iteration of the test
-      if (__ITER === __ENV.iterations - 1) {
-        saveResults({
-          totalRequests: successfulRequests.count + failedRequests.count,
-          successfulRequests: successfulRequests.count,
-          failedRequests: failedRequests.count,
-          errorRate: errorRate.rate,
-          avgProcessingTime: aiProcessingTime.avg,
-          providers: {
-            openai: {
-              successRate: openaiSuccessRate.rate,
-              avgTime: openaiTime.avg
-            },
-            anthropic: {
-              successRate: anthropicSuccessRate.rate,
-              avgTime: anthropicTime.avg
-            },
-            ollama: {
-              successRate: ollamaSuccessRate.rate,
-              avgTime: ollamaTime.avg
-            }
-          }
-        });
-      }
-    } catch (e) {
-      console.error(`Error processing response: ${e.message}`);
-    }
+    processErrorResponse(response, provider.name, model, duration);
   }
   
-  // Add a delay between requests to distribute the load
-  // The delay is shorter with more virtual users
-  const currentVUs = __VU || 1;
-  const baseDelay = Math.max(2, 6 - (currentVUs * 0.3)); // Longer delay reduces the load
-  sleep(baseDelay + Math.random() * 2);
+  sleep(calculateDelay());
 }

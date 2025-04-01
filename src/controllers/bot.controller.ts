@@ -27,7 +27,7 @@ function isAIErrorResponse(obj: any): obj is AIErrorResponse {
 export class BotController {
   private readonly logger = new Logger(BotController.name);
 
-  constructor(private botService: BotService) {}
+  constructor(private readonly botService: BotService) {}
 
   @Post('decide')
   async decideNextAction(@Body() request: UserInputDto) {

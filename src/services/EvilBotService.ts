@@ -13,123 +13,104 @@ export class EvilBotService {
     
     constructor(private readonly aiGateway: AIGateway) {}
     
-    public async makeDecision(situation: string, options: string[]): Promise<Decision> {
-        if (!situation || typeof situation !== 'string') {
-            this.logger.error('Invalid input: situation is undefined or of wrong type');
-            return {
-                action: "Error",
-                reason: "Invalid input: situation is undefined or of wrong type",
-                confidence: 0
-            };
-        }
+    private createErrorDecision(reason: string): Decision {
+        return {
+            action: "Error",
+            reason,
+            confidence: 0
+        };
+    }
 
-        if (!options || !Array.isArray(options) || options.length === 0) {
-            this.logger.error('Invalid input: options are missing or not a valid list');
-            return {
-                action: "Error",
-                reason: "Invalid input: options are missing or not a valid list",
-                confidence: 0
-            };
-        }
+    private buildDecisionPrompt(situation: string, options: string[]): string {
+        return `
+        Situation: ${situation}
+        
+        Options:
+        ${options.map((option, index) => `${index + 1}. ${option}`).join('\n')}
+        
+        Choose the best option and justify your decision. Answer in JSON format:
+        {
+            "action": "chosen action",
+            "reason": "justification for the choice",
+            "confidence": estimate of certainty (between 0-1)
+        }`;
+    }
 
+    private parseJsonResponse(jsonString: string): Decision | null {
         try {
-            const input = `
-            Situation: ${situation}
-            
-            Options:
-            ${options.map((option, index) => `${index + 1}. ${option}`).join('\n')}
-            
-            Choose the best option and justify your decision. Answer in JSON format:
-            {
-                "action": "chosen action",
-                "reason": "justification for the choice",
-                "confidence": estimate of certainty (between 0-1)
-            }`;
-            
-            const result = await this.aiGateway.processAIRequest("decision", input);
-            
-            // Try to parse the response in JSON format
-            try {
-                let jsonResult: Decision;
-                
-                if (result.success && result.message) {
-                    // First, try to parse the entire response as JSON
-                    const cleanJson = result.message.replace(/```json|```/g, '').trim();
-                    // Careful JSON parsing: if this fails, use an alternative decision
-                    try {
-                        jsonResult = JSON.parse(cleanJson);
-                    } catch (jsonError) {
-                        this.logger.warn(`JSON parsing failed: ${jsonError.message}, trying to find JSON string`);
-                        // Try to find JSON object in the text
-                        const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
-                        if (jsonMatch) {
-                            try {
-                                jsonResult = JSON.parse(jsonMatch[0]);
-                            } catch (e) {
-                                throw new Error(`JSON object parsing failed: ${e.message}`);
-                            }
-                        } else {
-                            throw new Error('JSON object not found in response');
-                        }
-                    }
-                } else {
-                    throw new Error(result.error || 'AI response failed');
-                }
-                
-                // Ensure required fields are present
-                return {
-                    action: jsonResult && jsonResult.action ? jsonResult.action : "No action",
-                    reason: jsonResult && jsonResult.reason ? jsonResult.reason : "No justification",
-                    confidence: jsonResult && typeof jsonResult.confidence === 'number' ? 
-                        Math.max(0, Math.min(1, jsonResult.confidence)) : 0.5 // Limit to range 0-1
-                };
-            } catch (parseError) {
-                this.logger.error(`Response parsing failed: ${parseError.message}`);
-                return {
-                    action: "Error in decision-making", 
-                    reason: "AI model did not produce a valid JSON response", 
-                    confidence: 0
-                };
-            }
+            return JSON.parse(/\{[\s\S]*\}/.exec(jsonString.replace(/```json|```/g, '').trim())?.[0] ?? 'null');
+        } catch {
+            return null;
+        }
+    }
+
+    private validateAndNormalizeDecision(decision: Partial<Decision>): Decision {
+        return {
+            action: decision?.action ?? "No action",
+            reason: decision?.reason ?? "No justification",
+            confidence: typeof decision?.confidence === 'number'
+                ? Math.max(0, Math.min(1, decision.confidence))
+                : 0.5
+        };
+    }
+    
+    private validateDecisionInputs(situation: string, options: string[]): string | null {
+        if (!situation || typeof situation !== 'string') {
+            return 'Invalid input: situation is undefined or of wrong type';
+        }
+        if (!options?.length || !Array.isArray(options)) {
+            return 'Invalid input: options are missing or not a valid list';
+        }
+        return null;
+    }
+    
+    private async getDecisionFromAI(prompt: string): Promise<Decision> {
+        const result = await this.aiGateway.processAIRequest("decision", prompt);
+        if (!result?.success || !result?.message) {
+            throw new Error(result?.error ?? 'AI response failed');
+        }
+        const parsedDecision = this.parseJsonResponse(result.message);
+        if (!parsedDecision) {
+            throw new Error('AI model did not produce a valid JSON response');
+        }
+        return parsedDecision;
+    }
+    
+    public async makeDecision(situation: string, options: string[]): Promise<Decision> {
+        const inputError = this.validateDecisionInputs(situation, options);
+        if (inputError) {
+            return this.createErrorDecision(inputError);
+        }
+        try {
+            const prompt = this.buildDecisionPrompt(situation, options);
+            const decision = await this.getDecisionFromAI(prompt);
+            return this.validateAndNormalizeDecision(decision);
         } catch (error) {
-            this.logger.error(`Decision-making failed: ${error.message}`);
-            return {
-                action: "Error", 
-                reason: `Decision-making failed: ${error.message}`, 
-                confidence: 0
-            };
+            this.logger.error(`Decision-making failed: ${error?.message ?? 'Unknown error'}`);
+            return this.createErrorDecision(`Decision-making failed: ${error?.message ?? 'Unknown error'}`);
         }
     }
     
     public async processRequest(taskType: string, input: string): Promise<AIResponse> {
         try {
-            // Process the request using the AIGateway
             const result = await this.aiGateway.processAIRequest(taskType, input);
             
-            // Check the result
-            if (!result.success) {
-                this.logger.error(`Error in EvilBot request processing: ${result.error}`);
+            if (!result?.success) {
+                this.logger.error(`Error in EvilBot request processing: ${result?.error ?? 'Unknown error'}`);
                 return result;
             }
             
-            // Modify the response to be "evil"
-            if (result.message) {
-                const evilMessage = this.makeMessageEvil(result.message);
-                
-                return {
-                    ...result,
-                    message: evilMessage
-                };
-            }
-            
-            return result;
+            return result?.message
+                ? { ...result, message: this.makeMessageEvil(result.message) }
+                : result;
             
         } catch (error) {
-            this.logger.error(`Error in EvilBot request processing: ${error.message}`);
+            const errorMessage = `Error in EvilBot request processing: ${error?.message ?? 'Unknown error'}`;
+            this.logger.error(errorMessage);
             
             return {
                 success: false,
-                error: `Error in EvilBot request processing: ${error.message}`,
+                error: errorMessage,
                 provider: 'evilbot',
                 model: 'evilbot'
             };

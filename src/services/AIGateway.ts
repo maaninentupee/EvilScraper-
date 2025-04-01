@@ -1,11 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+'./providers/BaseProvider' imported multiple times.import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ProviderRegistry } from './providers/ProviderRegistry';
-import { BaseProvider } from './providers/BaseProvider';
 import { ProviderHealthMonitor } from './ProviderHealthMonitor';
-import { ProviderSelectionStrategy, SelectionStrategy } from './utils/ProviderSelectionStrategy';
+import { ProviderSelectionStrategy } from './utils/ProviderSelectionStrategy';
 import { ErrorClassifier } from './utils/ErrorClassifier';
-import { CompletionResult } from './providers/BaseProvider';
 
 /**
  * AI response interface

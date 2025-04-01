@@ -42,293 +42,213 @@ const colors = {
  * Main function that analyzes test results produced by k6
  * @param {string} filePath - Path to the JSON file produced by k6
  */
+// Regex patterns for log parsing
+const REGEX_PATTERNS = {
+  openaiTime: /openai_processing_time[.\s]*: avg=(\d+\.?\d*).*?p\(95\)=(\d+\.?\d*)/,
+  anthropicTime: /anthropic_processing_time[.\s]*: avg=(\d+\.?\d*).*?p\(95\)=(\d+\.?\d*)/,
+  ollamaTime: /ollama_processing_time[.\s]*: avg=(\d+\.?\d*).*?p\(95\)=(\d+\.?\d*)/,
+  openaiSuccess: /openai_success_rate[.\s]*: (\d+\.?\d*)% (\d+) out of (\d+)/,
+  anthropicSuccess: /anthropic_success_rate[.\s]*: (\d+\.?\d*)% (\d+) out of (\d+)/,
+  ollamaSuccess: /ollama_success_rate[.\s]*: (\d+\.?\d*)% (\d+) out of (\d+)/,
+  duration: /running \((\d+)m(\d+)\.(\d+)s\)/,
+  vus: /vus_max[.\s]*: (\d+)/,
+  requests: /http_reqs[.\s]*: (\d+)/,
+  errorRate: /error_rate[.\s]*: (\d+\.?\d*)%/,
+  avgDuration: /http_req_duration[.\s]*: avg=(\d+\.?\d*)ms.*?p\(95\)=(\d+\.?\d*)s/
+};
+
+function extractModelMetrics(rawData) {
+  const metrics = {
+    openai: { avg: 0, p95: 0, count: 0, successRate: 0 },
+    anthropic: { avg: 0, p95: 0, count: 0, successRate: 0 },
+    ollama: { avg: 0, p95: 0, count: 0, successRate: 0 }
+  };
+
+  // Extract time metrics
+  const openaiTime = rawData.match(REGEX_PATTERNS.openaiTime);
+  const anthropicTime = rawData.match(REGEX_PATTERNS.anthropicTime);
+  const ollamaTime = rawData.match(REGEX_PATTERNS.ollamaTime);
+
+  if (openaiTime) {
+    metrics.openai.avg = parseFloat(openaiTime[1]);
+    metrics.openai.p95 = parseFloat(openaiTime[2]);
+  }
+  if (anthropicTime) {
+    metrics.anthropic.avg = parseFloat(anthropicTime[1]);
+    metrics.anthropic.p95 = parseFloat(anthropicTime[2]);
+  }
+  if (ollamaTime) {
+    metrics.ollama.avg = parseFloat(ollamaTime[1]);
+    metrics.ollama.p95 = parseFloat(ollamaTime[2]);
+  }
+
+  // Extract success rates
+  const openaiSuccess = rawData.match(REGEX_PATTERNS.openaiSuccess);
+  const anthropicSuccess = rawData.match(REGEX_PATTERNS.anthropicSuccess);
+  const ollamaSuccess = rawData.match(REGEX_PATTERNS.ollamaSuccess);
+
+  if (openaiSuccess) {
+    metrics.openai.successRate = parseFloat(openaiSuccess[1]);
+    metrics.openai.count = parseInt(openaiSuccess[3]);
+  }
+  if (anthropicSuccess) {
+    metrics.anthropic.successRate = parseFloat(anthropicSuccess[1]);
+    metrics.anthropic.count = parseInt(anthropicSuccess[3]);
+  }
+  if (ollamaSuccess) {
+    metrics.ollama.successRate = parseFloat(ollamaSuccess[1]);
+    metrics.ollama.count = parseInt(ollamaSuccess[3]);
+  }
+
+  return metrics;
+}
+
+function extractGeneralMetrics(rawData) {
+  const metrics = {
+    totalDuration: 0,
+    maxVUs: 0,
+    totalRequests: 0,
+    errorRate: 0,
+    avgDuration: 0,
+    p95Duration: 0
+  };
+
+  const durationMatch = rawData.match(REGEX_PATTERNS.duration) ||
+                       findLastDurationMatch(rawData);
+  const vusMatch = rawData.match(REGEX_PATTERNS.vus);
+  const requestsMatch = rawData.match(REGEX_PATTERNS.requests);
+  const errorRateMatch = rawData.match(REGEX_PATTERNS.errorRate);
+  const avgDurationMatch = rawData.match(REGEX_PATTERNS.avgDuration);
+
+  if (durationMatch) {
+    const [minutes, seconds, milliseconds] = durationMatch.slice(1).map(Number);
+    metrics.totalDuration = minutes * 60 * 1000 + seconds * 1000 + milliseconds * 100;
+  }
+
+  if (vusMatch) metrics.maxVUs = parseInt(vusMatch[1]);
+  if (requestsMatch) metrics.totalRequests = parseInt(requestsMatch[1]);
+  if (errorRateMatch) metrics.errorRate = parseFloat(errorRateMatch[1]);
+  if (avgDurationMatch) {
+    metrics.avgDuration = parseFloat(avgDurationMatch[1]);
+    metrics.p95Duration = parseFloat(avgDurationMatch[2]) * 1000;
+  }
+
+  return metrics;
+}
+
+function findLastDurationMatch(rawData) {
+  const lastRunningRegex = new RegExp(REGEX_PATTERNS.duration.source, 'g');
+  let lastMatch;
+  let match;
+  
+  while ((match = lastRunningRegex.exec(rawData)) !== null) {
+    lastMatch = match;
+  }
+  
+  return lastMatch;
+}
+
+function createMetricsObject(modelMetrics, generalMetrics) {
+  const totalModelRequests = modelMetrics.openai.count + modelMetrics.anthropic.count + modelMetrics.ollama.count;
+  const failedRequests = generalMetrics.totalRequests * (generalMetrics.errorRate / 100);
+
+  return {
+    'openai_processing_time': {
+      values: {
+        avg: modelMetrics.openai.avg,
+        p95: modelMetrics.openai.p95,
+        count: modelMetrics.openai.count,
+        rate: modelMetrics.openai.successRate / 100
+      }
+    },
+    'anthropic_processing_time': {
+      values: {
+        avg: modelMetrics.anthropic.avg,
+        p95: modelMetrics.anthropic.p95,
+        count: modelMetrics.anthropic.count,
+        rate: modelMetrics.anthropic.successRate / 100
+      }
+    },
+    'ollama_processing_time': {
+      values: {
+        avg: modelMetrics.ollama.avg,
+        p95: modelMetrics.ollama.p95,
+        count: modelMetrics.ollama.count,
+        rate: modelMetrics.ollama.successRate / 100
+      }
+    },
+    'ai_processing_time': {
+      values: {
+        avg: generalMetrics.avgDuration,
+        p95: generalMetrics.p95Duration
+      }
+    },
+    'openai_success_rate': { values: { rate: modelMetrics.openai.successRate / 100 } },
+    'anthropic_success_rate': { values: { rate: modelMetrics.anthropic.successRate / 100 } },
+    'ollama_success_rate': { values: { rate: modelMetrics.ollama.successRate / 100 } },
+    'http_reqs': { values: { count: totalModelRequests } },
+    'successful_requests': { values: { count: totalModelRequests } },
+    'failed_requests': { values: { count: failedRequests } },
+    'error_rate': { values: { rate: generalMetrics.errorRate / 100 } },
+    'timeout_errors': { values: { count: 0 } }
+  };
+}
+
 async function analyzeResults(filePath) {
   try {
-    // Check if the file exists
     if (!fs.existsSync(filePath)) {
       console.error(`${colors.red}Error: File ${filePath} not found.${colors.reset}`);
       console.log(`Run the test first with command: ${colors.cyan}k6 run model-comparison-test.js --out json=results.json${colors.reset}`);
       return;
     }
 
-    // Read the file
     const rawData = fs.readFileSync(filePath, 'utf8');
-    
-    // Check if this is a JSON file or a log file
     let data = { metrics: {} };
-    let isLogFile = false;
     
     if (filePath.endsWith('.json')) {
       try {
-        // Try to parse the JSON file
         data = JSON.parse(rawData);
       } catch (e) {
-        // If parsing fails, process the file as before
-        console.log(`${colors.yellow}Warning: JSON file parsing failed: ${e.message}${colors.reset}`);
-        console.log(`${colors.yellow}Attempting to process the file as a log file...${colors.reset}`);
-        isLogFile = true;
+        console.log(`${colors.yellow}Warning: JSON parsing failed, processing as log file${colors.reset}`);
+        data = processLogFile(rawData);
       }
     } else {
-      // This is likely a log file
-      isLogFile = true;
+      data = processLogFile(rawData);
     }
-    
-    if (isLogFile) {
-      // Calculate averages
-      const calculateAvg = (arr) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-      
-      // Calculate p95 (95th percentile)
-      const calculateP95 = (arr) => {
-        if (arr.length === 0) return 0;
-        const sorted = [...arr].sort((a, b) => a - b);
-        const idx = Math.floor(sorted.length * 0.95);
-        return sorted[idx] || sorted[sorted.length - 1];
-      };
-      
-      // Find model metrics from the summary
-      const openaiTimeRegex = /openai_processing_time[.\s]*: avg=([0-9.]+).*?p\(95\)=([0-9.]+)/;
-      const anthropicTimeRegex = /anthropic_processing_time[.\s]*: avg=([0-9.]+).*?p\(95\)=([0-9.]+)/;
-      const ollamaTimeRegex = /ollama_processing_time[.\s]*: avg=([0-9.]+).*?p\(95\)=([0-9.]+)/;
-      
-      const openaiSuccessRegex = /openai_success_rate[.\s]*: ([0-9.]+)% ([0-9]+) out of ([0-9]+)/;
-      const anthropicSuccessRegex = /anthropic_success_rate[.\s]*: ([0-9.]+)% ([0-9]+) out of ([0-9]+)/;
-      const ollamaSuccessRegex = /ollama_success_rate[.\s]*: ([0-9.]+)% ([0-9]+) out of ([0-9]+)/;
-      
-      // Find the total test duration
-      const durationRegex = /running \(([0-9]+)m([0-9]+)\.([0-9]+)s\)/;
-      
-      // Find the number of virtual users
-      const vusRegex = /vus_max[.\s]*: ([0-9]+)/;
-      
-      // Find the total number of requests
-      const requestsRegex = /http_reqs[.\s]*: ([0-9]+)/;
-      
-      // Find the error rate
-      const errorRateRegex = /error_rate[.\s]*: ([0-9.]+)%/;
-      
-      // Find the average response time
-      const avgDurationRegex = /http_req_duration[.\s]*: avg=([0-9.]+)ms.*?p\(95\)=([0-9.]+)s/;
-      
-      // Initialize variables
-      let openaiAvg = 0;
-      let openaiP95 = 0;
-      let openaiCount = 0;
-      let openaiSuccessRate = 0;
-      
-      let anthropicAvg = 0;
-      let anthropicP95 = 0;
-      let anthropicCount = 0;
-      let anthropicSuccessRate = 0;
-      
-      let ollamaAvg = 0;
-      let ollamaP95 = 0;
-      let ollamaCount = 0;
-      let ollamaSuccessRate = 0;
-      
-      let totalDuration = 0;
-      let maxVUs = 0;
-      let totalRequests = 0;
-      let errorRate = 0;
-      let avgDuration = 0;
-      let p95Duration = 0;
-      
-      // Find data from the log
-      const openaiTimeMatch = rawData.match(openaiTimeRegex);
-      if (openaiTimeMatch) {
-        openaiAvg = parseFloat(openaiTimeMatch[1]);
-        openaiP95 = parseFloat(openaiTimeMatch[2]);
-      }
-      
-      const anthropicTimeMatch = rawData.match(anthropicTimeRegex);
-      if (anthropicTimeMatch) {
-        anthropicAvg = parseFloat(anthropicTimeMatch[1]);
-        anthropicP95 = parseFloat(anthropicTimeMatch[2]);
-      }
-      
-      const ollamaTimeMatch = rawData.match(ollamaTimeRegex);
-      if (ollamaTimeMatch) {
-        ollamaAvg = parseFloat(ollamaTimeMatch[1]);
-        ollamaP95 = parseFloat(ollamaTimeMatch[2]);
-      }
-      
-      const openaiSuccessMatch = rawData.match(openaiSuccessRegex);
-      if (openaiSuccessMatch) {
-        openaiSuccessRate = parseFloat(openaiSuccessMatch[1]);
-        openaiCount = parseInt(openaiSuccessMatch[3]);
-      }
-      
-      const anthropicSuccessMatch = rawData.match(anthropicSuccessRegex);
-      if (anthropicSuccessMatch) {
-        anthropicSuccessRate = parseFloat(anthropicSuccessMatch[1]);
-        anthropicCount = parseInt(anthropicSuccessMatch[3]);
-      }
-      
-      const ollamaSuccessMatch = rawData.match(ollamaSuccessRegex);
-      if (ollamaSuccessMatch) {
-        ollamaSuccessRate = parseFloat(ollamaSuccessMatch[1]);
-        ollamaCount = parseInt(ollamaSuccessMatch[3]);
-      }
-      
-      const durationMatch = rawData.match(durationRegex);
-      if (durationMatch) {
-        const minutes = parseInt(durationMatch[1]);
-        const seconds = parseInt(durationMatch[2]);
-        const milliseconds = parseInt(durationMatch[3]) * 100; // k6 shows only one decimal place
-        totalDuration = minutes * 60 * 1000 + seconds * 1000 + milliseconds;
-      } else {
-        // Find the last "running" line
-        const lastRunningRegex = /running \(([0-9]+)m([0-9]+)\.([0-9]+)s\)/g;
-        let lastMatch;
-        let tempMatch;
-        
-        while ((tempMatch = lastRunningRegex.exec(rawData)) !== null) {
-          lastMatch = tempMatch;
-        }
-        
-        if (lastMatch) {
-          const minutes = parseInt(lastMatch[1]);
-          const seconds = parseInt(lastMatch[2]);
-          const milliseconds = parseInt(lastMatch[3]) * 100; // k6 shows only one decimal place
-          totalDuration = minutes * 60 * 1000 + seconds * 1000 + milliseconds;
-        }
-      }
-      
-      const vusMatch = rawData.match(vusRegex);
-      if (vusMatch) {
-        maxVUs = parseInt(vusMatch[1]);
-      }
-      
-      const requestsMatch = rawData.match(requestsRegex);
-      if (requestsMatch) {
-        totalRequests = parseInt(requestsMatch[1]);
-      }
-      
-      const errorRateMatch = rawData.match(errorRateRegex);
-      if (errorRateMatch) {
-        errorRate = parseFloat(errorRateMatch[1]);
-      }
-      
-      const avgDurationMatch = rawData.match(avgDurationRegex);
-      if (avgDurationMatch) {
-        avgDuration = parseFloat(avgDurationMatch[1]);
-        p95Duration = parseFloat(avgDurationMatch[2]) * 1000; // Convert seconds to milliseconds
-      }
-      
-      console.log(`OpenAI: avg=${openaiAvg}ms, p95=${openaiP95}ms, count=${openaiCount}, success=${openaiSuccessRate}%`);
-      console.log(`Anthropic: avg=${anthropicAvg}ms, p95=${anthropicP95}ms, count=${anthropicCount}, success=${anthropicSuccessRate}%`);
-      console.log(`Ollama: avg=${ollamaAvg}ms, p95=${ollamaP95}ms, count=${ollamaCount}, success=${ollamaSuccessRate}%`);
-      
-      // Calculate the total number of requests and successful requests
-      const totalModelRequests = openaiCount + anthropicCount + ollamaCount;
-      const successfulRequests = totalModelRequests;
-      const failedRequests = totalRequests * (errorRate / 100);
-      
-      // Create artificial metrics
-      const metrics = {
-        'openai_processing_time': {
-          values: {
-            avg: openaiAvg,
-            p95: openaiP95,
-            count: openaiCount,
-            rate: openaiSuccessRate / 100
-          }
-        },
-        'anthropic_processing_time': {
-          values: {
-            avg: anthropicAvg,
-            p95: anthropicP95,
-            count: anthropicCount,
-            rate: anthropicSuccessRate / 100
-          }
-        },
-        'ollama_processing_time': {
-          values: {
-            avg: ollamaAvg,
-            p95: ollamaP95,
-            count: ollamaCount,
-            rate: ollamaSuccessRate / 100
-          }
-        },
-        'ai_processing_time': {
-          values: {
-            avg: avgDuration,
-            p95: p95Duration
-          }
-        },
-        'openai_success_rate': {
-          values: {
-            rate: openaiSuccessRate / 100
-          }
-        },
-        'anthropic_success_rate': {
-          values: {
-            rate: anthropicSuccessRate / 100
-          }
-        },
-        'ollama_success_rate': {
-          values: {
-            rate: ollamaSuccessRate / 100
-          }
-        },
-        'http_reqs': {
-          values: {
-            count: totalModelRequests
-          }
-        },
-        'successful_requests': {
-          values: {
-            count: successfulRequests
-          }
-        },
-        'failed_requests': {
-          values: {
-            count: failedRequests
-          }
-        },
-        'error_rate': {
-          values: {
-            rate: errorRate / 100
-          }
-        },
-        'timeout_errors': {
-          values: {
-            count: 0
-          }
-        }
-      };
-      
-      // Set metrics in the data object
-      data.metrics = metrics;
-      
-      // Set the test duration
-      data.state = {
-        testRunDurationMs: totalDuration,
-        maxVUs: maxVUs
-      };
-    }
-    
-    // Check if there are metrics
+
     if (!data.metrics || Object.keys(data.metrics).length === 0) {
       console.error(`${colors.red}Error: No metrics found in the file.${colors.reset}`);
       return;
     }
-    
-    // Print general information
+
     printGeneralInfo(data);
-    
-    // Analyze model performance
     analyzeModelPerformance(data);
-    
-    // Provide recommendations
     provideRecommendations(data);
     
-    // Save results to a CSV file
     const csvFilePath = saveResultsToCSV(data);
     console.log(`\nResults saved to CSV file: ${colors.green}${csvFilePath}${colors.reset}`);
     
   } catch (error) {
     console.error(`${colors.red}Error analyzing results: ${error.message}${colors.reset}`);
   }
+}
+
+function processLogFile(rawData) {
+  const modelMetrics = extractModelMetrics(rawData);
+  const generalMetrics = extractGeneralMetrics(rawData);
+  
+  // Log extracted metrics
+  console.log(`OpenAI: avg=${modelMetrics.openai.avg}ms, p95=${modelMetrics.openai.p95}ms, count=${modelMetrics.openai.count}, success=${modelMetrics.openai.successRate}%`);
+  console.log(`Anthropic: avg=${modelMetrics.anthropic.avg}ms, p95=${modelMetrics.anthropic.p95}ms, count=${modelMetrics.anthropic.count}, success=${modelMetrics.anthropic.successRate}%`);
+  console.log(`Ollama: avg=${modelMetrics.ollama.avg}ms, p95=${modelMetrics.ollama.p95}ms, count=${modelMetrics.ollama.count}, success=${modelMetrics.ollama.successRate}%`);
+
+  return {
+    metrics: createMetricsObject(modelMetrics, generalMetrics),
+    state: {
+      testRunDurationMs: generalMetrics.totalDuration,
+      maxVUs: generalMetrics.maxVUs
+    }
+  };
 }
 
 /**
@@ -455,105 +375,99 @@ function analyzeModelPerformance(data) {
  * Provides recommendations based on the results
  * @param {Object} data - k6 test results
  */
-function provideRecommendations(data) {
-  const metrics = data.metrics || {};
-  
-  // Get model response times and success rates
-  const openaiTime = metrics['openai_processing_time']?.values?.avg || 0;
-  const anthropicTime = metrics['anthropic_processing_time']?.values?.avg || 0;
-  const ollamaTime = metrics['ollama_processing_time']?.values?.avg || 0;
-  
-  const openaiSuccessRate = metrics['openai_success_rate']?.values?.rate || 0;
-  const anthropicSuccessRate = metrics['anthropic_success_rate']?.values?.rate || 0;
-  const ollamaSuccessRate = metrics['ollama_success_rate']?.values?.rate || 0;
-  
-  const timeoutErrors = metrics['timeout_errors']?.values?.count || 0;
-  const totalErrors = (metrics['failed_requests']?.values?.count || 0);
-  
-  console.log(`\n${colors.bright}${colors.bgMagenta}${colors.white} RECOMMENDATIONS ${colors.reset}\n`);
-  
-  // Model usage recommendations
-  console.log(`${colors.bright}Model Usage Recommendations:${colors.reset}`);
-  
-  // Fastest model
-  let fastestModel = 'OpenAI (gpt-3.5-turbo)';
-  let fastestTime = openaiTime;
-  
-  if (anthropicTime > 0 && anthropicTime < fastestTime) {
-    fastestModel = 'Anthropic (claude-instant-1)';
-    fastestTime = anthropicTime;
+function findFastestModel(modelTimes) {
+  return [
+    { name: 'OpenAI (gpt-3.5-turbo)', time: modelTimes.openai },
+    { name: 'Anthropic (claude-instant-1)', time: modelTimes.anthropic },
+    { name: 'Ollama (llama2)', time: modelTimes.ollama }
+  ].filter(model => model.time > 0)
+    .reduce((fastest, current) =>
+      current.time < fastest.time ? current : fastest
+    );
+}
+
+function findMostReliableModel(successRates) {
+  return [
+    { name: 'OpenAI (gpt-3.5-turbo)', rate: successRates.openai },
+    { name: 'Anthropic (claude-instant-1)', rate: successRates.anthropic },
+    { name: 'Ollama (llama2)', rate: successRates.ollama }
+  ].reduce((mostReliable, current) =>
+    current.rate > mostReliable.rate ? current : mostReliable
+  );
+}
+
+function getBalancedRecommendation(modelTimes, successRates) {
+  if (successRates.anthropic >= 0.95 && modelTimes.anthropic < modelTimes.openai * 1.5) {
+    return 'Anthropic (claude-instant-1)';
   }
-  
-  if (ollamaTime > 0 && ollamaTime < fastestTime) {
-    fastestModel = 'Ollama (llama2)';
-    fastestTime = ollamaTime;
+  if (successRates.ollama >= 0.9 && modelTimes.ollama < modelTimes.anthropic * 0.5) {
+    return 'Ollama (llama2)';
   }
-  
-  // Most reliable model
-  let mostReliableModel = 'OpenAI (gpt-3.5-turbo)';
-  let highestReliability = openaiSuccessRate;
-  
-  if (anthropicSuccessRate > highestReliability) {
-    mostReliableModel = 'Anthropic (claude-instant-1)';
-    highestReliability = anthropicSuccessRate;
-  }
-  
-  if (ollamaSuccessRate > highestReliability) {
-    mostReliableModel = 'Ollama (llama2)';
-    highestReliability = ollamaSuccessRate;
-  }
-  
-  // Best value model (assuming Ollama is free, Anthropic is cheaper than OpenAI)
-  let bestValueModel = 'Ollama (llama2)';
-  
-  // If all models are equally reliable, recommend the fastest one
-  if (openaiSuccessRate === anthropicSuccessRate && anthropicSuccessRate === ollamaSuccessRate) {
-    console.log(`- For speed-critical tasks: ${colors.green}${fastestModel}${colors.reset}`);
-    console.log(`- For reliability-critical tasks: ${colors.green}${mostReliableModel}${colors.reset}`);
-    console.log(`- For cost-critical tasks: ${colors.green}${bestValueModel}${colors.reset}`);
-  } else {
-    // Otherwise, provide a balanced recommendation
-    console.log(`- For speed-critical tasks: ${colors.green}${fastestModel}${colors.reset}`);
-    console.log(`- For reliability-critical tasks: ${colors.green}${mostReliableModel}${colors.reset}`);
-    console.log(`- For cost-critical tasks: ${colors.green}${bestValueModel}${colors.reset}`);
-    
-    // Recommend a balanced approach
-    if (anthropicSuccessRate >= 0.95 && anthropicTime < openaiTime * 1.5) {
-      console.log(`- For balanced usage: ${colors.green}Anthropic (claude-instant-1)${colors.reset}`);
-    } else if (ollamaSuccessRate >= 0.9 && ollamaTime < anthropicTime * 0.5) {
-      console.log(`- For balanced usage: ${colors.green}Ollama (llama2)${colors.reset}`);
-    } else {
-      console.log(`- For balanced usage: ${colors.green}OpenAI (gpt-3.5-turbo)${colors.reset}`);
-    }
-  }
-  
-  // Error handling recommendations
+  return 'OpenAI (gpt-3.5-turbo)';
+}
+
+function printModelRecommendations(fastestModel, mostReliableModel, balancedModel) {
+  console.log(`- For speed-critical tasks: ${colors.green}${fastestModel}${colors.reset}`);
+  console.log(`- For reliability-critical tasks: ${colors.green}${mostReliableModel}${colors.reset}`);
+  console.log(`- For cost-critical tasks: ${colors.green}Ollama (llama2)${colors.reset}`);
+  console.log(`- For balanced usage: ${colors.green}${balancedModel}${colors.reset}`);
+}
+
+function printErrorHandlingRecommendations(timeoutErrors, totalErrors) {
   console.log(`\n${colors.bright}Error Handling Recommendations:${colors.reset}`);
   
   if (totalErrors > 0) {
     if (timeoutErrors > 0) {
-      console.log(`- Increase the timeout value in API calls, the current value may be too low.`);
+      console.log('- Increase the timeout value in API calls, the current value may be too low.');
     }
-    
-    console.log(`- Use a retry mechanism to retry failed requests.`);
-    console.log(`- Consider implementing a circuit breaker pattern to prevent repeated calls to a faulty service.`);
+    console.log('- Use a retry mechanism to retry failed requests.');
+    console.log('- Consider implementing a circuit breaker pattern to prevent repeated calls to a faulty service.');
   }
-  
-  // General recommendations
+}
+
+function printGeneralRecommendations(modelTimes, successRates) {
   console.log(`\n${colors.bright}General Recommendations:${colors.reset}`);
-  console.log(`- Use the AIGateway class's fallback mechanism to automatically switch to another model in case of errors.`);
-  console.log(`- Set models in priority order based on reliability and speed.`);
-  console.log(`- Limit the number of concurrent requests to prevent overloading.`);
-  console.log(`- Consider implementing a queuing system for high-load scenarios.`);
-  
-  // Recommendations based on test results
-  if (openaiTime > 1000 && anthropicTime < 500) {
-    console.log(`- Consider using Anthropic (claude-instant-1) as the primary model for speed-critical tasks.`);
+  console.log('- Use the AIGateway class\'s fallback mechanism to automatically switch to another model in case of errors.');
+  console.log('- Set models in priority order based on reliability and speed.');
+  console.log('- Limit the number of concurrent requests to prevent overloading.');
+  console.log('- Consider implementing a queuing system for high-load scenarios.');
+
+  if (modelTimes.openai > 1000 && modelTimes.anthropic < 500) {
+    console.log('- Consider using Anthropic (claude-instant-1) as the primary model for speed-critical tasks.');
   }
-  
-  if (ollamaTime < 100 && ollamaSuccessRate > 0.9) {
-    console.log(`- Consider using Ollama (llama2) for simple tasks due to its speed.`);
+  if (modelTimes.ollama < 100 && successRates.ollama > 0.9) {
+    console.log('- Consider using Ollama (llama2) for simple tasks due to its speed.');
   }
+}
+
+function provideRecommendations(data) {
+  const metrics = data.metrics || {};
+  
+  const modelTimes = {
+    openai: metrics['openai_processing_time']?.values?.avg || 0,
+    anthropic: metrics['anthropic_processing_time']?.values?.avg || 0,
+    ollama: metrics['ollama_processing_time']?.values?.avg || 0
+  };
+  
+  const successRates = {
+    openai: metrics['openai_success_rate']?.values?.rate || 0,
+    anthropic: metrics['anthropic_success_rate']?.values?.rate || 0,
+    ollama: metrics['ollama_success_rate']?.values?.rate || 0
+  };
+  
+  const timeoutErrors = metrics['timeout_errors']?.values?.count || 0;
+  const totalErrors = metrics['failed_requests']?.values?.count || 0;
+  
+  console.log(`\n${colors.bright}${colors.bgMagenta}${colors.white} RECOMMENDATIONS ${colors.reset}\n`);
+  console.log(`${colors.bright}Model Usage Recommendations:${colors.reset}`);
+  
+  const fastestModel = findFastestModel(modelTimes).name;
+  const mostReliableModel = findMostReliableModel(successRates).name;
+  const balancedModel = getBalancedRecommendation(modelTimes, successRates);
+  
+  printModelRecommendations(fastestModel, mostReliableModel, balancedModel);
+  printErrorHandlingRecommendations(timeoutErrors, totalErrors);
+  printGeneralRecommendations(modelTimes, successRates);
 }
 
 /**

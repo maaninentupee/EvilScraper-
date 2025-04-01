@@ -12,7 +12,10 @@ if len(sys.argv) < 2:
 
 csv_file = sys.argv[1]
 print(f"Analyzing file: {csv_file}")
-
+OLLAMA_CPU_COL = 'Ollama CPU %'
+OLLAMA_MEMORY_COL = 'Ollama Memory %'
+OLLAMA_MEMORY_MB_COL = 'Ollama Memory MB'
+MEMORY_USAGE_COL = 'Memory Usage %'
 # Read the CSV file
 try:
     df = pd.read_csv(csv_file)
@@ -28,9 +31,9 @@ df['Datetime'] = pd.to_datetime(df['Timestamp'], unit='s')
 print("\n=== RESOURCE USAGE SUMMARY ===")
 print("\nCPU Usage:")
 print(f"  System CPU Load: avg={df['CPU Load'].mean():.2f}, max={df['CPU Load'].max():.2f}, min={df['CPU Load'].min():.2f}")
-if 'Ollama CPU %' in df.columns and df['Ollama CPU %'].notna().any():
+if OLLAMA_CPU_COL in df.columns and df[OLLAMA_CPU_COL].notna().any():
     # Convert any string values to numeric, coercing errors to NaN
-    df['Ollama CPU %'] = pd.to_numeric(df['Ollama CPU %'], errors='coerce')
+    df[OLLAMA_CPU_COL] = pd.to_numeric(df[OLLAMA_CPU_COL], errors='coerce')
     ollama_cpu = df['Ollama CPU %'].dropna()
     if len(ollama_cpu) > 0:
         print(f"  Ollama CPU Usage: avg={ollama_cpu.mean():.2f}%, max={ollama_cpu.max():.2f}%, min={ollama_cpu.min():.2f}%")
@@ -40,12 +43,12 @@ else:
     print("  Ollama CPU Usage: No data available")
 
 print("\nMemory Usage:")
-print(f"  System Memory: avg={df['Memory Usage %'].mean():.2f}%, max={df['Memory Usage %'].max():.2f}%, min={df['Memory Usage %'].min():.2f}%")
+print(f"  System Memory: avg={df[MEMORY_USAGE_COL].mean():.2f}%, max={df[MEMORY_USAGE_COL].max():.2f}%, min={df[MEMORY_USAGE_COL].min():.2f}%")
 print(f"  Free Memory: avg={df['Free Memory MB'].mean():.2f}MB, min={df['Free Memory MB'].min():.2f}MB")
-if 'Ollama Memory %' in df.columns and df['Ollama Memory %'].notna().any():
+if OLLAMA_MEMORY_COL in df.columns and df[OLLAMA_MEMORY_COL].notna().any():
     # Convert any string values to numeric, coercing errors to NaN
-    df['Ollama Memory %'] = pd.to_numeric(df['Ollama Memory %'], errors='coerce')
-    ollama_mem = df['Ollama Memory %'].dropna()
+    df[OLLAMA_MEMORY_COL] = pd.to_numeric(df[OLLAMA_MEMORY_COL], errors='coerce')
+    ollama_mem = df[OLLAMA_MEMORY_COL].dropna()
     if len(ollama_mem) > 0:
         print(f"  Ollama Memory Usage: avg={ollama_mem.mean():.2f}%, max={ollama_mem.max():.2f}%, min={ollama_mem.min():.2f}%")
     else:
@@ -53,10 +56,10 @@ if 'Ollama Memory %' in df.columns and df['Ollama Memory %'].notna().any():
 else:
     print("  Ollama Memory Usage: No data available")
 
-if 'Ollama Memory MB' in df.columns and df['Ollama Memory MB'].notna().any():
+if OLLAMA_MEMORY_MB_COL in df.columns and df[OLLAMA_MEMORY_MB_COL].notna().any():
     # Convert any string values to numeric, coercing errors to NaN
-    df['Ollama Memory MB'] = pd.to_numeric(df['Ollama Memory MB'], errors='coerce')
-    ollama_mem_mb = df['Ollama Memory MB'].dropna()
+    df[OLLAMA_MEMORY_MB_COL] = pd.to_numeric(df[OLLAMA_MEMORY_MB_COL], errors='coerce')
+    ollama_mem_mb = df[OLLAMA_MEMORY_MB_COL].dropna()
     if len(ollama_mem_mb) > 0:
         print(f"  Ollama Memory Consumption: avg={ollama_mem_mb.mean():.2f}MB, max={ollama_mem_mb.max():.2f}MB")
     else:
@@ -103,11 +106,11 @@ if 'Ollama CPU %' in correlation_matrix.columns:
         if col != 'Ollama CPU %' and not pd.isna(val):
             print(f"  {col}: {val:.3f}")
 
-if 'Ollama Memory %' in correlation_matrix.columns:
+if OLLAMA_MEMORY_COL in correlation_matrix.columns:
     print("\nFactors most correlated with Ollama Memory usage:")
-    mem_corr = correlation_matrix['Ollama Memory %'].sort_values(ascending=False)
+    mem_corr = correlation_matrix[OLLAMA_MEMORY_COL].sort_values(ascending=False)
     for col, val in mem_corr.items():
-        if col != 'Ollama Memory %' and not pd.isna(val):
+        if col != OLLAMA_MEMORY_COL and not pd.isna(val):
             print(f"  {col}: {val:.3f}")
 
 # Generate charts
@@ -127,11 +130,11 @@ try:
     
     # Plot Memory usage
     axs[1].plot(df['Datetime'], df['Memory Usage %'], label='System Memory %')
-    if 'Ollama Memory %' in df.columns and df['Ollama Memory %'].notna().any():
-        axs[1].plot(df['Datetime'], pd.to_numeric(df['Ollama Memory %'], errors='coerce'), label='Ollama Memory %')
-    if 'Ollama Memory MB' in df.columns and df['Ollama Memory MB'].notna().any():
+    if OLLAMA_MEMORY_COL in df.columns and df[OLLAMA_MEMORY_COL].notna().any():
+        axs[1].plot(df['Datetime'], pd.to_numeric(df[OLLAMA_MEMORY_COL], errors='coerce'), label=OLLAMA_MEMORY_COL)
+    if OLLAMA_MEMORY_MB_COL in df.columns and df[OLLAMA_MEMORY_MB_COL].notna().any():
         ax2 = axs[1].twinx()
-        ax2.plot(df['Datetime'], pd.to_numeric(df['Ollama Memory MB'], errors='coerce'), 'r-', label='Ollama Memory MB')
+        ax2.plot(df['Datetime'], pd.to_numeric(df[OLLAMA_MEMORY_MB_COL], errors='coerce'), 'r-', label=OLLAMA_MEMORY_MB_COL)
         ax2.set_ylabel('Memory (MB)', color='r')
     axs[1].set_title('Memory Usage Over Time')
     axs[1].set_ylabel('Memory Usage %')

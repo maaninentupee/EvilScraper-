@@ -157,8 +157,14 @@
             };
             
             displayStats(stats);
-            createCharts(timestamps, cpuUsage, memoryUsageMB, memoryUsagePercent, 
-                         loadAvg1m, loadAvg5m, loadAvg15m, nodeCpu, nodeMemory);
+            const chartData = {
+                timestamps,
+                cpu: { usage: cpuUsage },
+                memory: { usageMB: memoryUsageMB, usagePercent: memoryUsagePercent },
+                load: { avg1m: loadAvg1m, avg5m: loadAvg5m, avg15m: loadAvg15m },
+                node: { cpu: nodeCpu, memory: nodeMemory }
+            };
+            createCharts(chartData);
         }
         
         function average(arr) {
@@ -204,8 +210,9 @@
             });
         }
         
-        function createCharts(timestamps, cpuUsage, memoryUsageMB, memoryUsagePercent, 
-                             loadAvg1m, loadAvg5m, loadAvg15m, nodeCpu, nodeMemory) {
+        function createCharts(data) {
+            const { timestamps, cpu, memory, load, node } = data;
+            
             // Destroy existing charts if they exist
             if (cpuChart) cpuChart.destroy();
             if (memoryChart) memoryChart.destroy();
@@ -220,7 +227,7 @@
                     labels: timestamps,
                     datasets: [{
                         label: 'CPU-käyttö (%)',
-                        data: cpuUsage,
+                        data: cpu.usage,
                         borderColor: 'rgb(75, 192, 192)',
                         backgroundColor: 'rgba(75, 192, 192, 0.2)',
                         tension: 0.1,
@@ -262,7 +269,7 @@
                     labels: timestamps,
                     datasets: [{
                         label: 'Muistinkäyttö (MB)',
-                        data: memoryUsageMB,
+                        data: memory.usageMB,
                         borderColor: 'rgb(255, 99, 132)',
                         backgroundColor: 'rgba(255, 99, 132, 0.2)',
                         tension: 0.1,
@@ -270,7 +277,7 @@
                         yAxisID: 'y'
                     }, {
                         label: 'Muistinkäyttö (%)',
-                        data: memoryUsagePercent,
+                        data: memory.usagePercent,
                         borderColor: 'rgb(54, 162, 235)',
                         backgroundColor: 'rgba(54, 162, 235, 0.2)',
                         tension: 0.1,
@@ -325,19 +332,19 @@
                     labels: timestamps,
                     datasets: [{
                         label: 'Kuormitus (1 min)',
-                        data: loadAvg1m,
+                        data: load.avg1m,
                         borderColor: 'rgb(255, 159, 64)',
                         backgroundColor: 'rgba(255, 159, 64, 0.2)',
                         tension: 0.1
                     }, {
                         label: 'Kuormitus (5 min)',
-                        data: loadAvg5m,
+                        data: load.avg5m,
                         borderColor: 'rgb(153, 102, 255)',
                         backgroundColor: 'rgba(153, 102, 255, 0.2)',
                         tension: 0.1
                     }, {
                         label: 'Kuormitus (15 min)',
-                        data: loadAvg15m,
+                        data: load.avg15m,
                         borderColor: 'rgb(201, 203, 207)',
                         backgroundColor: 'rgba(201, 203, 207, 0.2)',
                         tension: 0.1
@@ -378,14 +385,14 @@
                     labels: timestamps,
                     datasets: [{
                         label: 'Node.js CPU-käyttö (%)',
-                        data: nodeCpu,
+                        data: node.cpu,
                         borderColor: 'rgb(255, 205, 86)',
                         backgroundColor: 'rgba(255, 205, 86, 0.2)',
                         tension: 0.1,
                         yAxisID: 'y'
                     }, {
                         label: 'Node.js muistinkäyttö (MB)',
-                        data: nodeMemory,
+                        data: node.memory,
                         borderColor: 'rgb(75, 192, 192)',
                         backgroundColor: 'rgba(75, 192, 192, 0.2)',
                         tension: 0.1,

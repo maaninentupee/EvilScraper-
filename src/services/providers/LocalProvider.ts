@@ -106,7 +106,7 @@ export class LocalProvider extends BaseProvider {
           errorType: 'service_unavailable',
           text: '',
           provider: this.getName(),
-          model: request.modelName || 'unknown'
+          model: request.modelName
         };
       }
       
@@ -239,19 +239,7 @@ export class LocalProvider extends BaseProvider {
    */
   private runLocalModel(modelPath: string, request: CompletionRequest): Promise<CompletionResult> {
     return new Promise((resolve) => {
-      // Check again if the service is available
-      if (!this.isServiceAvailable) {
-        this.logger.warn(`Local service is not available: ${this.lastError}`);
-        resolve({
-          success: false,
-          error: this.lastError || 'Local service is not available',
-          errorType: 'service_unavailable',
-          text: '',
-          provider: this.getName(),
-          model: request.modelName || 'unknown'
-        });
-        return;
-      }
+      
       
       // Make sure the llama binary exists
       try {

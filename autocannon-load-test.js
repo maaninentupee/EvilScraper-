@@ -96,7 +96,7 @@ function saveResultsToFile(results) {
 }
 
 // Main function to run all tests
-async function runAllTests() {
+async function runAllTests(config = DEFAULT_CONFIG) {
   console.log('🔍 Starting Windsurf load tests...');
   console.log('⚠️  Make sure the server is running at http://localhost:3000\n');
   
@@ -113,7 +113,7 @@ async function runAllTests() {
   
   // Run tests for each endpoint
   for (const endpoint of ENDPOINTS) {
-    const results = await runLoadTest(endpoint);
+    const results = await runLoadTest(endpoint, config);
     if (results) {
       allResults[endpoint.name] = results;
     }
@@ -150,23 +150,23 @@ function parseArgs() {
   const args = process.argv.slice(2);
   const config = { ...DEFAULT_CONFIG };
 
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === '--help' || arg === '-h') {
-      console.log(generateHelpMessage());
-      process.exit(0);
-    }
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(generateHelpMessage());
+    process.exit(0);
+  }
+
+  args.forEach((arg, index) => {
     const mapping = ARG_MAPPING[arg] || Object.values(ARG_MAPPING).find(m => m.alias === arg);
-    if (mapping) {
-      const value = parseInt(args[++i], 10);
+    if (mapping && args[index + 1]) {
+      const value = parseInt(args[index + 1], 10);
       if (!isNaN(value)) {
         config[mapping.key] = value;
       }
     }
-  }
+  });
   return config;
 }
 
 // Run the tests
 const config = parseArgs();
-runAllTests(config).catch(console.error);
+runAllTests(config).catch(error => console.error(error));

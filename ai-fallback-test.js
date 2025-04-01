@@ -55,94 +55,112 @@ function log(message, model, status, duration) {
   });
 }
 
-export default function () {
-  // Use the /ai/process endpoint that supports the fallback mechanism
-  const url = 'http://localhost:3001/ai/process';
-  
-  // Select a random prompt
+// Prepare request payload
+function prepareRequest() {
   const prompt = prompts[Math.floor(Math.random() * prompts.length)];
-  
-  // Simulate an error situation by setting a primary model that is likely to fail
-  // This tests the fallback mechanism of the AIGateway class
   const primaryModel = Math.random() < 0.5 ? 'openai' : 'ollama';
   
-  const payload = JSON.stringify({
-    taskType: 'seo',
-    input: prompt,
-    primaryModel: primaryModel,  // Define the primary model
-    forceError: Math.random() < 0.3,  // 30% probability to simulate an error
-  });
-  
-  const params = {
-    headers: {
-      'Content-Type': 'application/json'
+  return {
+    url: 'http://localhost:3001/ai/process',
+    payload: JSON.stringify({
+      taskType: 'seo',
+      input: prompt,
+      primaryModel,
+      forceError: Math.random() < 0.3,
+    }),
+    params: {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 30000
     },
-    timeout: 30000  // 30 second timeout
+    primaryModel
   };
+}
 
-  // Measure response time
+// Update model-specific success metrics
+function updateModelMetrics(provider) {
+  const metrics = {
+    'openai': openaiSuccessRate,
+    'anthropic': anthropicSuccessRate,
+    'ollama': ollamaSuccessRate
+  };
+  
+  metrics[provider]?.add(1);
+}
+
+// Get success message based on fallback status
+function getSuccessMessage(model, usedFallback) {
+  if (usedFallback) {
+    return `Fallback succeeded, used model: ${model}`;
+  }
+  return `Primary model succeeded: ${model}`;
+}
+
+// Log success response
+function logSuccess(data, primaryModel, duration) {
+  const model = data.model || primaryModel;
+  const message = getSuccessMessage(model, data.usedFallback);
+  log(message, model, 'success', duration);
+}
+
+// Handle successful response
+function handleSuccess(data, primaryModel, duration) {
+  if (data.usedFallback) {
+    fallbackSuccessRate.add(1);
+  }
+  
+  logSuccess(data, primaryModel, duration);
+  updateModelMetrics(data.model || data.provider);
+}
+
+// Handle error response
+function handleError(response, primaryModel, duration) {
+  failedRequests.add(1);
+  errorRate.add(1);
+  
+  if (response.error_code?.includes('TIMEOUT')) {
+    timeoutErrors.add(1);
+    log('Timeout error', primaryModel, 'timeout', duration);
+    return;
+  }
+  
+  const errorMap = {
+    500: { counter: serverErrors, type: 'server_error' },
+    400: { counter: clientErrors, type: 'client_error' }
+  };
+  
+  const errorType = errorMap[Math.floor(response.status / 100) * 100];
+  if (errorType) {
+    errorType.counter.add(1);
+    log(`${errorType.type}: ${response.status}`, primaryModel, errorType.type, duration);
+    return;
+  }
+  
+  log(`Other error: ${response.status}`, primaryModel, 'other_error', duration);
+}
+
+export default function () {
+  const { url, payload, params, primaryModel } = prepareRequest();
+  
   const startTime = Date.now();
   const response = http.post(url, payload, params);
   const duration = Date.now() - startTime;
   
-  // Add response time to metrics
   responseTime.add(duration);
-
-  // Check response status
-  const success = response.status === 200;
   
-  if (success) {
-    successfulRequests.add(1);
-    
-    try {
-      const data = response.json();
-      
-      // Check if fallback was used
-      const usedFallback = data.usedFallback === true;
-      
-      if (usedFallback) {
-        fallbackSuccessRate.add(1);
-        log(`Fallback succeeded, used model: ${data.model || 'unknown'}`, 
-            data.model || primaryModel, 'success', duration);
-      } else {
-        log(`Primary model succeeded: ${data.model || primaryModel}`, 
-            data.model || primaryModel, 'success', duration);
-      }
-      
-      // Update model-specific metrics
-      if (data.model === 'openai' || data.provider === 'openai') {
-        openaiSuccessRate.add(1);
-      } else if (data.model === 'anthropic' || data.provider === 'anthropic') {
-        anthropicSuccessRate.add(1);
-      } else if (data.model === 'ollama' || data.provider === 'ollama') {
-        ollamaSuccessRate.add(1);
-      }
-      
-    } catch (e) {
-      // JSON parsing error
-      log(`Response parsing error: ${e.message}`, primaryModel, 'error', duration);
-    }
-  } else {
-    failedRequests.add(1);
-    errorRate.add(1);
-    
-    // Classify error type
-    if (response.error_code === 'ETIMEDOUT' || response.error_code === 'ESOCKETTIMEDOUT') {
-      timeoutErrors.add(1);
-      log(`Timeout error`, primaryModel, 'timeout', duration);
-    } else if (response.status >= 500) {
-      serverErrors.add(1);
-      log(`Server error: ${response.status}`, primaryModel, 'server_error', duration);
-    } else if (response.status >= 400) {
-      clientErrors.add(1);
-      log(`Client error: ${response.status}`, primaryModel, 'client_error', duration);
-    } else {
-      log(`Other error: ${response.status}`, primaryModel, 'other_error', duration);
-    }
+  if (response.status !== 200) {
+    handleError(response, primaryModel, duration);
+    sleep(Math.random() * 0.5 + 0.5);
+    return;
   }
-
-  // Small delay between requests
-  sleep(Math.random() * 0.5 + 0.5); // 0.5-1s delay
+  
+  successfulRequests.add(1);
+  try {
+    handleSuccess(response.json(), primaryModel, duration);
+  } catch (e) {
+    log(`Response parsing error: ${e.message}`, primaryModel, 'error', duration);
+  }
+  
+  sleep(Math.random() * 0.5 + 0.5);
 }
 
 // Print summary at the end of the test

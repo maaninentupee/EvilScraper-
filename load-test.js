@@ -68,7 +68,7 @@ export default function () {
   const res = http.post('http://localhost:3001/ai/process', payload, params);
   
   // Check response quality - optimized checks
-  const checkResult = check(res, {
+  check(res, {
     'status was 201 or 200': (r) => r.status === 201 || r.status === 200,
     'response time < 30s': (r) => r.timings.duration < 30000, // Stricter time limit
     'response has valid data': (r) => {

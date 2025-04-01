@@ -6,7 +6,7 @@ import OpenAI from 'openai';
 @Injectable()
 export class OpenAIProvider extends BaseProvider {
   private readonly logger = new Logger(OpenAIProvider.name);
-  private client: OpenAI;
+  private readonly client: OpenAI | undefined;
 
   constructor() {
     super();

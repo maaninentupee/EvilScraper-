@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { BaseProvider, CompletionRequest, CompletionResult, ServiceStatus } from './BaseProvider';
 import { environment } from '../../config/environment';
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, AxiosInstance } from 'axios';
 
 interface QueueItem {
   request: CompletionRequest;
@@ -12,10 +12,10 @@ interface QueueItem {
 @Injectable()
 export class OllamaProvider extends BaseProvider {
   private readonly logger = new Logger(OllamaProvider.name);
-  private axiosInstance: any;
+  private readonly axiosInstance: AxiosInstance;
   private activeRequests = 0;
   private readonly MAX_CONCURRENT_REQUESTS = 12; // Increased from 10 -> 12 for better performance
-  private requestQueue: QueueItem[] = [];
+  private readonly requestQueue: QueueItem[] = [];
   private isProcessingQueue = false;
   private readonly LOAD_TEST_TIMEOUT = 15000; // Reduced from 20s -> 15s for load tests
   private readonly NORMAL_TIMEOUT = 120000; // 120 second timeout for normal requests
@@ -56,129 +56,65 @@ export class OllamaProvider extends BaseProvider {
   }
 
   private async processCompletionRequest(request: CompletionRequest, retryCount = 0): Promise<CompletionResult> {
-    this.activeRequests++;
-    this.serviceStatus.totalRequests++;
-    
+    this.incrementStats(request);
+    if (this.shouldAbortDueToAvailability(request, retryCount)) {
+      return await this.handleRequestError(
+        new Error(`Ollama service is currently unavailable. Last error: ${this.serviceStatus.lastError}`),
+        request,
+        retryCount
+      );
+    }
+    const { timeout, modelName } = this.adjustLoadTestSettings(request);
     try {
-      this.logger.log(`Generating completion with Ollama model: ${request.modelName} (active: ${this.activeRequests})`);
-      
-      // Check if the service is available
-      if (!this.serviceStatus.isAvailable && !request.ignoreAvailabilityCheck) {
-        throw new Error(`Ollama service is currently unavailable. Last error: ${this.serviceStatus.lastError}`);
-      }
-      
-      // Improved load test detection - more specific criteria
-      const isLoadTest = request.prompt.length < 100 || 
-                        request.prompt.includes('TEST_LOAD') || 
-                        (request.maxTokens && request.maxTokens <= 50);
-      
-      // Set a shorter timeout for load tests
-      const timeout = isLoadTest ? this.LOAD_TEST_TIMEOUT : 
-                     (request.timeout || this.NORMAL_TIMEOUT);
-      
-      // Use a smaller maxTokens value for load tests
-      const maxTokens = isLoadTest ? this.LOAD_TEST_MAX_TOKENS : 
-                       (request.maxTokens || 512);
-      
-      // Select a smaller and faster model for load tests
-      let modelName = request.modelName;
-      if (isLoadTest) {
-        const originalModel = modelName;
-        
-        // Always use the fastest available model for load tests
-        for (const fastModel of this.FAST_MODELS) {
-          if (this.isModelAvailable(fastModel)) {
-            modelName = fastModel;
-            break;
-          }
-        }
-        
-        // If no fast model is found, use the mistral model by default
-        if (modelName === originalModel && 
-            (modelName.includes('llama') || 
-             modelName.includes('13b') || 
-             modelName.includes('70b'))) {
-          modelName = 'mistral';
-        }
-        
-        if (modelName !== originalModel) {
-          this.logger.log(`Load test detected, using ${modelName} instead of ${originalModel} for better performance`);
-        }
-      }
-      
-      const response = await this.axiosInstance.post('/api/generate', {
-        model: modelName,
-        prompt: request.prompt,
-        system: request.systemPrompt || '',
-        stream: false,  // Ensure the response is not in stream format
-        options: {
-          temperature: request.temperature || 0.7,
-          stop: request.stopSequences || []
-        }
-      }, { timeout });
-
-      // Check the response structure and log it for debugging
+      const response = await this.doGenerate(request, modelName, timeout);
       this.logger.debug(`Ollama API response: ${JSON.stringify(response.data)}`);
-
-      // Update the service status after a successful request
       this.updateServiceStatus(true);
-
-      if (response.data && response.data.response) {
-        const text = response.data.response;
-        const qualityScore = this.calculateQualityScore(text);
-        
-        this.serviceStatus.successfulRequests++;
-        
-        return {
-          text,
-          totalTokens: response.data.eval_count || 0,
-          provider: this.getName(),
-          model: modelName,
-          finishReason: response.data.done ? 'stop' : 'length',
-          success: true,
-          qualityScore
-        };
-      } else {
-        throw new Error('Ollama API returned an unexpected response format');
-      }
+      return this.handleSuccessResponse(response, modelName);
     } catch (error) {
-      // Identify the error type
-      const errorType = this.identifyErrorType(error);
-      this.logger.error(`Error generating completion with Ollama model: ${error.message} (type: ${errorType})`);
-      
-      // Update the service status after an error
-      this.updateServiceStatus(false, error);
-      
-      if (error.response) {
-        this.logger.error(`Ollama API error: ${JSON.stringify(error.response.data)}`);
-      }
-      
-      // Retry the request for network errors
-      if (retryCount < this.MAX_RETRIES && this.shouldRetry(errorType)) {
-        this.logger.log(`Retrying Ollama request (${retryCount + 1}/${this.MAX_RETRIES})...`);
-        this.activeRequests--; // Decrement the active requests count before retrying
-        
-        // Wait for a short period before retrying
-        await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY * (retryCount + 1)));
-        
-        return this.processCompletionRequest(request, retryCount + 1);
-      }
-      
-      return {
-        text: '',
-        provider: this.getName(),
-        model: request.modelName,
-        success: false,
-        error: error.message,
-        errorType: errorType,
-        qualityScore: 0
-      };
+      return await this.handleRequestError(error, request, retryCount);
     } finally {
-      if (retryCount === 0) { // Decrement the active requests count only for the original request
-        this.activeRequests--;
-        this.processNextQueuedRequest();
+      if (retryCount === 0) {
+        this.decrementActiveRequestsAndProcessQueue();
       }
     }
+  }
+  
+  private async doGenerate(request: CompletionRequest, modelName: string, timeout: number): Promise<any> {
+    return await this.axiosInstance.post('/api/generate', {
+      model: modelName,
+      prompt: request.prompt,
+      system: request.systemPrompt || '',
+      stream: false,
+      options: {
+        temperature: request.temperature || 0.7,
+        stop: request.stopSequences || []
+      }
+    }, { timeout });
+  }
+  
+  private adjustLoadTestSettings(request: CompletionRequest): { timeout: number, modelName: string } {
+    const isLoadTest = request.prompt.length < 100 ||
+                       request.prompt.includes('TEST_LOAD') ||
+                       (request.maxTokens && request.maxTokens <= 50);
+    const timeout = isLoadTest ? this.LOAD_TEST_TIMEOUT : (request.timeout || this.NORMAL_TIMEOUT);
+    let modelName = request.modelName;
+    if (isLoadTest) {
+      const originalModel = modelName;
+      for (const fastModel of this.FAST_MODELS) {
+        if (this.isModelAvailable(fastModel)) {
+          modelName = fastModel;
+          break;
+        }
+      }
+      if (modelName === originalModel &&
+          (modelName.includes('llama') || modelName.includes('13b') || modelName.includes('70b'))) {
+        modelName = 'mistral';
+      }
+      if (modelName !== originalModel) {
+        this.logger.log(`Load test detected, using ${modelName} instead of ${originalModel} for better performance`);
+      }
+    }
+    return { timeout, modelName };
   }
   
   /**
@@ -188,7 +124,7 @@ export class OllamaProvider extends BaseProvider {
    */
   protected identifyErrorType(error: any): string {
     // Check if the error is an Axios error
-    if (error && error.isAxiosError === true || (error && error.config && (error.response || error.request))) {
+    if (error?.isAxiosError === true || (error?.config && (error?.response || error?.request))) {
       const axiosError = error as AxiosError;
       
       if (!axiosError.response) {
@@ -196,7 +132,7 @@ export class OllamaProvider extends BaseProvider {
         if (axiosError.code && this.CONNECTION_ERROR_CODES.includes(axiosError.code)) {
           return 'network_error';
         }
-        if (axiosError.message.includes('timeout')) {
+        if (axiosError.message?.includes('timeout')) {
           return 'timeout';
         }
         return 'connection_error';
@@ -216,6 +152,50 @@ export class OllamaProvider extends BaseProvider {
         return 'client_error';
       }
     }
+
+    private handleSuccessResponse(response: any, modelName: string): CompletionResult {
+        if (response.data?.response) {
+          const text = response.data.response;
+          const qualityScore = this.calculateQualityScore(text);
+          this.serviceStatus.successfulRequests++;
+          return {
+            text,
+            totalTokens: response.data.eval_count || 0,
+}
+            provider: this.getName(),
+            model: modelName,
+            finishReason: response.data.done ? 'stop' : 'length',
+            success: true,
+            qualityScore
+          };
+        }
+        throw new Error('Ollama API returned an unexpected response format');
+      }
+      
+      private async handleRequestError(error: any, request: CompletionRequest, retryCount: number): Promise<CompletionResult> {
+        const errorType = this.identifyErrorType(error);
+        this.logger.error(`Error generating completion with Ollama model: ${error.message} (type: ${errorType})`);
+        this.updateServiceStatus(false, error);
+        if (error.response?.data) {
+          this.logger.error(`Ollama API error: ${JSON.stringify(error.response?.data)}`);
+        }
+        if (retryCount < this.MAX_RETRIES && this.shouldRetry(errorType)) {
+          this.logger.log(`Retrying Ollama request (${retryCount + 1}/${this.MAX_RETRIES})...`);
+          this.activeRequests--;
+          await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY * (retryCount + 1)));
+          return this.processCompletionRequest(request, retryCount + 1);
+        }
+        return {
+          text: '',
+          provider: this.getName(),
+          model: request.modelName,
+          success: false,
+          error: error.message,
+          errorType: errorType,
+          qualityScore: 0
+        };
+      }
+    }
     
     // Check for common error messages
     // Ensure the error is not null or undefined before accessing its message
@@ -223,7 +203,7 @@ export class OllamaProvider extends BaseProvider {
       return 'unknown_error';
     }
     
-    const errorMessage = (error.message || '').toLowerCase();
+    const errorMessage = error?.message?.toLowerCase() || '';
     if (errorMessage.includes('model') && (errorMessage.includes('not found') || errorMessage.includes('not available'))) {
       return 'model_not_found';
     } else if (errorMessage.includes('memory') || errorMessage.includes('resources')) {

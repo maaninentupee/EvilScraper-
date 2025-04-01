@@ -1,8 +1,7 @@
 import { Controller, Post, Body, Logger, HttpException, HttpStatus, Ip, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { AIGatewayEnhancer } from '../services/AIGatewayEnhancer';
+import type { EnhancedProcessingOptions } from '../services/AIGatewayEnhancer';
 import { SelectionStrategy } from '../services/utils/ProviderSelectionStrategy';
-import { EnhancedProcessingOptions } from '../services/AIGatewayEnhancer';
-import { FallbackAIRequestDto } from './dto/fallback.dto';
 
 /**
  * Request for AI processing
@@ -133,10 +132,10 @@ export class AIControllerEnhanced {
       return result;
       
     } catch (error) {
-      this.logger.error(`Error processing AI request: ${error.message}`);
+      this.logger.error(`Error processing AI request: ${error?.message}`);
       
       throw new HttpException(
-        `Error processing AI request: ${error.message}`,
+        `Error processing AI request: ${error?.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }

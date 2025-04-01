@@ -17,7 +17,7 @@ function getProviderPriorityArray(): ProviderType[] {
   
   return Object.entries(priorityObject)
     .sort((a, b) => a[1] - b[1])
-    .map(entry => entry[0] as ProviderType);
+    .map(entry => entry[0]);
 }
 
 export const environment = {

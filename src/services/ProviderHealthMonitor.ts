@@ -23,7 +23,7 @@ export class ProviderHealthMonitor {
     private readonly logger = new Logger(ProviderHealthMonitor.name);
     
     // Service provider health information
-    private providerHealth: Map<string, ProviderHealth> = new Map();
+    private readonly providerHealth: Map<string, ProviderHealth> = new Map();
     
     // Health information update settings
     private readonly HEALTH_WINDOW_SIZE = 100; // Number of most recent requests to track
@@ -58,74 +58,69 @@ export class ProviderHealthMonitor {
      * @param latency Request processing time in milliseconds
      * @param errorType Error type if the request failed
      */
-    public updateProviderHealth(
-        name: string, 
-        success: boolean, 
-        latency?: number,
-        errorType?: string
-    ): void {
-        // Ensure service provider health information is initialized
-        if (!this.providerHealth.has(name)) {
-            this.initializeProviderHealth(name);
-        }
-        
-        const health = this.providerHealth.get(name);
-        
-        // Update recent requests and errors
-        const totalRequests = health.recentRequests + 1;
-        const totalErrors = health.recentErrors + (success ? 0 : 1);
-        
-        // Limit the number of tracked requests
-        if (totalRequests > this.HEALTH_WINDOW_SIZE) {
-            // If the number of requests exceeds the limit, scale the values
-            const scaleFactor = this.HEALTH_WINDOW_SIZE / totalRequests;
-            health.recentRequests = Math.floor(totalRequests * scaleFactor);
-            health.recentErrors = Math.floor(totalErrors * scaleFactor);
-        } else {
-            health.recentRequests = totalRequests;
-            health.recentErrors = totalErrors;
-        }
-        
-        // Update success and error rates
-        if (health.recentRequests >= this.MIN_REQUESTS_FOR_HEALTH) {
-            health.successRate = (health.recentRequests - health.recentErrors) / health.recentRequests;
-            health.errorRate = health.recentErrors / health.recentRequests;
-        }
-        
-        // Update average latency
-        if (success && latency) {
-            if (health.averageLatency === 0) {
-                health.averageLatency = latency;
-            } else {
-                // Weighted average, giving more weight to recent measurements
-                health.averageLatency = health.averageLatency * 0.7 + latency * 0.3;
-            }
-        }
-        
-        // Update last used and last error timestamps
-        if (success) {
-            health.lastUsed = new Date();
-        } else {
-            health.lastError = new Date();
-            
-            // Log error type
-            if (errorType) {
-                this.logger.warn(`Service provider ${name} encountered an error: ${errorType}`);
-            }
-        }
-        
-        // Update availability based on error rate
-        // If the error rate is too high, mark the provider as unavailable
-        if (health.recentRequests >= this.MIN_REQUESTS_FOR_HEALTH && health.errorRate > 0.8) {
-            health.available = false;
-            this.logger.warn(`Service provider ${name} marked as unavailable due to high error rate (${(health.errorRate * 100).toFixed(1)}%)`);
-        } else {
-            health.available = true;
-        }
-        
-        // Update health information in the map
-        this.providerHealth.set(name, health);
-    }
+   public updateProviderHealth(
+       name: string,
+       success: boolean,
+       latency?: number,
+       errorType?: string
+   ): void {
+       if (!this.providerHealth.has(name)) {
+           this.initializeProviderHealth(name);
+       }
+       const health = this.providerHealth.get(name);
+       const totalRequests = health.recentRequests + 1;
+       const totalErrors = health.recentErrors + (success ? 0 : 1);
+       
+       this.updateRecentCounts(health, totalRequests, totalErrors);
+       this.updateRates(health);
+       this.updateLatency(health, success, latency);
+       
+       if (success) {
+           health.lastUsed = new Date();
+       } else {
+           health.lastError = new Date();
+           if (errorType) {
+               this.logger.warn(`Service provider ${name} encountered an error: ${errorType}`);
+           }
+       }
+       
+       this.updateAvailability(health, name);
+   }
+   
+   private updateRecentCounts(health: ProviderHealth, totalRequests: number, totalErrors: number): void {
+       if (totalRequests > this.HEALTH_WINDOW_SIZE) {
+           const scaleFactor = this.HEALTH_WINDOW_SIZE / totalRequests;
+           health.recentRequests = Math.floor(totalRequests * scaleFactor);
+           health.recentErrors = Math.floor(totalErrors * scaleFactor);
+       } else {
+           health.recentRequests = totalRequests;
+           health.recentErrors = totalErrors;
+       }
+   }
+   
+   private updateRates(health: ProviderHealth): void {
+       if (health.recentRequests >= this.MIN_REQUESTS_FOR_HEALTH) {
+           health.successRate = (health.recentRequests - health.recentErrors) / health.recentRequests;
+           health.errorRate = health.recentErrors / health.recentRequests;
+       }
+   }
+   
+   private updateLatency(health: ProviderHealth, success: boolean, latency?: number): void {
+       if (success && latency) {
+           health.averageLatency = (health.averageLatency === 0)
+               ? latency
+               : (health.averageLatency * 0.7 + latency * 0.3);
+       }
+   }
+   
+   private updateAvailability(health: ProviderHealth, name: string): void {
+       if (health.recentRequests >= this.MIN_REQUESTS_FOR_HEALTH && health.errorRate > 0.8) {
+           health.available = false;
+           this.logger.warn(`Service provider ${name} marked as unavailable due to high error rate (${(health.errorRate * 100).toFixed(1)}%)`);
+       } else {
+           health.available = true;
+       }
+   }
     
     /**
      * Gets service provider health information
