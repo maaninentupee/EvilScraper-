@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-03-12T01:32:49.372Z",
+  "metrics": {
+    "totalRequests": 30,
+    "successfulRequests": 0,
+    "failedRequests": 30,
+    "fallbackUsed": 0,
+    "cacheHits": 0,
+    "avgResponseTime": 1335.8333333333333,
+    "p95ResponseTime": 10002,
+    "totalDuration": 46113,
+    "errorTypes": {
+      "serviceUnavailable": 25,
+      "modelNotFound": 0,
+      "timeout": 4,
+      "rateLimit": 0,
+      "unexpected": 1
+    },
+    "providerStats": {
+      "openai": {
+        "success": 0,
+        "failure": 7,
+        "fallback": 0
+      },
+      "anthropic": {
+        "success": 0,
+        "failure": 11,
+        "fallback": 0
+      },
+      "ollama": {
+        "success": 0,
+        "failure": 4,
+        "fallback": 0
+      },
+      "local": {
+        "success": 0,
+        "failure": 8,
+        "fallback": 0
+      }
+    }
+  }
+}

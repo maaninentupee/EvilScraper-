@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fi" xml:lang="fi">
+<head>
+  <title>Kuormitustestin tulokset</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .chart-container { height: 400px; margin-bottom: 30px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Kuormitustestin tulokset</h1>
+    <p>Testitulokset: test_results_20250309_003750.csv</p>
+    <p>Luotu: Sun Mar  9 00:39:53 CET 2025</p>
+    
+    <h2>HTTP-pyyntöjen kesto</h2>
+    <div class="chart-container">
+      <canvas id="httpDurationChart"></canvas>
+    </div>
+    
+    <h2>AI-käsittelyaika</h2>
+    <div class="chart-container">
+      <canvas id="aiProcessingChart"></canvas>
+    </div>
+    
+    <h2>Virheprosentti</h2>
+    <div class="chart-container">
+      <canvas id="errorRateChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // Ladataan CSV-tiedosto
+    fetch('test_results_20250309_003750.csv')
+      .then(response => response.text())
+      .then(csvData => {
+        // Parsitaan CSV-data
+        const lines = csvData.split('\n');
+        const data = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+          if (lines[i].trim() === '') continue;
+          const values = lines[i].split(',');
+          data.push({
+            timestamp: values[0],
+            metric: values[1],
+            value: parseFloat(values[2])
+          });
+        }
+        
+        // Järjestetään data aikajärjestykseen
+        data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        
+        // Erotellaan eri metriikat
+        const httpDuration = data.filter(item => item.metric.includes('http_req_duration'));
+        const aiProcessing = data.filter(item => item.metric.includes('ai_processing_time'));
+        const errorRate = data.filter(item => item.metric.includes('error_rate'));
+        
+        // Luodaan kuvaajat
+        createChart('httpDurationChart', httpDuration, 'HTTP-pyyntöjen kesto (ms)', 'blue');
+        createChart('aiProcessingChart', aiProcessing, 'AI-käsittelyaika (ms)', 'green');
+        createChart('errorRateChart', errorRate, 'Virheprosentti (%)', 'red');
+      });
+    
+    function createChart(canvasId, data, label, color) {
+      if (data.length === 0) return;
+      
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      
+      const timestamps = data.map(item => new Date(item.timestamp).toLocaleTimeString());
+      const values = data.map(item => item.value);
+      
+      const chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: timestamps,
+          datasets: [{
+            label: label,
+            data: values,
+            borderColor: color,
+            backgroundColor: color + '20',
+            tension: 0.1,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+      // Store the chart instance globally to use it later if needed.
+      window.charts = window.charts || {};
+      window.charts[canvasId] = chartInstance;
+    }
+  </script>
+</body>
+</html>

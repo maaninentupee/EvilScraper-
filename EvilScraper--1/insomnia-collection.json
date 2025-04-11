@@ -1,0 +1,410 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2025-02-27T22:56:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.5.8",
+  "resources": [
+    {
+      "_id": "req_windsurf_root",
+      "parentId": "wrk_windsurf",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "url": "{{base_url}}",
+      "name": "API Root",
+      "description": "Test the API root endpoint",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "_type": "request"
+    },
+    {
+      "_id": "wrk_windsurf",
+      "parentId": null,
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "name": "Windsurf API Tests",
+      "description": "Collection for testing the Windsurf project API endpoints",
+      "scope": "collection",
+      "_type": "workspace"
+    },
+    {
+      "_id": "req_evil_bot_decide_valid",
+      "parentId": "fld_evil_bot",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "url": "{{base_url}}/evil-bot/decide",
+      "name": "Make Decision (Valid)",
+      "description": "Make a valid decision with the Evil Bot",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"situation\": \"You need to choose between two job offers. One pays more but has a toxic work environment. The other pays less but has great culture.\",\n\t\"options\": [\"Take the high-paying job\", \"Take the job with better culture\"]\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "_type": "request"
+    },
+    {
+      "_id": "fld_evil_bot",
+      "parentId": "wrk_windsurf",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "name": "Evil Bot",
+      "description": "Endpoints for Evil Bot controller",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_evil_bot_decide_invalid",
+      "parentId": "fld_evil_bot",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "url": "{{base_url}}/evil-bot/decide",
+      "name": "Make Decision (Invalid Request)",
+      "description": "Test error handling with invalid request",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"situation\": \"\",\n\t\"options\": []\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "_type": "request"
+    },
+    {
+      "_id": "req_evil_bot_decide_missing_fields",
+      "parentId": "fld_evil_bot",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "url": "{{base_url}}/evil-bot/decide",
+      "name": "Make Decision (Missing Fields)",
+      "description": "Test error handling with missing fields",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"situation\": \"This is a test situation\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "_type": "request"
+    },
+    {
+      "_id": "req_ai_complete_valid",
+      "parentId": "fld_ai",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "url": "{{base_url}}/ai/complete",
+      "name": "Generate Completion (Valid)",
+      "description": "Generate a valid AI completion",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"prompt\": \"Write a short paragraph about artificial intelligence.\",\n\t\"modelType\": \"seo\",\n\t\"maxTokens\": 100,\n\t\"temperature\": 0.7\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "_type": "request"
+    },
+    {
+      "_id": "fld_ai",
+      "parentId": "wrk_windsurf",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "name": "AI",
+      "description": "Endpoints for AI controller",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_ai_complete_invalid_model",
+      "parentId": "fld_ai",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "url": "{{base_url}}/ai/complete",
+      "name": "Generate Completion (Invalid Model)",
+      "description": "Test error handling with invalid model type",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"prompt\": \"Write a short paragraph about artificial intelligence.\",\n\t\"modelType\": \"invalid_model_type\",\n\t\"maxTokens\": 100,\n\t\"temperature\": 0.7\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "_type": "request"
+    },
+    {
+      "_id": "req_ai_process_valid",
+      "parentId": "fld_ai",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "url": "{{base_url}}/ai/process",
+      "name": "Process AI Request (Valid)",
+      "description": "Process a valid AI request",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"input\": \"Analyze this text for SEO optimization opportunities.\",\n\t\"taskType\": \"seo\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "_type": "request"
+    },
+    {
+      "_id": "req_ai_get_models",
+      "parentId": "fld_ai",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "url": "{{base_url}}/ai/models",
+      "name": "Get Available Models",
+      "description": "Get list of available AI models",
+      "method": "GET",
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "_type": "request"
+    },
+    {
+      "_id": "req_scraping_analyze_seo_valid",
+      "parentId": "fld_scraping",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "url": "{{base_url}}/scraping/analyze-seo",
+      "name": "Analyze SEO (Valid)",
+      "description": "Analyze SEO with valid data",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"url\": \"https://example.com\",\n\t\"title\": \"Example Website\",\n\t\"description\": \"This is an example website for testing SEO analysis.\",\n\t\"keywords\": [\"example\", \"test\", \"seo\"],\n\t\"content\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "_type": "request"
+    },
+    {
+      "_id": "fld_scraping",
+      "parentId": "wrk_windsurf",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "name": "Scraping",
+      "description": "Endpoints for Scraping controller",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_scraping_analyze_seo_invalid",
+      "parentId": "fld_scraping",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "url": "{{base_url}}/scraping/analyze-seo",
+      "name": "Analyze SEO (Invalid Data)",
+      "description": "Test error handling with invalid data",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"url\": \"https://example.com\",\n\t\"description\": \"Missing required fields\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "_type": "request"
+    },
+    {
+      "_id": "req_bot_decide_valid",
+      "parentId": "fld_bot",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "url": "{{base_url}}/bot/decide",
+      "name": "Decide Next Action (Valid)",
+      "description": "Get a valid bot decision",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"message\": \"I need help with my homework.\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "_type": "request"
+    },
+    {
+      "_id": "fld_bot",
+      "parentId": "wrk_windsurf",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "name": "Bot",
+      "description": "Endpoints for Bot controller",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_bot_decide_empty",
+      "parentId": "fld_bot",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "url": "{{base_url}}/bot/decide",
+      "name": "Decide Next Action (Empty Message)",
+      "description": "Test error handling with empty message",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"message\": \"\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "_type": "request"
+    },
+    {
+      "_id": "req_simulate_network_error",
+      "parentId": "fld_error_simulations",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "url": "{{base_url}}/ai/complete",
+      "name": "Simulate Network Error",
+      "description": "Simulate a network error with a very large request",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"prompt\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\n\t\"modelType\": \"seo\",\n\t\"maxTokens\": 1000,\n\t\"temperature\": 0.7\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "_type": "request"
+    },
+    {
+      "_id": "fld_error_simulations",
+      "parentId": "wrk_windsurf",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "name": "Error Simulations",
+      "description": "Requests for simulating various error conditions",
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_simulate_api_key_error",
+      "parentId": "fld_error_simulations",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "url": "{{base_url}}/ai/complete",
+      "name": "Simulate API Key Error",
+      "description": "Simulate an API key error with a special trigger prompt",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"prompt\": \"SIMULATE_API_KEY_ERROR\",\n\t\"modelType\": \"seo\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "_type": "request"
+    },
+    {
+      "_id": "req_simulate_malformed_response",
+      "parentId": "fld_error_simulations",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "url": "{{base_url}}/evil-bot/decide",
+      "name": "Simulate Malformed AI Response",
+      "description": "Simulate a malformed AI response",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"situation\": \"SIMULATE_MALFORMED_RESPONSE\",\n\t\"options\": [\"Option 1\", \"Option 2\"]\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "_type": "request"
+    },
+    {
+      "_id": "env_windsurf",
+      "parentId": "wrk_windsurf",
+      "modified": 1619712000000,
+      "created": 1619712000000,
+      "name": "Base Environment",
+      "data": {
+        "base_url": "http://localhost:3001"
+      },
+      "dataPropertyOrder": {
+        "&": [
+          "base_url"
+        ]
+      },
+      "color": null,
+      "isPrivate": false,
+      "metaSortKey": 1619712000000,
+      "_type": "environment"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+Processes: 354 total, 3 running, 351 sleeping, 2530 threads 
+2025/03/07 00:35:54
+Load Avg: 2.48, 2.84, 3.43 
+CPU usage: 28.88% user, 22.53% sys, 48.57% idle 
+SharedLibs: 213M resident, 56M data, 41M linkedit.
+MemRegions: 530100 total, 1399M resident, 51M private, 589M shared.
+PhysMem: 14G used (2327M wired, 3167M compressor), 1640M unused.
+VM: 183T vsize, 5536M framework vsize, 3510995(0) swapins, 5171714(0) swapouts.
+Networks: packets: 32950491/9028M in, 24479621/7873M out.
+Disks: 17259704/803G read, 4656040/142G written.
+
+PID    COMMAND          %CPU TIME     #TH   #WQ #PORTS MEM   PURG CMPRS PGRP  PPID  STATE    BOOSTS        %CPU_ME %CPU_OTHRS UID FAULTS     COW    MSGSENT   MSGRECV   SYSBSD    SYSMACH   CSW        PAGEINS IDLEW    POWER INSTRS CYCLES JETPRI USER               #MREGS RPRVT VPRVT VSIZE KPRVT KSHRD
+87371  PerfPowerService 0.0  00:40.02 5     2   449    12M   0B   9072K 87371 1     sleeping *0[604]       0.00000 0.00000    0   50661      227    527683    276465    471647    601997    336053     1677    65       0.0   0      0      180    root               N/A    N/A   N/A   N/A   N/A   N/A  
+73516  usbmuxd          0.0  00:00.15 3     1   43     3233K 0B   2976K 73516 1     sleeping *0[1]         0.00000 0.00000    213 1982       149    420       82        3979      2951      1435       193     1        0.0   0      0      40     _usbmuxd           N/A    N/A   N/A   N/A   N/A   N/A  
+73408  SRStreamerDaemon 0.0  32:12.60 20    6   276    1114M 0B   1103M 73408 1     sleeping *0[1]         0.00000 0.00000    0   319596     334    7886592   1552167   56673533  34360741  29716322   794     109195   0.0   0      0      40     root               N/A    N/A   N/A   N/A   N/A   N/A  
+73392  loginwindow      0.0  00:05.21 3     2   374    20M   0B   19M   73392 1     sleeping *0[76]        0.00000 0.00000    501 38947      404    111390    75767     42325     322495    47687      673     23       0.0   0      0      160    customer           N/A    N/A   N/A   N/A   N/A   N/A  
+62526  containermanager 0.0  00:04.57 2     1   41     7521K 0B   7216K 62526 1     sleeping *0[4218]      0.00000 0.00000    501 38942      137    28989     19177     184280    39160     28261      888     5        0.0   0      0      0      customer           N/A    N/A   N/A   N/A   N/A   N/A  
+59684  backupd          0.0  00:09.26 2     1   43     3793K 0B   3216K 59684 1     sleeping *0[3118]      0.00000 0.00000    0   41571      155    109883    61814     214632    129605    36317      907     113      0.0   0      0      0      root               N/A    N/A   N/A   N/A   N/A   N/A  
+59571  mobileassetd     0.0  06:01.42 3     1   130    15M   0B   14M   59571 1     sleeping *0[1257]      0.00000 0.00000    0   90301      249    47780     31809     4557553   76350     718335     3989    519      0.0   0      0      40     root               N/A    N/A   N/A   N/A   N/A   N/A  
+42726  distnoted        0.0  00:11.00 3     2   30     1937K 0B   1264K 42726 1     sleeping *0[1]         0.00000 0.00000    301 21981      124    1933      80766     823607    84285     170707     2       201      0.0   0      0      40     _modelmanagerd     N/A    N/A   N/A   N/A   N/A   N/A  

@@ -1,0 +1,21 @@
+    /**
+     * Nollaa kaikkien palveluntarjoajien terveystiedot
+     */
+    public resetStats(): void {
+        // Käydään läpi kaikki palveluntarjoajat ja nollataan tilastot
+        for (const [name, health] of this.providerHealth.entries()) {
+            this.providerHealth.set(name, {
+                name,
+                available: true,
+                successRate: 1.0,
+                errorRate: 0.0,
+                averageLatency: 0,
+                recentRequests: 0,
+                recentErrors: 0,
+                lastUsed: null,
+                lastError: null
+            });
+        }
+        
+        this.logger.log('Palveluntarjoajien terveystiedot nollattu');
+    }

@@ -1,0 +1,257 @@
+import { Controller, Post, Body, Get, Logger, Param } from '@nestjs/common';
+import { AIGateway } from '../services/AIGateway';
+import { AIService } from '../services/AIService';
+import { ModelSelector, ModelType } from '../services/ModelSelector';
+import { ProviderRegistry } from '../services/providers/ProviderRegistry';
+
+interface CompletionRequestDto {
+  prompt: string;
+  modelType?: ModelType;
+  maxTokens?: number;
+  temperature?: number;
+  systemPrompt?: string;
+}
+
+interface AIRequestDto {
+  input: string;
+  taskType?: string;
+}
+
+interface SEORequestDto {
+  title: string;
+  description?: string;
+  content?: string;
+}
+
+interface CodeGenerationRequestDto {
+  language: string;
+  description: string;
+  requirements?: string[];
+}
+
+interface DecisionRequestDto {
+  situation: string;
+  options: string[];
+}
+
+@Controller('ai')
+export class AIController {
+  private readonly logger = new Logger(AIController.name);
+
+  constructor(
+    private aiGateway: AIGateway,
+    private modelSelector: ModelSelector,
+    private aiService: AIService,
+    private providerRegistry: ProviderRegistry
+  ) {}
+
+  @Post('complete')
+  async generateCompletion(@Body() requestDto: CompletionRequestDto) {
+    this.logger.log(`Received completion request for model type: ${requestDto.modelType || 'default'}`);
+    
+    const result = await this.aiGateway.processAIRequest(
+      requestDto.modelType || 'seo',
+      requestDto.prompt
+    );
+    
+    return {
+      result,
+      success: !!result && result !== "Kaikki AI-palvelut epäonnistuivat."
+    };
+  }
+
+  @Post('process')
+  async processAIRequest(@Body() requestDto: AIRequestDto) {
+    this.logger.log(`Vastaaanotettu AI-pyyntö tehtävätyypille: ${requestDto.taskType || 'default'}`);
+    
+    const result = await this.aiGateway.processAIRequestWithFallback(
+      requestDto.taskType || 'seo',
+      requestDto.input
+    );
+    
+    return {
+      result,
+      success: !!result && result !== "Kaikki AI-palvelut epäonnistuivat."
+    };
+  }
+
+  @Post('seo')
+  async analyzeSEO(@Body() requestDto: SEORequestDto) {
+    this.logger.log(`Vastaanotettu SEO-analyysipyyntö otsikolla: ${requestDto.title}`);
+    
+    try {
+      const result = await this.aiService.analyzeSEO(requestDto);
+      
+      return {
+        result,
+        success: true
+      };
+    } catch (error) {
+      this.logger.error(`SEO-analyysi epäonnistui: ${error.message}`);
+      return {
+        result: null,
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  @Post('code')
+  async generateCode(@Body() requestDto: CodeGenerationRequestDto) {
+    this.logger.log(`Vastaanotettu koodigenerointi: ${requestDto.language}, ${requestDto.description}`);
+    
+    try {
+      const result = await this.aiService.generateCode(requestDto);
+      
+      return {
+        result,
+        success: true
+      };
+    } catch (error) {
+      this.logger.error(`Koodigenerointi epäonnistui: ${error.message}`);
+      return {
+        result: null,
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  @Post('decision')
+  async makeDecision(@Body() requestDto: DecisionRequestDto) {
+    this.logger.log(`Vastaanotettu päätöksentekopyyntö: ${requestDto.situation}`);
+    
+    try {
+      const result = await this.aiService.makeDecision(requestDto);
+      
+      return {
+        result,
+        success: true
+      };
+    } catch (error) {
+      this.logger.error(`Päätöksenteko epäonnistui: ${error.message}`);
+      return {
+        result: null,
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  @Get('models')
+  async getModels() {
+    return this.modelSelector.getAvailableModels();
+  }
+
+  @Get('providers')
+  async getProviders() {
+    return this.providerRegistry.getAvailableProviders();
+  }
+
+  @Post('load-test/:provider')
+  async runLoadTest(
+    @Param('provider') provider: string,
+    @Body() request: { prompt: string; model?: string; iterations?: number }
+  ) {
+    const iterations = request.iterations || 1;
+    const model = request.model || 'default';
+    const prompt = request.prompt || 'Generate a short story about AI in the future.';
+    const results = [];
+    const errors = [];
+    let successCount = 0;
+
+    this.logger.log(`Starting load test for provider: ${provider}, iterations: ${iterations}, model: ${model}`);
+
+    const startTime = Date.now();
+
+    // Execute requests in parallel
+    const promises = Array(iterations).fill(0).map(async (_, i) => {
+      try {
+        const startRequestTime = Date.now();
+        
+        // Get the specific provider from registry
+        const selectedProvider = this.providerRegistry.getProviderByName(provider);
+        
+        if (!selectedProvider) {
+          throw new Error(`Provider ${provider} not found`);
+        }
+        
+        const result = await selectedProvider.generateCompletion({
+          prompt,
+          modelName: model,
+          maxTokens: 100,
+          temperature: 0.7
+        });
+        
+        const endRequestTime = Date.now();
+        
+        if (result.success) {
+          successCount++;
+          results.push({
+            requestId: i,
+            success: true,
+            duration: endRequestTime - startRequestTime,
+            textLength: result.text.length,
+            totalTokens: result.totalTokens,
+            finishReason: result.finishReason
+          });
+        } else {
+          errors.push({
+            requestId: i,
+            error: result.error
+          });
+          results.push({
+            requestId: i,
+            success: false,
+            duration: endRequestTime - startRequestTime,
+            error: result.error
+          });
+        }
+      } catch (error) {
+        errors.push({
+          requestId: i,
+          error: error.message
+        });
+        results.push({
+          requestId: i,
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    await Promise.all(promises);
+    
+    const endTime = Date.now();
+    const totalDuration = endTime - startTime;
+    
+    return {
+      provider,
+      model,
+      iterations,
+      totalDuration,
+      successRate: (successCount / iterations) * 100,
+      averageDuration: totalDuration / iterations,
+      results,
+      errors: errors.length > 0 ? errors : null
+    };
+  }
+
+  @Get()
+  async getInfo() {
+    return {
+      service: 'Windsurf AI Service',
+      version: '1.0.0',
+      endpoints: [
+        '/ai/complete', 
+        '/ai/process', 
+        '/ai/seo', 
+        '/ai/code', 
+        '/ai/decision', 
+        '/ai/models', 
+        '/ai/providers', 
+        '/ai/load-test/:provider'
+      ]
+    };
+  }
+}

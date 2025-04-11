@@ -1,0 +1,25 @@
+Kuormitustestin yhteenveto - Sun Mar  9 00:39:52 CET 2025
+Testi: model-comparison-test.js
+Suoritusaika: Sun Mar  9 00:39:52 CET 2025
+
+Keskeiset metriikat:
+===================
+HTTP-pyyntöjen kesto (ms):
+  Keskiarvo: 
+  Minimi: 
+  Maksimi: 
+  95. persentiili: 
+
+Virheprosentti: %
+
+AI-käsittelyaika (ms):
+  Keskiarvo: 
+  Minimi: 
+  Maksimi: 
+  95. persentiili: 
+
+Resurssien käyttö:
+  Keskimääräinen CPU-käyttö: 0.016%
+  Maksimi CPU-käyttö: CPU_Usage_Percent%
+  Keskimääräinen muistinkäyttö: 53.1844 MB
+  Maksimi muistinkäyttö: Memory_Usage_MB MB

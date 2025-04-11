@@ -1,0 +1,50 @@
+Kuormitustestin yhteenveto - Sun Mar  9 00:45:47 CET 2025
+Testi: model-comparison-test.js
+Suoritusaika: Sun Mar  9 00:45:47 CET 2025
+Iteraatioiden määrä: 714
+Virtuaalisten käyttäjien määrä: 30
+
+Keskeiset metriikat:
+===================
+HTTP-pyyntöjen kesto (ms):
+  Keskiarvo: 0
+  Minimi: 0
+  Maksimi: 0
+  95. persentiili: 0
+
+Virheprosentti: 100%
+\nYleisimmät virheet:
+===================
+
+AI-käsittelyaika (ms):
+  Keskiarvo: 0.506311
+  Minimi: 0
+  Maksimi: 5
+  95. persentiili: 1
+
+Resurssien käyttö:
+  Keskimääräinen CPU-käyttö: 0%
+  Maksimi CPU-käyttö: CPU_Usage_Percent%
+  Keskimääräinen muistinkäyttö: 54.096 MB
+  Maksimi muistinkäyttö: Memory_Usage_MB MB
+
+Mallikohtaiset metriikat:
+=====================
+OpenAI:
+  Pyyntöjen määrä:      265
+  Keskimääräinen vasteaika: 0.50566 ms
+Anthropic:
+  Pyyntöjen määrä:      226
+  Keskimääräinen vasteaika: 0.517699 ms
+Ollama:
+  Pyyntöjen määrä:      222
+  Keskimääräinen vasteaika: 0.495495 ms
+
+Promptikohtaiset metriikat:
+========================
+Lyhyt prompti:
+  Pyyntöjen määrä:      380
+  Keskimääräinen vasteaika: 0.489474 ms
+Pitkä prompti:
+  Pyyntöjen määrä:      333
+  Keskimääräinen vasteaika: 0.525526 ms
