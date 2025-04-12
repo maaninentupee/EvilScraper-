@@ -147,35 +147,34 @@ async function runTestIterations(aiGatewayEnhancer, strategy, errorType, results
 async function runTests() {
   console.log('Starting AIGatewayEnhancer tests...');
   
-  try {
-    const app = await NestFactory.createApplicationContext(AppModule);
-    const { AIGatewayEnhancer } = require('../dist/services/AIGatewayEnhancer');
-    const { ProviderHealthMonitor } = require('../dist/services/ProviderHealthMonitor');
-    
-    const aiGatewayEnhancer = app.get(AIGatewayEnhancer);
-    const providerHealthMonitor = app.get(ProviderHealthMonitor);
-    
-    console.log('Services initialized, starting tests');
-    providerHealthMonitor.resetStats();
-    
-    for (const strategy of STRATEGIES) {
-      for (const errorType of ERROR_TYPES) {
-        await runTestIterations(aiGatewayEnhancer, strategy, errorType, results);
-      }
+  const app = await NestFactory.createApplicationContext(AppModule);
+  const { AIGatewayEnhancer } = require('../dist/services/AIGatewayEnhancer');
+  const { ProviderHealthMonitor } = require('../dist/services/ProviderHealthMonitor');
+  
+  const aiGatewayEnhancer = app.get(AIGatewayEnhancer);
+  const providerHealthMonitor = app.get(ProviderHealthMonitor);
+  
+  console.log('Services initialized, starting tests');
+  providerHealthMonitor.resetStats();
+  
+  for (const strategy of STRATEGIES) {
+    for (const errorType of ERROR_TYPES) {
+      await runTestIterations(aiGatewayEnhancer, strategy, errorType, results);
     }
-    
-    const resultsPath = path.join(__dirname, 'results', 'enhanced-fallback-results.json');
-    await saveTestResults(results, resultsPath);
-    
-    console.log('Tests completed successfully!');
-    console.log(`Results saved to: ${resultsPath}`);
-    console.log(`Summary: total=${results.total}, successful=${results.success}, fallback=${results.fallback}, failed=${results.failed}, average response time=${results.averageResponseTime.toFixed(2)}ms`);
-    
-    await app.close();
-  } catch (error) {
-    console.error(`Error running tests: ${error}`);
   }
+  
+  const resultsPath = path.join(__dirname, 'results', 'enhanced-fallback-results.json');
+  await saveTestResults(results, resultsPath);
+  
+  console.log('Tests completed successfully!');
+  console.log(`Results saved to: ${resultsPath}`);
+  console.log(`Summary: total=${results.total}, successful=${results.success}, fallback=${results.fallback}, failed=${results.failed}, average response time=${results.averageResponseTime.toFixed(2)}ms`);
+  
+  await app.close();
 }
 
-// Start tests
-runTests();
+// Start tests with proper error handling
+runTests().catch(error => {
+  console.error('Test execution failed:', error);
+  process.exit(1);
+});

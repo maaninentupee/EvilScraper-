@@ -133,14 +133,7 @@ function testEvilBotEndpoint() {
   // Check the response
   const success = check(res, { 
     'evil-bot status is 200': (r) => r.status === 200,
-    'evil-bot response has decision': (r) => {
-      try {
-        const body = JSON.parse(r.body);
-        return body.decision !== undefined;
-      } catch (e) {
-        return false;
-      }
-    }
+    'evil-bot response has decision': (r) => r.body && JSON.parse(r.body).decision !== undefined
   });
   
   // Update metrics

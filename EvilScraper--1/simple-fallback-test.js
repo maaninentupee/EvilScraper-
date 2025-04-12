@@ -79,48 +79,40 @@ async function sleep(ms) {
 
 async function sendRequest(prompt, provider, errorType = 'none') {
   const startTime = Date.now();
-  try {
-    const { data } = await axios.post(`${BASE_URL}/ai/process`, {
-      taskType: 'seo',
-      input: prompt,
-      primaryModel: provider,
-      testMode: errorType !== 'none',
-      testError: errorType !== 'none' ? errorType : undefined,
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Test-Mode': String(errorType !== 'none'),
-        'X-Test-Error': errorType !== 'none' ? errorType : ''
-      },
-      timeout: 10000,
-    });
-    const duration = Date.now() - startTime;
-    responseTimes.push(duration);
-    successCount++;
-    if (data.usedFallback) {
-      fallbackCount++;
-      if (data.provider && providerStats[data.provider]) {
-        providerStats[data.provider].fallback++;
-      }
-      console.log(`Fallback used: ${data.provider} (original: ${provider}) | ${duration}ms`);
-    }
-    if (data.fromCache) {
-      cacheHitCount++;
-      console.log(`Cache hit: ${prompt.substring(0,20)}... | ${duration}ms`);
-    }
+  
+  const { data } = await axios.post(`${BASE_URL}/ai/process`, {
+    taskType: 'seo',
+    input: prompt,
+    primaryModel: provider,
+    testMode: errorType !== 'none',
+    testError: errorType !==
+  }, {
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Test-Mode': String(errorType !== 'none'),
+      'X-Test-Error': errorType !== 'none' ? errorType : ''
+    },
+    timeout: 10000,
+  });
+  const duration = Date.now() - startTime;
+  responseTimes.push(duration);
+  successCount++;
+  if (data.usedFallback) {
+    fallbackCount++;
     if (data.provider && providerStats[data.provider]) {
-      providerStats[data.provider].success++;
+      providerStats[data.provider].fallback++;
     }
-    console.log(`Successful request: ${data.provider || 'unknown'} | ${prompt.substring(0,20)}... | ${duration}ms | Simulated error: ${errorType}`);
-    return { success: true, data, duration };
-  } catch (err) {
-    const duration = Date.now() - startTime;
-    responseTimes.push(duration);
-    if (providerStats[provider]) providerStats[provider].failure++;
-    handleRequestError(err, duration);
-    errorCount++;
-    return { success: false, error: err.message, duration };
+    console.log(`Fallback used: ${data.provider} (original: ${provider}) | ${duration}ms`);
   }
+  if (data.fromCache) {
+    cacheHitCount++;
+    console.log(`Cache hit: ${prompt.substring(0,20)}... | ${duration}ms`);
+  }
+  if (data.provider && providerStats[data.provider]) {
+    providerStats[data.provider].success++;
+  }
+  console.log(`Successful request: ${data.provider || 'unknown'} | ${prompt.substring(0,20)}... | ${duration}ms | Simulated error: ${errorType}`);
+  return { success: true, data, duration };
 }
 
 function handleRequestError(error, duration) {

@@ -168,15 +168,10 @@ export default function () {
   const success = response.status === 200;
   errorRate.add(!success);
   
-  try {
-    if (success) {
-      handleSuccess(response.body);
-    } else {
-      handleError(response);
-    }
-  } catch (e) {
-    console.error('Error processing response:', e);
-    unexpectedErrors.add(1);
+  if (success && response.body) {
+    handleSuccess(response.body);
+  } else {
+    handleError(response);
   }
   
   sleep(1);

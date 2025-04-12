@@ -177,41 +177,34 @@ function createMetricsObject(modelMetrics, generalMetrics) {
   };
 }
 async function analyzeResults(filePath) {
-  try {
-    if (!fs.existsSync(filePath)) {
-      console.error(`${colors.red}Error: File ${filePath} not found.${colors.reset}`);
-      console.log(`Run the test first with command: ${colors.cyan}k6 run model-comparison-test.js --out json=results.json${colors.reset}`);
-      return;
-    }
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`File ${filePath} not found. Run the test first with command: k6 run model-comparison-test.js --out json=results.json`);
+  }
 
-    const rawData = fs.readFileSync(filePath, 'utf8');
-    let data;
+  const rawData = fs.readFileSync(filePath, 'utf8');
+  let data;
 
-    if (filePath.endsWith('.json')) {
-      try {
-        data = JSON.parse(rawData);
-      } catch (e) {
-        console.log(`${colors.yellow}Warning: JSON parsing failed, processing as log file${colors.reset}`);
-        data = processLogFile(rawData);
-      }
-    } else {
+  if (filePath.endsWith('.json')) {
+    try {
+      data = JSON.parse(rawData);
+    } catch (e) {
+      console.log(`${colors.yellow}Warning: JSON parsing failed, processing as log file${colors.reset}`);
       data = processLogFile(rawData);
     }
-    
-    if (!data.metrics || Object.keys(data.metrics).length === 0) {
-      console.error(`${colors.red}Error: No metrics found in the file.${colors.reset}`);
-      return;
-    }
-    printGeneralInfo(data);
-    analyzeModelPerformance(data);
-    provideRecommendations(data);
-    
-    const csvFilePath = saveResultsToCSV(data);
-    console.log(`\nResults saved to CSV file: ${colors.green}${csvFilePath}${colors.reset}`);
-    
-  } catch (error) {
-    console.error(`${colors.red}Error analyzing results: ${error.message}${colors.reset}`);
+  } else {
+    data = processLogFile(rawData);
   }
+  
+  if (!data.metrics || Object.keys(data.metrics).length === 0) {
+    throw new Error('No metrics found in the file.');
+  }
+
+  printGeneralInfo(data);
+  analyzeModelPerformance(data);
+  provideRecommendations(data);
+  
+  const csvFilePath = saveResultsToCSV(data);
+  console.log(`\nResults saved to CSV file: ${colors.green}${csvFilePath}${colors.reset}`);
 }
 function processLogFile(rawData) {
   const modelMetrics = extractModelMetrics(rawData);
@@ -368,7 +361,8 @@ function findMostReliableModel(successRates) {
     { name: 'Anthropic (claude-instant-1)', rate: successRates.anthropic },
     { name: 'Ollama (llama2)', rate: successRates.ollama }
   ].reduce((mostReliable, current) =>
-    current.rate > mostReliable.rate ? current : mostReliable
+    current.rate > mostReliable.rate ? current : mostReliable,
+    { name: 'OpenAI (gpt-3.5-turbo)', rate: -1 }  // Initial value
   );
 }
 function getBalancedRecommendation(modelTimes, successRates) {
@@ -532,6 +526,10 @@ function padRight(text, length) {
 if (process.argv.length < 3) {
   console.error(`${colors.red}Error: Provide the path to the results file as an argument.${colors.reset}`);
   console.log(`Usage: ${colors.cyan}node analyze-model-comparison.js results.json${colors.reset}`);
+  process.exit(1);
 } else {
-  analyzeResults(process.argv[2]);
+  analyzeResults(process.argv[2]).catch(error => {
+    console.error(`${colors.red}Error: ${error.message}${colors.reset}`);
+    process.exit(1);
+  });
 }

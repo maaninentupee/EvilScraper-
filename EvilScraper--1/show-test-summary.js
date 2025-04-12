@@ -112,14 +112,11 @@ function analyzeResults(filePath) {
 
   for (const line of lines) {
     if (!line.trim()) continue;
-    try {
-      const data = JSON.parse(line);
-      processHttpReq(data);
-      processHttpReqDuration(data);
-      processProcessingTime(data);
-    } catch (e) {
-      continue;
-    }
+    
+    const data = JSON.parse(line);
+    processHttpReq(data);
+    processHttpReqDuration(data);
+    processProcessingTime(data);
   }
 
   const calculateAvg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
@@ -250,9 +247,17 @@ function padRight(text, length) {
   return text + ' '.repeat(Math.max(0, length - text.length));
 }
 
-// Main program
+// Main program with proper error handling
 const resultFile = findLatestResultFile();
 if (resultFile) {
-  const metrics = analyzeResults(resultFile);
-  printSummary(metrics);
+  try {
+    const metrics = analyzeResults(resultFile);
+    printSummary(metrics);
+  } catch (error) {
+    console.error(`${colors.red}Error analyzing results: ${error.message}${colors.reset}`);
+    if (error instanceof SyntaxError) {
+      console.error(`${colors.yellow}The results file contains invalid JSON data${colors.reset}`);
+    }
+    process.exit(1);
+  }
 }

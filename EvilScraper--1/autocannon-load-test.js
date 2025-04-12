@@ -101,13 +101,11 @@ async function runAllTests(config = DEFAULT_CONFIG) {
   console.log('⚠️  Make sure the server is running at http://localhost:3000\n');
   
   // Check if server is running
-  try {
-    await fetch('http://localhost:3000/');
-    console.log('✅ Server is running\n');
-  } catch (error) {
-    console.error('❌ Server is not running. Please start the server before running the load tests.');
-    process.exit(1);
+  const response = await fetch('http://localhost:3000/');
+  if (!response.ok) {
+    throw new Error(`Server returned status ${response.status}`);
   }
+  console.log('✅ Server is running\n');
   
   const allResults = {};
   
@@ -167,6 +165,9 @@ function parseArgs() {
   return config;
 }
 
-// Run the tests
+// Run the tests with proper error handling at the top level
 const config = parseArgs();
-runAllTests(config).catch(error => console.error(error));
+runAllTests(config).catch(error => {
+  console.error('\n❌ Error:', error.message);
+  process.exit(1);
+});

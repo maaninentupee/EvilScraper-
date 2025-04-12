@@ -64,43 +64,65 @@ def find_finnish_in_file(file_path):
     except Exception as e:
         return [(0, f"Error reading file: {str(e)}")]
 
+def write_report_header(report):
+    """Write the initial report header."""
+    report.write("Finnish Content Report\n")
+    report.write("=" * 50 + "\n\n")
+    report.write("This report shows files containing Finnish text that needs translation.\n\n")
+
+def process_finnish_findings(report, finnish_lines, file_path):
+    """Process and write findings for a single file."""
+    report.write(f"\nFile: {file_path}\n")
+    report.write("-" * 50 + "\n")
+    for line_num, text in finnish_lines:
+        report.write(f"{line_num}: {text}\n")
+    return len(finnish_lines)
+
+def scan_dist_directory(report, dist_dir):
+    """Scan the dist directory for Finnish content."""
+    total_found = 0
+    files_with_finnish = 0
+    
+    report.write("Scanning dist directory for Finnish content...\n\n")
+    
+    for root, _, files in os.walk(dist_dir):
+        for file in files:
+            if not file.endswith('.js'):
+                continue
+                
+            file_path = os.path.join(root, file)
+            finnish_lines = find_finnish_in_file(file_path)
+            
+            if finnish_lines:
+                files_with_finnish += 1
+                total_found += process_finnish_findings(report, finnish_lines, file_path)
+    
+    return total_found, files_with_finnish
+
+def write_report_summary(report, total_found, files_with_finnish):
+    """Write the final summary to the report."""
+    report.write("\n" + "=" * 50 + "\n")
+    report.write(
+        f"Summary: Found {total_found} Finnish occurrences in "
+        f"{files_with_finnish} files in the dist directory.\n"
+    )
+
 def scan_project_for_finnish():
     """Scan all files and search for Finnish text."""
     report_path = os.path.join(PROJECT_DIR, "cascade_finnish_report.txt")
+    total_found = 0
+    files_with_finnish = 0
     
     with open(report_path, 'w', encoding='utf-8') as report:
-        report.write("Finnish Content Report\n")
-        report.write("=" * 50 + "\n\n")
-        report.write("This report shows files containing Finnish text that needs translation.\n\n")
-
-        total_found = 0
-        files_with_finnish = 0
+        write_report_header(report)
         
-        # Check specifically the dist directory
         dist_dir = os.path.join(PROJECT_DIR, 'dist')
-        
         if os.path.exists(dist_dir):
-            report.write("Scanning dist directory for Finnish content...\n\n")
-            
-            for root, _, files in os.walk(dist_dir):
-                for file in files:
-                    if file.endswith('.js'):
-                        file_path = os.path.join(root, file)
-                        
-                        finnish_lines = find_finnish_in_file(file_path)
-
-                        if finnish_lines:
-                            files_with_finnish += 1
-                            report.write(f"\nFile: {file_path}\n")
-                            report.write("-" * 50 + "\n")
-                            for line_num, text in finnish_lines:
-                                report.write(f"{line_num}: {text}\n")
-                            total_found += len(finnish_lines)
+            total_found, files_with_finnish = scan_dist_directory(report, dist_dir)
         else:
             report.write("Dist directory not found. The project may not be built yet.\n\n")
 
-        report.write("\n" + "=" * 50 + "\n")
-        report.write(f"Summary: Found {total_found} Finnish occurrences in {files_with_finnish} files in the dist directory.\n")
+        write_report_summary(report, total_found, files_with_finnish)
 
     print(f"Report saved to: {report_path}")
     print(f"Found {total_found} Finnish occurrences in {files_with_finnish} files in the dist directory.")

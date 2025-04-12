@@ -69,59 +69,54 @@ const testResults = {
 async function runTest(taskType, input, errorType) {
   const startTime = Date.now();
   
-  try {
-    // Set environment variables for error simulation
-    process.env.SIMULATE_ERRORS = config.simulateErrors ? 'true' : 'false';
-    process.env.ERROR_TYPE = errorType;
-    process.env.ERROR_RATE = '0.8'; // 80% probability of error
-    
-    // Send request to the API
-    const response = await axios.post(config.apiUrl, {
-      taskType,
-      input
-    }, {
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      timeout: 30000 // 30 second timeout
-    });
-    
-    const endTime = Date.now();
-    const responseTime = endTime - startTime;
-    
-    // Return test result
+  // Set environment variables for error simulation
+  process.env.SIMULATE_ERRORS = config.simulateErrors ? 'true' : 'false';
+  process.env.ERROR_TYPE = errorType;
+  process.env.ERROR_RATE = '0.8'; // 80% probability of error
+  
+  // Send request to the API
+  const response = await axios.post(config.apiUrl, {
+    taskType,
+    input
+  }, {
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    timeout: 30000 // 30 second timeout
+  });
+  
+  const endTime = Date.now();
+  const responseTime = endTime - startTime;
+  
+  if (response.data.success) {
     return {
-      success: response.data.success,
+      success: true,
       result: response.data.result,
       provider: response.data.provider,
       model: response.data.model,
-      errorType: response.data.errorType,
-      error: response.data.error,
+      errorType: null,
+      error: null,
       responseTime,
       taskType,
       input,
       simulatedErrorType: errorType,
       fallbackTriggered: response.data.provider !== 'openai' // Assume OpenAI is the primary service provider
     };
-  } catch (error) {
-    const endTime = Date.now();
-    const responseTime = endTime - startTime;
-    
-    // Return error situation
-    return {
-      success: false,
-      result: null,
-      provider: null,
-      model: null,
-      errorType: error.response?.data?.errorType || 'request_error',
-      error: error.response?.data?.error || error.message,
-      responseTime,
-      taskType,
-      input,
-      simulatedErrorType: errorType,
-      fallbackTriggered: false
-    };
   }
+  
+  return {
+    success: false,
+    result: null,
+    provider: response.data.provider || null,
+    model: response.data.model || null,
+    errorType: response.data.errorType || 'request_error',
+    error: response.data.error || 'Unknown error',
+    responseTime,
+    taskType,
+    input,
+    simulatedErrorType: errorType,
+    fallbackTriggered: false
+  };
 }
 
 /**

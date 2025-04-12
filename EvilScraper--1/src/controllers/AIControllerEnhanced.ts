@@ -1,4 +1,4 @@
- // @ts-ignore: Module '@nestjs/common' not found in this collection; using central dependencies instead.
+// @ts-ignore: Module '@nestjs/common' not found in this collection; using central dependencies instead.
 import { Controller, Post, Body, Logger, HttpException, HttpStatus, Ip, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { AIGatewayEnhancer } from '../services/AIGatewayEnhancer';
 import type { EnhancedProcessingOptions } from '../services/AIGatewayEnhancer';
@@ -90,14 +90,14 @@ export class AIControllerEnhanced {
         testError 
       } = request;
       
-      if (!input || input.trim() === '') {
+      if (!input?.trim()) {
         throw new HttpException('Input is required', HttpStatus.BAD_REQUEST);
       }
       
       // Select strategy
       let selectionStrategy = SelectionStrategy.PRIORITY;
       
-      if (strategy) {
+      if (strategy?.toLowerCase()) {
         switch (strategy.toLowerCase()) {
           case 'performance':
             selectionStrategy = SelectionStrategy.PERFORMANCE;
@@ -115,9 +115,9 @@ export class AIControllerEnhanced {
             this.logger.warn(`Unknown strategy: ${strategy}, using default strategy`);
         }
       }
-      
+
       // Process the request
-      const result = await this.aiGatewayEnhancer.processWithSmartFallback(
+      return await this.aiGatewayEnhancer.processWithSmartFallback(
         taskType,
         input,
         {
@@ -128,9 +128,6 @@ export class AIControllerEnhanced {
           testError
         }
       );
-      
-      // Return the result
-      return result;
       
     } catch (error) {
       this.logger.error(`Error processing AI request: ${error?.message}`);
@@ -231,12 +228,12 @@ export class AIControllerEnhanced {
     @Body('providerName') providerName?: string
   ) {
     try {
-      if (!input || !taskType) {
+      if (!input?.trim() || !taskType?.trim()) {
         throw new BadRequestException('Input and task type are required');
       }
       
       // Create options object if providerName is specified
-      const options: EnhancedProcessingOptions = providerName 
+      const options: EnhancedProcessingOptions = providerName?.trim() 
         ? { providerName } 
         : {};
       

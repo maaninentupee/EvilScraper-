@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AIGateway } from '../../src/services/AIGateway';
 import { ModelSelector } from '../../src/services/ModelSelector';
 import { MockLogger, mockProviderResults } from '../test-utils';
-import { environment } from '../../src/config/environment';
 import { LocalProvider } from '../../src/services/providers/LocalProvider';
 import { OpenAIProvider } from '../../src/services/providers/OpenAIProvider';
 import { AnthropicProvider } from '../../src/services/providers/AnthropicProvider';

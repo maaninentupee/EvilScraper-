@@ -41,20 +41,16 @@ const models = [
 
 // Main function that k6 calls for each virtual user
 export default function () {
-  // Use random input for each request
   const randomPrompt = prompts[Math.floor(Math.random() * prompts.length)];
-  
-  // Make HTTP request to AIGateway service with optimized parameters
-  // Select a random model if models are defined
   const randomModel = models[Math.floor(Math.random() * models.length)];
   
   const payload = JSON.stringify({
     taskType: "seo",
     input: randomPrompt,
-    maxTokens: 25,  // Reduced from 30 -> 25 to speed up responses
-    timeout: 25000, // Reduced from 40000 -> 25000 to speed up tests
-    model: randomModel, // Add random model if the service supports this
-    isLoadTest: true // Marking as load test for the service
+    maxTokens: 25,
+    timeout: 25000,
+    model: randomModel,
+    isLoadTest: true
   });
   
   const params = {
@@ -63,50 +59,36 @@ export default function () {
     }
   };
   
-  // Use port 3001, which is the default port for the application
-  // Use the correct route /ai/process, which handles AIRequestDto-type requests
   const res = http.post('http://localhost:3001/ai/process', payload, params);
   
-  // Check response quality - optimized checks
-  check(res, {
+  // Simplified checks without try-catch
+  const checks = check(res, {
     'status was 201 or 200': (r) => r.status === 201 || r.status === 200,
-    'response time < 30s': (r) => r.timings.duration < 30000, // Stricter time limit
-    'response has valid data': (r) => {
-      try {
-        const data = r.json();
-        return data && (data.result || data.error); // Check that the response contains either a result or an error
-      } catch (e) {
-        return false;
-      }
+    'response time < 30s': (r) => r.timings.duration < 30000,
+    'has valid JSON response': (r) => {
+      const data = r.json();
+      return data && (data.result || data.error);
     }
   });
-  
-  // Add enhanced diagnostics
-  try {
-    const responseData = res.json();
-    const modelInfo = responseData.model ? ` Model: ${responseData.model},` : '';
-    const providerInfo = responseData.provider ? ` Provider: ${responseData.provider},` : '';
-    
-    if (res.status === 201 || res.status === 200) {
-      console.log(
-        `OK [${res.timings.duration}ms]${modelInfo}${providerInfo}` +
-        ` Fallback: ${responseData.wasFailover || false},` +
-        ` Length: ${responseData.result ? responseData.result.length : 0}`
-      );
-    } else {
-      console.error(
-        `ERROR [${res.status}]${modelInfo}${providerInfo}` +
-        ` Error: ${responseData.error || 'Unknown'}`
-      );
-    }
-  } catch (e) {
-    // Check that res.body is defined before calling the substring method
-    const bodyPreview = res.body ? res.body.substring(0, 100) : 'no content';
-    console.error(`Invalid response: ${res.status}, ${bodyPreview}`);
+
+  // Simplified logging without try-catch
+  if (checks) {
+    const data = res.json();
+    console.log(
+      `OK [${res.timings.duration}ms]` +
+      `${data.model ? ` Model: ${data.model},` : ''}` +
+      `${data.provider ? ` Provider: ${data.provider},` : ''}` +
+      ` Fallback: ${data.wasFailover || false},` +
+      ` Length: ${data.result ? data.result.length : 0}`
+    );
+  } else {
+    console.error(
+      `ERROR [${res.status}] Body: ${res.body || 'no content'}`
+    );
   }
   
   // Optimized delay between requests - varies according to load
-  const currentVUs = __VU || 1; // Current number of virtual users
-  const baseDelay = Math.max(0.5, 3 - (currentVUs * 0.3)); // Less delay when there are more users
+  const currentVUs = __VU || 1;
+  const baseDelay = Math.max(0.5, 3 - (currentVUs * 0.3));
   sleep(baseDelay + Math.random() * 2);
 }

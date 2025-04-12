@@ -208,11 +208,8 @@ export default function () {
 
   if (response.status === 200) {
     successfulRequests.add(1);
-    try {
-      handleSuccessfulResponse(response.json(), provider, duration, promptObj, strategy, errorType);
-    } catch (e) {
-      console.log(`Response parsing error: ${e.message}`);
-    }
+    const data = response.json();
+    handleSuccessfulResponse(data, provider, duration, promptObj, strategy, errorType);
   } else {
     failedRequests.add(1);
     errorRate.add(1);
@@ -220,10 +217,10 @@ export default function () {
     
     console.log(`Failed request: ${response.status} | ${duration}ms | ${promptObj.text.substring(0, 20)}... | Strategy: ${strategy} | Simulated error: ${errorType}`);
     
-    try {
+    if (response.body) {
       handleErrorResponse(response.json());
-    } catch (e) {
-      console.log(`Invalid response: ${response.body}`);
+    } else {
+      console.log('Empty response body');
     }
   }
   

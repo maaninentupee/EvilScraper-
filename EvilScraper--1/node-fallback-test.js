@@ -91,22 +91,15 @@ async function sendRequest(prompt, index) {
   const startTime = Date.now();
   metrics.totalRequests++;
 
-  try {
-    const response = await axios.post(`${config.baseUrl}/ai/process`, {
-      taskType: 'seo',
-      input: prompt
-    }, {
-      timeout: 30000
-    });
+  const response = await axios.post(`${config.baseUrl}/ai/process`, {
+    taskType: 'seo',
+    input: prompt
+  }, {
+    timeout: 30000
+  });
 
-    const duration = Date.now() - startTime;
-    return processResponse(response, index, duration);
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    metrics.failedRequests++;
-    classifyError(error, index, duration, 'unknown');
-    return { success: false, duration, error: error.message };
-  }
+  const duration = Date.now() - startTime;
+  return processResponse(response, index, duration);
 }
 
 // Sends multiple requests simultaneously
@@ -120,6 +113,7 @@ async function sendBatch(startIndex, batchSize) {
     }
   }
   
+  // Let errors propagate up to main error handler
   return Promise.all(batch);
 }
 
@@ -176,8 +170,14 @@ function printSummary(totalDuration) {
   console.log('---------------------------------------------------');
 }
 
-// Run the test
+// Run the test with error handling at the top level
 runTest().catch(error => {
-  console.error('Test failed with error:', error);
+  console.error('Test failed:', error.message);
+  if (error.response) {
+    console.error('Response error data:', error.response.data);
+    console.error('Response error status:', error.response.status);
+  } else if (error.request) {
+    console.error('Request error:', error.request);
+  }
   process.exit(1);
 });
